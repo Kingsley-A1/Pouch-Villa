@@ -6,7 +6,7 @@ async function main() {
   const root = process.cwd();
   const envPath = resolve(root, ".env.local");
   const email = "admin@pouchvilla.demo";
-  const password = `PV-${randomBytes(9).toString("base64url")}!`;
+  const password = `PH-${randomBytes(9).toString("base64url")}!`;
   const secret = randomBytes(32).toString("base64url");
   const createdEnvironment = !existsSync(envPath);
 
@@ -40,7 +40,7 @@ async function main() {
   } else {
     console.log("Demo credentials are stored in .env.local.");
   }
-  console.log("Run npm run dev to start Pouch Villa.");
+  console.log("Run npm run dev to start Pouch Hub.");
 }
 
 main().catch((error) => {

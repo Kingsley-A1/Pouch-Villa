@@ -27,7 +27,7 @@ export function getDatabase() {
     seedDatabase(
       db,
       adminEmail || "admin@pouchvilla.demo",
-      adminPassword || "PouchVillaDemo!2026",
+      adminPassword || "PouchHubDemo!2026",
     );
     globalDatabase.__pouchVillaDb = db;
   }
@@ -143,5 +143,5 @@ export function makeReference(prefix: "R" | "E" | "C") {
   const now = new Date();
   const date = `${String(now.getUTCFullYear()).slice(-2)}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`;
   const random = Math.floor(1000 + Math.random() * 9000);
-  return `PV-${prefix}-${date}-${random}`;
+  return `PH-${prefix}-${date}-${random}`;
 }

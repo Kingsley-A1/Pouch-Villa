@@ -37,7 +37,7 @@ describe("customer request journeys", () => {
     const { createReservation } = await import("@/app/(store)/actions");
     const { one } = await import("@/lib/db");
     const before = one<{ count: number }>("SELECT COUNT(*) AS count FROM reservations")!.count;
-    await expect(createReservation(undefined, reservationForm("iphone-15-pro"))).rejects.toThrow(/^NEXT_REDIRECT:\/reservation\/success\?reference=PV-R-/);
+    await expect(createReservation(undefined, reservationForm("iphone-15-pro"))).rejects.toThrow(/^NEXT_REDIRECT:\/reservation\/success\?reference=PH-R-/);
     const after = one<{ count: number }>("SELECT COUNT(*) AS count FROM reservations")!.count;
     expect(after).toBe(before + 1);
   });
@@ -61,7 +61,7 @@ describe("customer request journeys", () => {
     form.set("preferences", "Clear finish with enhanced protection");
     form.set("demoConsent", "yes");
     const before = one<{ count: number }>("SELECT COUNT(*) AS count FROM case_requests")!.count;
-    await expect(createCaseRequest(undefined, form)).rejects.toThrow(/^NEXT_REDIRECT:\/request-case\?submitted=PV-C-/);
+    await expect(createCaseRequest(undefined, form)).rejects.toThrow(/^NEXT_REDIRECT:\/request-case\?submitted=PH-C-/);
     const after = one<{ count: number }>("SELECT COUNT(*) AS count FROM case_requests")!.count;
     expect(after).toBe(before + 1);
   });

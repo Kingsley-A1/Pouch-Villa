@@ -52,7 +52,7 @@ try {
       throw new Error(`${route} returned HTTP ${response.status}`);
     }
     const body = await response.text();
-    if (!body.includes("Pouch Villa")) throw new Error(`${route} did not render the Pouch Villa shell`);
+    if (!body.includes("Pouch Hub")) throw new Error(`${route} did not render the Pouch Hub shell`);
     results.push(`${response.status} ${route}`);
   }
 

@@ -1,4 +1,4 @@
-# Pouch Villa Digital Storefront & Sales System
+# Pouch Hub Digital Storefront & Sales System
 
 A complete mobile-first Next.js prototype for discovering device-compatible phone cases, saving products, preparing WhatsApp enquiries, reserving for pickup, and managing catalogue and customer requests from a protected staff application.
 
@@ -38,7 +38,7 @@ npm run verify       # run the complete verification sequence
 3. Browse the exact compatibility-filtered route.
 4. Open a product, confirm the device, and choose a variant.
 5. Save locally, prepare a WhatsApp message preview, or reserve for pickup.
-6. Submit the reservation to receive a `PV-R-…` reference.
+6. Submit the reservation to receive a `PH-R-…` reference.
 
 Saved items, remembered phone, and recently viewed products use browser-local storage because public customer accounts are intentionally out of scope.
 
@@ -60,7 +60,7 @@ Copy `.env.example` manually only if you are not using `npm run setup`.
 - `DATABASE_URL`: local SQLite file. A writable `/tmp` path is required on ephemeral preview hosting.
 - `AUTH_SECRET`: required in production; at least 32 characters. Production startup refuses a missing or short secret.
 - `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD`: used only when seeding a new database.
-- `NEXT_PUBLIC_WHATSAPP_NUMBER`: leave blank until Pouch Villa confirms the real number. Blank configuration opens a message preview instead of a fabricated WhatsApp destination.
+- `NEXT_PUBLIC_WHATSAPP_NUMBER`: leave blank until Pouch Hub confirms the real number. Blank configuration opens a message preview instead of a fabricated WhatsApp destination.
 - `NEXT_PUBLIC_STORE_ADDRESS` / `NEXT_PUBLIC_STORE_HOURS`: optional confirmed business details.
 
 Never commit `.env.local`, the generated database, real customer data, or uploaded staff media.
@@ -91,6 +91,6 @@ docs                         Architecture, assumptions, testing and deployment h
 
 ## Data and brand safeguards
 
-The supplied storefront photograph confirms the red/white Pouch Villa identity and is used only on the Visit Us experience. A clean official logo file was not supplied, so the interface uses a text wordmark and a simple phone-case mark until approved brand artwork is available. Product names, images, prices, availability, enquiries, customers, analytics and references are explicitly fictional demonstration data.
+The supplied storefront photograph confirms the red/white Pouch Hub identity and is used only on the Visit Us experience. A clean official logo file was not supplied, so the interface uses a text wordmark and a simple phone-case mark until approved brand artwork is available. Product names, images, prices, availability, enquiries, customers, analytics and references are explicitly fictional demonstration data.
 
 The research package available during discovery described a hospitality business and conflicted with the client brief and supplied evidence. Those claims were rejected; this prototype follows the retailer brief supplied in this project.

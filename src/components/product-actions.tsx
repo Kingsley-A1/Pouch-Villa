@@ -23,7 +23,7 @@ export function ProductActions({ product, devices, variants, whatsappNumber }: {
     return () => cancelAnimationFrame(frame);
   }, [devices, product.slug]);
   const selectedDevice = useMemo(() => devices.find((item) => item.slug === device), [device, devices]);
-  const message = `Hello Pouch Villa, I am interested in the ${product.name} demonstration listing (${variant}) for ${selectedDevice?.brand_name || "[confirm brand]"} ${selectedDevice?.name || "[confirm exact phone model]"}. Please confirm the real product details, availability and price.`;
+  const message = `Hello Pouch Hub, I am interested in the ${product.name} demonstration listing (${variant}) for ${selectedDevice?.brand_name || "[confirm brand]"} ${selectedDevice?.name || "[confirm exact phone model]"}. Please confirm the real product details, availability and price.`;
   function toggleSaved() {
     const current = JSON.parse(localStorage.getItem("pouch-villa-saved") || "[]") as string[];
     const next = current.includes(product.slug) ? current.filter((item) => item !== product.slug) : [...current, product.slug];
