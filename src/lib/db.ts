@@ -34,12 +34,16 @@ export function getDatabase() {
   return globalDatabase.__pouchVillaDb;
 }
 
+// node:sqlite returns rows with a null prototype, which React Server Components
+// refuse to serialize when passed to Client Components. Spread each row into a
+// plain object so every query result is safe to hand across the boundary.
 export function all<T>(sql: string, ...params: SQLInputValue[]) {
-  return getDatabase().prepare(sql).all(...params) as T[];
+  return getDatabase().prepare(sql).all(...params).map((row) => ({ ...row })) as T[];
 }
 
 export function one<T>(sql: string, ...params: SQLInputValue[]) {
-  return getDatabase().prepare(sql).get(...params) as T | undefined;
+  const row = getDatabase().prepare(sql).get(...params);
+  return (row === undefined ? undefined : { ...row }) as T | undefined;
 }
 
 export function run(sql: string, ...params: SQLInputValue[]) {
