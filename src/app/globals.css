@@ -19,9 +19,15 @@ body {
   margin: 0;
   background: #fff;
   color: var(--pv-ink);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--pv-font-sans), "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+h1, h2, h3, h4, h5, h6 { font-family: var(--pv-font-display), var(--pv-font-sans), system-ui, sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
@@ -30,15 +36,21 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 
 .container-shell { width: min(100% - 2rem, 1280px); margin-inline: auto; }
 .section-space { padding-block: clamp(3.75rem, 7vw, 7rem); }
-.eyebrow { font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--pv-red); }
-.display-title { font-size: clamp(2.45rem, 6vw, 5.9rem); line-height: .98; letter-spacing: -.055em; font-weight: 750; }
-.section-title { font-size: clamp(1.85rem, 3.4vw, 3.3rem); line-height: 1.04; letter-spacing: -.04em; font-weight: 750; }
+.eyebrow { font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif; font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--pv-red); }
+.display-title { font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif; font-size: clamp(2.3rem, 5.4vw, 5rem); line-height: 1.04; letter-spacing: -.035em; font-weight: 800; }
+.section-title { font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif; font-size: clamp(1.75rem, 3.2vw, 3rem); line-height: 1.12; letter-spacing: -.028em; font-weight: 800; }
 .card-surface { border: 1px solid var(--pv-line); border-radius: 1.35rem; background: #fff; }
+/* Buttons must always render their label on a single line — never wrap into
+   stacked rows on narrow screens. The label is clipped with an ellipsis only
+   as a last resort; icons never shrink. */
 .button-primary, .button-secondary, .button-ghost {
   display: inline-flex; min-height: 3rem; align-items: center; justify-content: center; gap: .55rem;
-  border-radius: .85rem; padding: .75rem 1.1rem; font-weight: 750; cursor: pointer;
+  border-radius: .85rem; padding: .75rem 1.1rem; font-weight: 700; cursor: pointer;
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   transition: transform .18s ease, background .18s ease, border-color .18s ease;
 }
+.button-primary > svg, .button-secondary > svg, .button-ghost > svg { flex: none; }
 .button-primary { border: 1px solid var(--pv-red); background: var(--pv-red); color: #fff; }
 .button-primary:hover { background: var(--pv-red-dark); border-color: var(--pv-red-dark); transform: translateY(-1px); }
 .button-secondary { border: 1px solid var(--pv-ink); background: var(--pv-ink); color: #fff; }
@@ -60,9 +72,16 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .data-table td { padding: .9rem 1rem; border-top: 1px solid var(--pv-line); vertical-align: middle; font-size: .88rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
+.breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; font-size: .82rem; color: var(--pv-muted); }
+.breadcrumbs a { border-radius: .3rem; font-weight: 600; transition: color .16s ease; }
+.breadcrumbs a:hover { color: var(--pv-red); text-decoration: underline; text-underline-offset: 3px; }
+.breadcrumbs [aria-current="page"] { font-weight: 700; color: var(--pv-ink); }
+.breadcrumb-sep { color: #bcb6b1; }
+
 @media (max-width: 767px) {
   .container-shell { width: min(100% - 1.25rem, 1280px); }
   .section-space { padding-block: 3.75rem; }
+  .button-primary, .button-secondary, .button-ghost { padding-inline: .9rem; font-size: .94rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

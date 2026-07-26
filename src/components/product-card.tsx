@@ -33,7 +33,7 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="pt-4">
         <div className="mb-2 flex items-start justify-between gap-3"><Link href={`/products/${product.slug}`} className="font-bold leading-tight hover:text-[#e30613]">{product.name}</Link><span className={cn("status-pill shrink-0", availabilityTone(product.availability))}>{availabilityLabel(product.availability)}</span></div>
         <p className="text-sm text-zinc-500">{product.style} · {product.protection}</p>
-        <p className="mt-2 font-extrabold text-[#e30613]">Demo {formatNaira(product.demo_price)}</p>
+        <p className="mt-2 font-extrabold text-[#e30613]">{formatNaira(product.demo_price)}</p>
       </div>
     </article>
   );

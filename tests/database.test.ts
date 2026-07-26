@@ -8,7 +8,22 @@ describe("development database and connected journeys", () => {
 
   it("seeds the requested catalogue scale", async () => {
     const { getBrands, getDevices, getProducts } = await import("@/lib/db");
-    expect(getBrands()).toHaveLength(6); expect(getDevices().length).toBeGreaterThanOrEqual(20); expect(getProducts()).toHaveLength(30);
+    expect(getBrands()).toHaveLength(6); expect(getDevices().length).toBeGreaterThanOrEqual(20); expect(getProducts()).toHaveLength(48);
+  });
+
+  it("gives every device at least one compatible case", async () => {
+    const { all, getDevices } = await import("@/lib/db");
+    const uncovered = all<{ name: string }>(
+      "SELECT d.name AS name FROM devices d LEFT JOIN product_devices pd ON pd.device_id = d.id WHERE pd.device_id IS NULL",
+    );
+    expect(getDevices().length).toBeGreaterThan(0);
+    expect(uncovered.map((device) => device.name)).toEqual([]);
+  });
+
+  it("returns plain serializable objects that can cross the server/client boundary", async () => {
+    const { getProducts } = await import("@/lib/db");
+    const product = getProducts()[0];
+    expect(Object.getPrototypeOf(product)).toBe(Object.prototype);
   });
 
   it("returns only products linked to the exact device", async () => {
