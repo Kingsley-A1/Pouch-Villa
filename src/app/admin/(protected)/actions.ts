@@ -28,6 +28,11 @@ async function resolveImage(formData: FormData, fallback: string) {
   const file = formData.get("imageUpload");
   if (!(file instanceof File) || file.size === 0) return String(formData.get("image") || fallback);
   if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) throw new Error("Upload must be an image under 5 MB.");
+  // On Vercel, process.cwd() resolves inside the read-only deployed bundle, and even a
+  // /tmp write would not help: /public assets are served from the static build, not the
+  // live filesystem, so a runtime-written file is never reachable at its URL. Fail clearly
+  // instead of writing a file that silently 404s.
+  if (process.env.VERCEL) throw new Error("Image upload is not available on this deployment. Choose an image from the media library instead.");
   const safeExtension = [".png", ".jpg", ".jpeg", ".webp"].includes(extname(file.name).toLowerCase()) ? extname(file.name).toLowerCase() : ".webp";
   const filename = `${randomUUID()}${safeExtension}`; const directory = join(process.cwd(), "public", "uploads"); await mkdir(directory, { recursive: true });
   await writeFile(join(directory, filename), Buffer.from(await file.arrayBuffer())); return `/uploads/${filename}`;

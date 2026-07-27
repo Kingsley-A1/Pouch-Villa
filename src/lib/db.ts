@@ -8,8 +8,15 @@ import type { Brand, Collection, Device, Product, Reservation, Staff } from "@/l
 type GlobalWithDatabase = typeof globalThis & { __pouchVillaDb?: DatabaseSync };
 
 function resolveDatabasePath() {
-  const configured = process.env.DATABASE_URL?.replace(/^file:/, "") || "data/pouch-villa-prototype.db";
-  return isAbsolute(configured) ? configured : join(process.cwd(), "data", basename(configured));
+  const configured = process.env.DATABASE_URL?.replace(/^file:/, "");
+  if (configured) return isAbsolute(configured) ? configured : join(process.cwd(), "data", basename(configured));
+  // On Vercel, process.cwd() resolves inside the deployed function bundle, which is
+  // read-only — only /tmp is writable, and it is wiped on every cold start and
+  // redeploy. This keeps the prototype bootable there without a manual DATABASE_URL;
+  // it is not durable storage. See docs/deployment.md and docs/production-promotion.md
+  // for the required move to managed Postgres before accepting real customer data.
+  const baseDir = process.env.VERCEL ? "/tmp" : join(process.cwd(), "data");
+  return join(baseDir, "pouch-hub-prototype.db");
 }
 
 export function getDatabase() {
