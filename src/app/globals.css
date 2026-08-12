@@ -87,6 +87,9 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 .breadcrumbs a:hover { color: var(--pv-red); text-decoration: underline; text-underline-offset: 3px; }
 .breadcrumbs [aria-current="page"] { font-weight: 700; color: var(--pv-ink); }
 .breadcrumb-sep { color: #bcb6b1; }
+/* A breadcrumb bar already separates the header from the page title, so the
+   section it introduces does not need a full section's worth of top padding. */
+nav[aria-label="Breadcrumb"] + .section-space { padding-top: clamp(1.75rem, 3vw, 2.5rem); }
 
 @media (max-width: 767px) {
   .container-shell { width: min(100% - 1.25rem, 1280px); }
