@@ -7,7 +7,7 @@ const sans = Inter({ subsets: ["latin"], variable: "--pv-font-sans", display: "s
 const display = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--pv-font-display", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Pouch Hub — Prototype Storefront", template: "%s | Pouch Hub" },
+  title: { default: "Pouch Hub — Best Pouches, Best Prices", template: "%s | Pouch Hub" },
   description: "Prototype digital storefront and sales system for Pouch Hub, Calabar.",
   robots: { index: false, follow: false },
 };
