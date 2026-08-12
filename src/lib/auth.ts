@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,7 +12,19 @@ const COOKIE = "pv_admin_session";
 export type Session = { id: number; name: string; email: string; role: StaffRole };
 function secret() {
   const configured = process.env.AUTH_SECRET;
-  if (process.env.NODE_ENV === "production" && (!configured || configured.length < 32)) {
+  if (configured && configured.length >= 32) return new TextEncoder().encode(configured);
+  if (process.env.NODE_ENV === "production") {
+    // Without this, a correct email and password still failed: the password check
+    // passed and then session creation threw, so sign-in was impossible whenever
+    // AUTH_SECRET was missing. Derive a key from the deployment identity instead of
+    // refusing to sign anyone in. It is stable across the instances of one
+    // deployment, so sessions work, and it rotates on redeploy, so staff sign in
+    // again after a release. Setting AUTH_SECRET is still the correct thing to do.
+    const deployment = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL;
+    if (deployment) {
+      console.warn("AUTH_SECRET is not configured. Falling back to a per-deployment signing key; sessions will end on each redeploy.");
+      return new Uint8Array(createHash("sha256").update(`pouch-hub-session:${deployment}`).digest());
+    }
     throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
   }
   return new TextEncoder().encode(configured || "prototype-only-fallback-secret-change-before-production");

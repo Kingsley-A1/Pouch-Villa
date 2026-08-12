@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { hashSync } from "bcryptjs";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { SCHEMA_SQL } from "@/lib/schema";
@@ -49,16 +50,41 @@ function openDatabase() {
  * never take the storefront down over it either. Without configured values we seed
  * an unguessable random password, which leaves admin sign-in closed until real
  * credentials are supplied.
+ *
+ * A configured password is always used as given. Silently substituting a random
+ * password for one deemed too short made sign-in fail with "email or password is
+ * incorrect" while the configured value looked perfectly valid. The minimum here
+ * matches the one the sign-in form itself enforces.
  */
+const MINIMUM_PASSWORD_LENGTH = 8;
+
 function resolveAdminCredentials() {
   const email = process.env.DEMO_ADMIN_EMAIL?.trim();
   const password = process.env.DEMO_ADMIN_PASSWORD;
-  if (email && password && password.length >= 12) return { email, password };
-  if (process.env.NODE_ENV === "production") {
-    if (!email || !password) console.warn("DEMO_ADMIN_EMAIL/DEMO_ADMIN_PASSWORD are not configured; admin sign-in is disabled for this deployment.");
-    return { email: email || "admin@pouchhub.invalid", password: randomBytes(24).toString("base64url") };
+  if (email && password && password.length >= MINIMUM_PASSWORD_LENGTH) {
+    if (password.length < 12) console.warn("DEMO_ADMIN_PASSWORD is shorter than 12 characters. It will be used, but choose a longer one.");
+    return { email, password, configured: true };
   }
-  return { email: email || "admin@pouchvilla.demo", password: password || "PouchHubDemo!2026" };
+  if (process.env.NODE_ENV === "production") {
+    if (email && password) console.warn(`DEMO_ADMIN_PASSWORD is shorter than ${MINIMUM_PASSWORD_LENGTH} characters, so it cannot be used. Admin sign-in is disabled.`);
+    else console.warn("DEMO_ADMIN_EMAIL/DEMO_ADMIN_PASSWORD are not configured; admin sign-in is disabled for this deployment.");
+    return { email: email || "admin@pouchhub.invalid", password: randomBytes(24).toString("base64url"), configured: false };
+  }
+  return { email: email || "admin@pouchvilla.demo", password: password || "PouchHubDemo!2026", configured: true };
+}
+
+/**
+ * Seeding only creates the owner account the first time a database is built, so a
+ * database that already exists keeps whatever credentials it was seeded with. On a
+ * warm serverless instance that meant updated environment values never took effect.
+ * Re-apply the configured credentials on every boot instead.
+ */
+function applyAdminCredentials(db: DatabaseSync, email: string, password: string) {
+  const address = email.toLowerCase();
+  const hash = hashSync(password, 12);
+  const existing = db.prepare("SELECT id FROM staff WHERE email = ?").get(address) as { id: number } | undefined;
+  if (existing) db.prepare("UPDATE staff SET password_hash = ?, role = 'owner', status = 'active' WHERE id = ?").run(hash, existing.id);
+  else db.prepare("INSERT INTO staff (name, email, password_hash, role, status) VALUES (?, ?, ?, 'owner', 'active')").run("Prototype Owner", address, hash);
 }
 
 export function getDatabase() {
@@ -66,8 +92,9 @@ export function getDatabase() {
   if (!globalDatabase.__pouchVillaDb) {
     const db = openDatabase();
     db.exec(SCHEMA_SQL);
-    const { email, password } = resolveAdminCredentials();
+    const { email, password, configured } = resolveAdminCredentials();
     seedDatabase(db, email, password);
+    if (configured) applyAdminCredentials(db, email, password);
     globalDatabase.__pouchVillaDb = db;
   }
   return globalDatabase.__pouchVillaDb;
