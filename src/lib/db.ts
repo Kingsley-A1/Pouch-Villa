@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
@@ -7,35 +8,66 @@ import type { Brand, Collection, Device, Product, Reservation, Staff } from "@/l
 
 type GlobalWithDatabase = typeof globalThis & { __pouchVillaDb?: DatabaseSync };
 
+const IN_MEMORY = ":memory:";
+
+/** Vercel and Lambda mount the deployed bundle read-only; only /tmp accepts writes. */
+function isServerless() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+}
+
 function resolveDatabasePath() {
-  const configured = process.env.DATABASE_URL?.replace(/^file:/, "");
+  const configured = process.env.DATABASE_URL?.replace(/^file:/, "").trim();
+  if (configured === IN_MEMORY) return IN_MEMORY;
+  // A relative DATABASE_URL would resolve inside the read-only bundle on serverless
+  // and fail with ENOENT on every request, so force those onto /tmp. This is not
+  // durable storage — /tmp is wiped on cold starts and redeploys. See
+  // docs/production-promotion.md for the required move to managed Postgres.
+  if (isServerless()) {
+    if (configured && isAbsolute(configured)) return configured;
+    return join("/tmp", configured ? basename(configured) : "pouch-hub-prototype.db");
+  }
   if (configured) return isAbsolute(configured) ? configured : join(process.cwd(), "data", basename(configured));
-  // On Vercel, process.cwd() resolves inside the deployed function bundle, which is
-  // read-only — only /tmp is writable, and it is wiped on every cold start and
-  // redeploy. This keeps the prototype bootable there without a manual DATABASE_URL;
-  // it is not durable storage. See docs/deployment.md and docs/production-promotion.md
-  // for the required move to managed Postgres before accepting real customer data.
-  const baseDir = process.env.VERCEL ? "/tmp" : join(process.cwd(), "data");
-  return join(baseDir, "pouch-hub-prototype.db");
+  return join(process.cwd(), "data", "pouch-hub-prototype.db");
+}
+
+function openDatabase() {
+  const databasePath = resolveDatabasePath();
+  try {
+    if (databasePath !== IN_MEMORY) mkdirSync(dirname(databasePath), { recursive: true });
+    return new DatabaseSync(databasePath, { enableForeignKeyConstraints: true });
+  } catch (error) {
+    // An unwritable filesystem must never take the whole storefront down. An
+    // in-memory database keeps the prototype fully browsable for the lifetime of
+    // this instance; writes simply do not outlive it.
+    console.error(`Database path ${databasePath} is not writable; falling back to in-memory.`, error);
+    return new DatabaseSync(IN_MEMORY, { enableForeignKeyConstraints: true });
+  }
+}
+
+/**
+ * Never seed a publicly known default credential into a production deployment, but
+ * never take the storefront down over it either. Without configured values we seed
+ * an unguessable random password, which leaves admin sign-in closed until real
+ * credentials are supplied.
+ */
+function resolveAdminCredentials() {
+  const email = process.env.DEMO_ADMIN_EMAIL?.trim();
+  const password = process.env.DEMO_ADMIN_PASSWORD;
+  if (email && password && password.length >= 12) return { email, password };
+  if (process.env.NODE_ENV === "production") {
+    if (!email || !password) console.warn("DEMO_ADMIN_EMAIL/DEMO_ADMIN_PASSWORD are not configured; admin sign-in is disabled for this deployment.");
+    return { email: email || "admin@pouchhub.invalid", password: randomBytes(24).toString("base64url") };
+  }
+  return { email: email || "admin@pouchvilla.demo", password: password || "PouchHubDemo!2026" };
 }
 
 export function getDatabase() {
   const globalDatabase = globalThis as GlobalWithDatabase;
   if (!globalDatabase.__pouchVillaDb) {
-    const databasePath = resolveDatabasePath();
-    mkdirSync(dirname(databasePath), { recursive: true });
-    const db = new DatabaseSync(databasePath, { enableForeignKeyConstraints: true });
+    const db = openDatabase();
     db.exec(SCHEMA_SQL);
-    const adminEmail = process.env.DEMO_ADMIN_EMAIL;
-    const adminPassword = process.env.DEMO_ADMIN_PASSWORD;
-    if (process.env.NODE_ENV === "production" && (!adminEmail || !adminPassword || adminPassword.length < 12)) {
-      throw new Error("DEMO_ADMIN_EMAIL and a DEMO_ADMIN_PASSWORD of at least 12 characters are required when seeding production.");
-    }
-    seedDatabase(
-      db,
-      adminEmail || "admin@pouchvilla.demo",
-      adminPassword || "PouchHubDemo!2026",
-    );
+    const { email, password } = resolveAdminCredentials();
+    seedDatabase(db, email, password);
     globalDatabase.__pouchVillaDb = db;
   }
   return globalDatabase.__pouchVillaDb;
