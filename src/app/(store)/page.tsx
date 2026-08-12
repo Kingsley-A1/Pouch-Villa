@@ -27,18 +27,37 @@ export default function HomePage() {
   return <>
     <RememberedPhoneBanner />
     <section className="relative overflow-hidden bg-[#fcfaf8]">
-      <div className="container-shell grid items-center gap-7 py-8 lg:grid-cols-[1.05fr_.95fr] lg:gap-12 lg:py-20">
-        {/* Image sits first on small screens so it is visible without scrolling. */}
-        <div className="relative order-1 min-h-[230px] overflow-hidden rounded-[2rem] bg-[#f6f3f1] sm:min-h-[320px] lg:order-2 lg:min-h-[620px]">
-          <Image src="/images/pouch-villa-hero.png" alt="Phone cases in Pouch Hub colours" fill priority sizes="(max-width: 1024px) 100vw, 48vw" className="object-cover object-[67%_center]" />
+      {/* Soft brand-tinted light, kept decorative and out of the accessibility tree. */}
+      <div aria-hidden className="pointer-events-none absolute -right-32 -top-40 h-[460px] w-[460px] rounded-full bg-[#e30613]/[.07] blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -left-40 bottom-[-12rem] h-[420px] w-[420px] rounded-full bg-[#e8a0a5]/20 blur-3xl" />
+      <div className="container-shell relative grid items-center gap-9 pb-14 pt-9 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:pb-24 lg:pt-20">
+        {/* The visual leads on small screens so the product is on screen immediately. */}
+        <div className="order-1 grid grid-cols-5 gap-3 sm:gap-4 lg:order-2">
+          <div className="col-span-3 aspect-[3/4] overflow-hidden rounded-[1.75rem] bg-[#f1eae7] shadow-[0_20px_50px_rgba(38,24,22,.10)]">
+            <Image src="/images/pouch-villa-hero.png" alt="Phone cases in the Pouch Hub colour range" width={720} height={960} priority sizes="(max-width: 1024px) 55vw, 28vw" className="h-full w-full object-cover object-[67%_center]" />
+          </div>
+          {/* Offset column creates the asymmetry without breaking the section bounds. */}
+          <div className="col-span-2 grid gap-3 pt-7 sm:gap-4 sm:pt-10">
+            <div className="aspect-square overflow-hidden rounded-[1.4rem] bg-[#f1eae7] shadow-[0_14px_36px_rgba(38,24,22,.09)]">
+              <Image src="/images/case-blush.png" alt="Soft blush phone case" width={420} height={420} sizes="(max-width: 1024px) 36vw, 18vw" className="h-full w-full object-cover" />
+            </div>
+            <div className="aspect-square overflow-hidden rounded-[1.4rem] bg-[#f1eae7] shadow-[0_14px_36px_rgba(38,24,22,.09)]">
+              <Image src="/images/case-sage.png" alt="Sage green phone case" width={420} height={420} sizes="(max-width: 1024px) 36vw, 18vw" className="h-full w-full object-cover" />
+            </div>
+          </div>
         </div>
         <div className="relative z-10 order-2 lg:order-1">
-          <h1 className="display-title max-w-2xl">Protect Your Phone.<br /><span className="text-[#e30613]">Show Your Style.</span></h1>
-          <p className="mt-4 max-w-md text-lg leading-8 text-zinc-600">Cases matched to your exact phone model.</p>
-          <div className="mt-7 rounded-[1.6rem] border border-[#e8e3df] bg-white p-5 shadow-[0_24px_70px_rgba(38,24,22,.08)] sm:p-6"><FindMyPhone brands={brands} devices={devices} /></div>
+          <h1 className="display-title rise-in max-w-xl">Protect your phone.<br /><span className="text-[#e30613]">Show your style.</span></h1>
+          <p className="rise-in mt-5 max-w-md text-lg leading-8 text-zinc-600 [animation-delay:.09s]">Every case matched to your exact model, ready to reserve and collect in store.</p>
+          <div className="rise-in mt-8 flex flex-wrap gap-3 [animation-delay:.18s]">
+            <Link href="/find-my-case" className="button-primary">Find my case <ArrowRight size={18} /></Link>
+            <Link href="/shop" className="button-ghost">Browse all cases</Link>
+          </div>
         </div>
       </div>
     </section>
+
+    <section className="border-y border-[#e8e3df] bg-white"><div className="container-shell grid gap-6 py-10 lg:grid-cols-[.85fr_1.15fr] lg:items-center lg:py-12"><div><h2 className="text-2xl font-bold sm:text-3xl">Start with your phone.</h2><p className="mt-2 max-w-md leading-7 text-zinc-600">Choose your brand and model. We only show cases that fit it.</p></div><div className="rounded-[1.6rem] border border-[#e8e3df] bg-[#fcfaf8] p-5 sm:p-6"><FindMyPhone brands={brands} devices={devices} /></div></div></section>
 
     <section className="border-y border-[#e8e3df] bg-white"><div className="container-shell grid gap-5 py-6 sm:grid-cols-3"><div className="flex gap-3"><DeviceMobile className="text-[#e30613]" size={24} /><div><p className="font-bold">Exact-model discovery</p><p className="text-sm text-zinc-500">Confirm compatibility before action.</p></div></div><div className="flex gap-3"><ShieldCheck className="text-[#e30613]" size={24} /><div><p className="font-bold">Protection made clear</p><p className="text-sm text-zinc-500">Materials and protection explained.</p></div></div><div className="flex gap-3"><MapPin className="text-[#e30613]" size={24} /><div><p className="font-bold">Reserve for pickup</p><p className="text-sm text-zinc-500">Prepare first; staff confirms next.</p></div></div></div></section>
 
