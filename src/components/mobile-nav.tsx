@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { List, X } from "@phosphor-icons/react";
 
 export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, string]> }) {
   const pathname = usePathname();
+  // The header sets backdrop-filter, which makes it the containing block for any
+  // fixed-position descendant. Rendered inline, the overlay was therefore sized to
+  // the 76px header instead of the viewport, so only its top row was visible. The
+  // portal moves it to <body>, escaping that containing block. No mount guard is
+  // needed: the panel only opens from a click, so it never renders during SSR.
   // Remember which route the panel was opened on. The panel counts as open only
   // while that still matches the current route, so navigating anywhere closes it
   // automatically — no effect and no cascading render needed.
@@ -38,8 +44,8 @@ export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, st
         <List size={25} />
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50">
+      {open ? createPortal(
+        <div className="fixed inset-0 z-60 lg:hidden">
           <button type="button" aria-label="Close menu" onClick={close} className="absolute inset-0 h-full w-full cursor-default bg-black/40" />
           <nav aria-label="Mobile navigation" className="absolute right-0 top-0 flex h-full w-[min(84vw,340px)] flex-col bg-white shadow-2xl">
             <div className="flex h-[76px] shrink-0 items-center justify-between border-b border-[#e8e3df] px-5">
@@ -64,7 +70,8 @@ export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, st
               })}
             </div>
           </nav>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
