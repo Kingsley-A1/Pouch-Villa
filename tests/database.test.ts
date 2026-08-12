@@ -11,6 +11,17 @@ describe("development database and connected journeys", () => {
     expect(getBrands()).toHaveLength(6); expect(getDevices().length).toBeGreaterThanOrEqual(20); expect(getProducts()).toHaveLength(48);
   });
 
+  it("seeds the owner account with the configured password so sign-in works", async () => {
+    const { getStaffByEmail } = await import("@/lib/db");
+    const { compareSync } = await import("bcryptjs");
+    const staff = getStaffByEmail("test@pouchvilla.demo");
+    expect(staff).toBeDefined();
+    // Regression: a configured password was once silently swapped for a random one,
+    // which made sign-in fail while the configured value looked entirely valid.
+    expect(compareSync("TestPassword!2026", staff!.password_hash)).toBe(true);
+    expect(staff!.status).toBe("active");
+  });
+
   it("gives every device at least one compatible case", async () => {
     const { all, getDevices } = await import("@/lib/db");
     const uncovered = all<{ name: string }>(
