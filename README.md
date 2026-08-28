@@ -1,96 +1,43 @@
-# Pouch Hub Digital Storefront & Sales System
+# Pouch Villa Platform
 
-A complete mobile-first Next.js prototype for discovering device-compatible phone cases, saving products, preparing WhatsApp enquiries, reserving for pickup, and managing catalogue and customer requests from a protected staff application.
+A secure retail commerce and operations platform for Pouch Villa — browsing, ordering, payment by transfer, order tracking, reviews, and a mobile-first admin system.
 
-> Prototype preview — products, prices and availability are demonstration data only.
+Built by **Bespoke Technologies**.
 
-## Quick start
+> **Status: Phase 0 — foundation.** This repository was cloned from the PouchHub prototype and is being rebuilt against the signed Pouch Villa scope. Most of the inherited application code is scheduled for replacement. See [`docs/work-plan.md`](docs/work-plan.md) before making changes.
 
-Requirements: Node.js 24+ and npm 11+.
+## Start here
+
+| Document | What it is |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | **The engineering standard. Read before your first edit.** |
+| [`docs/scope.md`](docs/scope.md) | The signed scope, transcribed verbatim. What we committed to. |
+| [`docs/work-plan.md`](docs/work-plan.md) | Codebase verdict, target architecture, phased delivery, risks. |
+| [`docs/client-inputs.md`](docs/client-inputs.md) | What the client actually supplied, dated — including two material conflicts. |
+| [`docs/open-questions.md`](docs/open-questions.md) | Decisions only the client can make. **Check before assuming anything.** |
+| [`docs/archive/`](docs/archive/) | Inherited PouchHub documentation. Reference only, not authoritative. |
+
+## Two things to know before you write code
+
+1. **Nothing about the business is hardcoded.** No phone number, address, bank detail, price, category or policy sentence belongs in source. They are admin-editable settings. CI enforces this.
+2. **What Pouch Villa sells is not yet settled.** The signed scope says *mobile devices*; the client's live POS taxonomy says *cases and accessories*. See [`docs/open-questions.md`](docs/open-questions.md) Q1. The catalogue schema is deliberately designed to absorb either answer — do not collapse it to one.
+
+## Stack
+
+Next.js 16 (App Router) · TypeScript · CockroachDB · Cloudflare R2 · Google OAuth · Tailwind v4 · GitHub Actions
+
+Rationale and constraints for each: [`AGENTS.md`](AGENTS.md) §1.
+
+## Local development
+
+> ⚠️ The commands below are inherited from the PouchHub prototype and still target its SQLite setup. They are replaced in Phase 0 — see [`docs/work-plan.md`](docs/work-plan.md) §4.
 
 ```bash
 npm install
-npm run setup
 npm run dev
+npm run verify     # lint → typecheck → test → build → route check
 ```
 
-Open `http://localhost:3000`. `npm run setup` creates a local `.env.local`, seeds `data/pouch-villa-prototype.db`, and prints a newly generated demonstration admin password. Sign in at `/admin/login` with those generated credentials.
+## Contributing
 
-Do not reuse the generated prototype password or database for production.
-
-## Available commands
-
-```bash
-npm run setup        # create local configuration and seed the SQLite database
-npm run dev          # run the development server
-npm run lint         # ESLint with zero warnings allowed
-npm run typecheck    # strict TypeScript check
-npm run test         # automated unit, accessibility, database and journey tests
-npm run build        # optimized Next.js production build
-npm run test:routes  # start the production build and verify all primary routes
-npm run verify       # run the complete verification sequence
-```
-
-## Customer journey
-
-1. Start on the homepage and choose **Find My Phone**.
-2. Select Apple → iPhone 15 Pro (or another seeded device).
-3. Browse the exact compatibility-filtered route.
-4. Open a product, confirm the device, and choose a variant.
-5. Save locally, prepare a WhatsApp message preview, or reserve for pickup.
-6. Submit the reservation to receive a `PH-R-…` reference.
-
-Saved items, remembered phone, and recently viewed products use browser-local storage because public customer accounts are intentionally out of scope.
-
-## Staff journey
-
-1. Run `npm run setup` and use the printed demonstration credentials at `/admin/login`.
-2. Review dashboard KPIs and recent activity.
-3. Create, edit, duplicate, publish, unpublish, archive, and preview products.
-4. Manage structured device compatibility and product/variant availability.
-5. Move reservations through New → Contacted → Confirmed → Ready → Completed/Cancelled.
-6. Manage enquiries, case requests, collections, customers, media, content, settings, staff, analytics, and audit history.
-
-Permissions are enforced inside server actions through role checks; interface visibility is not the security boundary.
-
-## Environment
-
-Copy `.env.example` manually only if you are not using `npm run setup`.
-
-- `DATABASE_URL`: local SQLite file. A writable `/tmp` path is required on ephemeral preview hosting.
-- `AUTH_SECRET`: required in production; at least 32 characters. Production startup refuses a missing or short secret.
-- `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD`: used only when seeding a new database.
-- `NEXT_PUBLIC_WHATSAPP_NUMBER`: leave blank until Pouch Hub confirms the real number. Blank configuration opens a message preview instead of a fabricated WhatsApp destination.
-- `NEXT_PUBLIC_STORE_ADDRESS` / `NEXT_PUBLIC_STORE_HOURS`: optional confirmed business details.
-
-Never commit `.env.local`, the generated database, real customer data, or uploaded staff media.
-
-## Project map
-
-```text
-src/app/(store)              Public storefront routes and server actions
-src/app/admin                Authentication and protected staff application
-src/components               Reusable accessible UI and interaction components
-src/lib/db.ts                Typed SQLite queries and catalogue projections
-src/lib/auth.ts              Signed HttpOnly admin sessions
-src/lib/permissions.ts       Role-permission policy
-database/schema.sql          Canonical development schema
-src/lib/seed-data.ts         Fictional demonstration seed data
-scripts/setup.ts             One-command local setup
-tests                        Automated verification
-docs                         Architecture, assumptions, testing and deployment handover
-```
-
-## Documentation
-
-- [Architecture](docs/architecture.md)
-- [Assumptions and client confirmations](docs/assumptions-and-confirmations.md)
-- [Testing report](docs/testing-report.md)
-- [Deployment instructions](docs/deployment.md)
-- [Production promotion path](docs/production-promotion.md)
-
-## Data and brand safeguards
-
-The supplied storefront photograph confirms the red/white Pouch Hub identity and is used only on the Visit Us experience. A clean official logo file was not supplied, so the interface uses a text wordmark and a simple phone-case mark until approved brand artwork is available. Product names, images, prices, availability, enquiries, customers, analytics and references are explicitly fictional demonstration data.
-
-The research package available during discovery described a hospitality business and conflicted with the client brief and supplied evidence. Those claims were rejected; this prototype follows the retailer brief supplied in this project.
+Every change: single-purpose PR, Conventional Commits, green CI, tests included, reviewed by someone who did not write it. The full definition of done is at the end of [`AGENTS.md`](AGENTS.md).
