@@ -5,7 +5,7 @@ async function main() {
   const { getDatabase } = await import("../src/lib/db");
   const db = getDatabase();
   const productCount = db.prepare("SELECT COUNT(*) AS count FROM products").get() as { count: number };
-  console.log(`Pouch Hub demonstration database ready with ${productCount.count} products.`);
+  console.log(`Pouch Villa demonstration database ready with ${productCount.count} products.`);
 }
 
 main().catch((error) => {

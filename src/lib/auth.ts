@@ -23,7 +23,7 @@ function secret() {
     const deployment = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL;
     if (deployment) {
       console.warn("AUTH_SECRET is not configured. Falling back to a per-deployment signing key; sessions will end on each redeploy.");
-      return new Uint8Array(createHash("sha256").update(`pouch-hub-session:${deployment}`).digest());
+      return new Uint8Array(createHash("sha256").update(`pouch-villa-session:${deployment}`).digest());
     }
     throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
   }

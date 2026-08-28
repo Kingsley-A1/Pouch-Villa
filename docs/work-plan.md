@@ -2,7 +2,7 @@
 
 # Delivery Work Plan
 
-**Repository:** `PouchVilla`, cloned from PouchHub at `7c90a80`, remote detached, 16 commits of provenance retained.
+**Repository:** `PouchVilla`, cloned from PouchHub at `7c90a80`, 16 commits of provenance retained. Remote now set to `github.com/Kingsley-A1/Pouch-Villa` (empty, nothing pushed yet).
 **Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md)
 
 ---
@@ -66,7 +66,7 @@ There is also a discovery worth stating plainly: **PouchHub *is* a renamed Pouch
 
 #### 2.1 Auth findings, ranked
 
-1. 🔴 **Deployment-ID-derived signing key.** `src/lib/auth.ts` falls back to `sha256("pouch-hub-session:" + VERCEL_DEPLOYMENT_ID)` when `AUTH_SECRET` is missing. A deployment ID is **not a secret** — anyone who learns it can mint a valid `owner` session. The comment explains it was added to stop sign-in breaking. Understandable under demo pressure; unacceptable in production. **Must not be ported.**
+1. 🔴 **Deployment-ID-derived signing key.** `src/lib/auth.ts` falls back to `sha256("pouch-villa-session:" + VERCEL_DEPLOYMENT_ID)` when `AUTH_SECRET` is missing. A deployment ID is **not a secret** — anyone who learns it can mint a valid `owner` session. The comment explains it was added to stop sign-in breaking. Understandable under demo pressure; unacceptable in production. **Must not be ported.**
 2. 🟠 **Env-var-driven admin credentials, re-applied on every boot.** `applyAdminCredentials` resets the password *and* forces `role='owner', status='active'` on each start. Environment becomes the identity store, and a disabled owner silently re-enables on redeploy.
 3. 🟠 **No revocation.** Stateless 8-hour JWT. Removing someone's access requires waiting them out.
 4. 🟠 **No login rate limiting.** Open to credential stuffing.

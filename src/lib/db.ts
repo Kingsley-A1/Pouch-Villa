@@ -25,10 +25,10 @@ function resolveDatabasePath() {
   // docs/production-promotion.md for the required move to managed Postgres.
   if (isServerless()) {
     if (configured && isAbsolute(configured)) return configured;
-    return join("/tmp", configured ? basename(configured) : "pouch-hub-prototype.db");
+    return join("/tmp", configured ? basename(configured) : "pouch-villa-prototype.db");
   }
   if (configured) return isAbsolute(configured) ? configured : join(process.cwd(), "data", basename(configured));
-  return join(process.cwd(), "data", "pouch-hub-prototype.db");
+  return join(process.cwd(), "data", "pouch-villa-prototype.db");
 }
 
 function openDatabase() {
@@ -68,9 +68,9 @@ function resolveAdminCredentials() {
   if (process.env.NODE_ENV === "production") {
     if (email && password) console.warn(`DEMO_ADMIN_PASSWORD is shorter than ${MINIMUM_PASSWORD_LENGTH} characters, so it cannot be used. Admin sign-in is disabled.`);
     else console.warn("DEMO_ADMIN_EMAIL/DEMO_ADMIN_PASSWORD are not configured; admin sign-in is disabled for this deployment.");
-    return { email: email || "admin@pouchhub.invalid", password: randomBytes(24).toString("base64url"), configured: false };
+    return { email: email || "admin@pouchvilla.invalid", password: randomBytes(24).toString("base64url"), configured: false };
   }
-  return { email: email || "admin@pouchvilla.demo", password: password || "PouchHubDemo!2026", configured: true };
+  return { email: email || "admin@pouchvilla.demo", password: password || "PouchVillaDemo!2026", configured: true };
 }
 
 /**

@@ -4,7 +4,7 @@
 
 > **V1 Core Delivery**
 >
-> A secure retail commerce and operations platform for discovering, ordering and managing mobile devices.
+> A secure retail commerce and operations platform for discovering, ordering and managing mobile device accessories, no phone is being solld by Pouch Villa.
 
 **Source:** `docs/client/Pouch_Villa_Platform_Project_Scope.pdf`
 **Prepared by:** Bespoke Technologies

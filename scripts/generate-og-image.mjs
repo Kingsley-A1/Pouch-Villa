@@ -31,9 +31,9 @@ const overlay = `<svg width="${WIDTH}" height="${HEIGHT}" xmlns="http://www.w3.o
 
   <rect x="72" y="66" width="60" height="60" rx="16" fill="${RED}"/>
   <text x="102" y="107" font-family="${FONT}" font-size="27" font-weight="800"
-        fill="#ffffff" text-anchor="middle">PH</text>
+        fill="#ffffff" text-anchor="middle">PV</text>
   <text x="150" y="107" font-family="${FONT}" font-size="26" font-weight="800"
-        fill="${INK}" letter-spacing="3.5">POUCH HUB</text>
+        fill="${INK}" letter-spacing="3.5">POUCH VILLA</text>
 
   <text x="72" y="272" font-family="${FONT}" font-size="66" font-weight="800"
         fill="${INK}" letter-spacing="-2">${escapeXml(headlineOne)}</text>

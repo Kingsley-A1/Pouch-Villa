@@ -25,7 +25,7 @@ Decisions only Pouch Villa can make. Each one states what we do **in the meantim
 
 The signed scope says *"managing mobile devices"* with variants *"storage, colour, condition"*. The client's own live POS taxonomy, sent the same week, contains **zero device categories** and names *Pouches & Protection* as the main category. See [`client-inputs.md`](client-inputs.md) §4.
 
-**Ask them exactly this:** *"Will the website sell actual phones and tablets — or only cases, pouches and accessories? If phones: new, refurbished, or both?"*
+**Ask them exactly this:** *"Will the website sell actual phones and tablets — or only cases, pouches and accessories? If phones: new, refurbished, or both?"* No Phones. 
 
 **Meanwhile:** variant axes are stored as data, not columns, and device compatibility is an optional facet. Both answers remain buildable without a schema rewrite. If the answer is "refurbished handsets", that adds IMEI capture, battery-health disclosure and a condition-grading standard — material extra scope, and it is better priced now than discovered in month two.
 
@@ -45,7 +45,7 @@ The client asked for 33 flat categories to collapse into *Pouches & Protection* 
 
 Pouch Villa actively uses **bizblock.com.ng**. The scope commits us to catalogue and order management — the same job. See [`client-inputs.md`](client-inputs.md) §5.
 
-**Ask:** *"After launch, where does a staff member add a new product and change stock — here, or bizblock? If bizblock stays, does it offer an API or scheduled export?"*
+**Ask:** *"After launch, where does a staff member add a new product and change stock — here, or bizblock? If bizblock stays, does it offer an API or scheduled export?"* The website has and sho never have a business with Bizblock, we engineer everything they need. 
 
 **Meanwhile:** this platform holds one authoritative stock quantity per variant, with all mutations funnelled through a single ledger seam so an external sync can be added later without touching call sites.
 
@@ -58,7 +58,7 @@ Scope item 08 names a *"Pouch Villa account"*. We have no account name, number o
 **Ask:** account name, number, bank, and whether it differs by order value or channel.
 
 **Meanwhile:** bank details are an admin-editable setting rendered at checkout. Checkout shows an *awaiting confirmation* state rather than any placeholder — we will never render an invented account number, even in staging.
-
+It will be set at .env and the stil managed by admin in setting
 ---
 
 ### 🟡 Q5 — Who holds the CEO, Manager and Employee accounts?
@@ -68,6 +68,7 @@ Scope requires three admin tiers with the CEO defining the other two. We have no
 **Ask:** the CEO's email (this account cannot be self-service created), plus initial managers and employees.
 
 **Meanwhile:** the CEO account is provisioned by an explicit, audited bootstrap command — never seeded from an environment variable, and never a default credential.
+Each account should be gated by 8 digit code + eamil + password for registration, and email + passord or Google Auth for sign in. 
 
 ---
 
@@ -79,6 +80,7 @@ Scope says *"Track Order — status & completion"* without naming states. Invent
 
 **Meanwhile:** the state machine is a single typed transition table with an audit trail — cheap to change, provided it changes before real orders exist.
 
+User places order, chooses home delivery(delivery fee set by admin and shown when users chooses home delivery, location: lga, landmarks) or pick up, pays into the account number, uploads the payment prove, registerd phone, location and delivery intent,  and admin sees it in the thier payment confirmation page, accepts it and user gets Email notification that payment is reciewd
 ---
 
 ### 🟡 Q7 — Vector logo and exact brand values
@@ -88,7 +90,7 @@ We have JPEGs only. A hex sampled from a JPEG is a guess. See [`client-inputs.md
 **Ask:** SVG/AI/EPS source, exact brand hex values, typeface name and licence, clear-space and minimum-size rules, and a mono/knockout variant for the favicon and dark surfaces.
 
 **Meanwhile:** the design system is built on semantic CSS custom properties. Landing the real brand values is editing a token file, not touching components.
-
+Use the exact available logos available. The font in this codebaseis accpeted. Both dark and light theme should be supported out-of-the-box. 
 ---
 
 ### 🟡 Q8 — Delivery zones, fees and timeframes
@@ -97,7 +99,7 @@ An order total cannot be computed without them.
 
 **Ask:** which areas are served, what each costs, expected timeframes, whether pickup is offered, and any free-delivery threshold.
 
-**Meanwhile:** delivery is an admin-managed zone/fee table. Orders are placed with a delivery line item that resolves to zero until the table is populated.
+**Meanwhile:** delivery is an admin-managed zone/fee table. Orders are placed with a delivery line item that resolves to zero until the table is populated. Exactly. 
 
 ---
 
@@ -105,7 +107,7 @@ An order total cannot be computed without them.
 
 Scope says *"Review Product — approve and manage feedback"*, so moderation is confirmed; eligibility is not.
 
-**Ask:** may anyone with an account review, or only a verified purchaser? Are reviews held for approval before publication, or published then moderated?
+**Ask:** may anyone with an account review, or only a verified purchaser? Are reviews held for approval before publication, or published then moderated? Anyone can review.  Reviews held for approval before publication
 
 **Meanwhile:** reviews require an authenticated account, are linked to an order line where one exists, and default to **held for approval** — the conservative choice, and a setting rather than a rewrite.
 
@@ -115,6 +117,6 @@ Scope says *"Review Product — approve and manage feedback"*, so moderation is 
 
 About, Privacy Policy and Terms & Conditions are committed deliverables. We will not draft legally operative text on the client's behalf.
 
-**Ask:** returns and warranty terms, refund window, data retention period, and who owns data-protection responsibility under NDPR.
+**Ask:** returns and warranty terms, refund window, data retention period, and who owns data-protection responsibility under NDPR. This should be done with the bets infomation available, searching what is teh current standrd today, and admins should be able to edit/add to the  the pages content when they need to change something.
 
 **Meanwhile:** the pages exist, are admin-editable, and render an explicit *awaiting confirmation* notice rather than plausible-sounding invented policy.

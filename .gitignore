@@ -40,14 +40,10 @@ yarn-error.log*
 /public/uploads/*
 !/public/uploads/.gitkeep
 
-# Sites metadata is safe to commit, runtime values are not
-!.openai/hosting.json
-
-# vercel
+# host metadata
 .vercel
+.openai
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel

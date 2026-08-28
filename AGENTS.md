@@ -55,6 +55,7 @@ Committed. Deviating requires a written decision record in `docs/decisions/`.
 | Source control | **GitHub** | Protected `main`, PR-only, CI green to merge. |
 | Styling | **Tailwind v4** + semantic CSS custom properties | Brand values are tokens, not literals. See §2. |
 | Validation | **Zod**, one schema per boundary | Shared between API route and form. |
+| Email | **Resend**
 
 **Runtime rule:** anything touching the database, R2 credentials, or a session runs on the Node runtime, server-side. No database driver, no S3 client, and no secret is ever imported into a Client Component — directly or transitively.
 

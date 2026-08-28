@@ -40,7 +40,7 @@ async function main() {
   } else {
     console.log("Demo credentials are stored in .env.local.");
   }
-  console.log("Run npm run dev to start Pouch Hub.");
+  console.log("Run npm run dev to start Pouch Villa.");
 }
 
 main().catch((error) => {

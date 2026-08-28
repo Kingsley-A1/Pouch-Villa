@@ -6,7 +6,7 @@ import { StoreHeader } from "@/components/store-header";
 
 describe("component accessibility", () => {
   it("has no automated violations in the branded identity region", async () => {
-    render(<main><h1>Pouch Hub prototype</h1><BrandMark /></main>);
+    render(<main><h1>Pouch Villa prototype</h1><BrandMark /></main>);
     const result = await axe.run(document.body, { rules: { "color-contrast": { enabled: false } } });
     expect(result.violations).toEqual([]);
   });

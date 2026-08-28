@@ -96,7 +96,7 @@ export function seedDatabase(db: DatabaseSync, adminEmail: string, adminPassword
       const result = insertProduct.run(
         productSlug,
         name,
-        `${name} is an original fictional demonstration case created for this prototype. Compatibility, price and availability require Pouch Hub confirmation.`,
+        `${name} is an original fictional demonstration case created for this prototype. Compatibility, price and availability require Pouch Villa confirmation.`,
         12500 + (index % 8) * 1750,
         availability[index % availability.length],
         styles[visual],

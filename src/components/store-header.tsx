@@ -13,7 +13,7 @@ export function StoreHeader() {
     <>
       <header className="sticky top-0 z-40 border-b border-[#e8e3df] bg-white/95 backdrop-blur-sm">
         <div className="container-shell flex h-[76px] items-center justify-between gap-5">
-          <Link href="/" aria-label="Pouch Hub home"><BrandMark compact /></Link>
+          <Link href="/" aria-label="Pouch Villa home"><BrandMark compact /></Link>
           <nav className="hidden items-center gap-6 lg:flex" aria-label="Main navigation">
             {links.slice(0, 5).map(([label, href]) => <Link key={href} href={href} className="text-sm font-semibold text-zinc-700 transition-colors hover:text-[#e30613]">{label}</Link>)}
           </nav>
