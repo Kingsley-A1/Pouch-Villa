@@ -1,12 +1,9 @@
-import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { hashSync } from "bcryptjs";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { SCHEMA_SQL } from "./schema";
 import { seedDatabase } from "./seed-data";
 import type { Brand, Collection, Device, Product, Reservation, Staff } from "../domain/types";
-import { MINIMUM_PASSWORD_LENGTH } from "../auth/password";
 
 type GlobalWithDatabase = typeof globalThis & { __pouchVillaDb?: DatabaseSync };
 
@@ -64,60 +61,12 @@ function openDatabase() {
  * matches the one the sign-in form itself enforces.
  */
 
-function resolveAdminCredentials() {
-  const email = process.env.DEMO_ADMIN_EMAIL?.trim();
-  const password = process.env.DEMO_ADMIN_PASSWORD;
-  if (email && password && password.length >= MINIMUM_PASSWORD_LENGTH) {
-    return { email, password, configured: true };
-  }
-  if (email && password) {
-    console.warn(
-      `DEMO_ADMIN_PASSWORD is shorter than ${MINIMUM_PASSWORD_LENGTH} characters, so it cannot be used. Admin sign-in is disabled.`,
-    );
-  } else {
-    console.warn(
-      "DEMO_ADMIN_EMAIL/DEMO_ADMIN_PASSWORD are not configured; admin sign-in is disabled for this environment.",
-    );
-  }
-  // Never a default credential, in any environment. An unguessable random password
-  // leaves sign-in closed rather than shipping a known one; Phase 1 replaces this
-  // path entirely with the audited CEO claim-code bootstrap.
-  return {
-    email: email || "admin@pouchvilla.invalid",
-    password: randomBytes(24).toString("base64url"),
-    configured: false,
-  };
-}
-
-/**
- * Seeding only creates the owner account the first time a database is built, so a
- * database that already exists keeps whatever credentials it was seeded with. On a
- * warm serverless instance that meant updated environment values never took effect.
- * Re-apply the configured credentials on every boot instead.
- */
-function applyAdminCredentials(db: DatabaseSync, email: string, password: string) {
-  const address = email.toLowerCase();
-  const hash = hashSync(password, 12);
-  const existing = db.prepare("SELECT id FROM staff WHERE email = ?").get(address) as
-    { id: number } | undefined;
-  if (existing)
-    db.prepare(
-      "UPDATE staff SET password_hash = ?, role = 'owner', status = 'active' WHERE id = ?",
-    ).run(hash, existing.id);
-  else
-    db.prepare(
-      "INSERT INTO staff (name, email, password_hash, role, status) VALUES (?, ?, ?, 'owner', 'active')",
-    ).run("Prototype Owner", address, hash);
-}
-
 export function getDatabase() {
   const globalDatabase = globalThis as GlobalWithDatabase;
   if (!globalDatabase.__pouchVillaDb) {
     const db = openDatabase();
     db.exec(SCHEMA_SQL);
-    const { email, password, configured } = resolveAdminCredentials();
-    seedDatabase(db, email, password);
-    if (configured) applyAdminCredentials(db, email, password);
+    seedDatabase(db);
     globalDatabase.__pouchVillaDb = db;
   }
   return globalDatabase.__pouchVillaDb;

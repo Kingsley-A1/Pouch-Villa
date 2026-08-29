@@ -19,7 +19,8 @@
     "format:check": "prettier --check .",
     "setup": "pnpm --filter @pv/backend setup",
     "db:seed": "pnpm --filter @pv/backend db:seed",
-    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run test:routes"
+    "check:facts": "node scripts/check-business-facts.mjs",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run check:facts && pnpm run test && pnpm run build && pnpm run test:routes"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

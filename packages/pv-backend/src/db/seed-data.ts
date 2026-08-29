@@ -1,4 +1,3 @@
-import { hashSync } from "bcryptjs";
 import type { DatabaseSync } from "node:sqlite";
 import { at, must } from "../domain/assert";
 
@@ -154,7 +153,7 @@ const colours: Array<[string, string]> = [
   ["Smoke", "#6b6e73"],
 ];
 
-export function seedDatabase(db: DatabaseSync, adminEmail: string, adminPassword: string) {
+export function seedDatabase(db: DatabaseSync) {
   const brandCount = db.prepare("SELECT COUNT(*) AS count FROM brands").get() as { count: number };
   if (brandCount.count > 0) return;
 
@@ -424,9 +423,6 @@ export function seedDatabase(db: DatabaseSync, adminEmail: string, adminPassword
       "New demonstration arrivals are now in the prototype.",
     );
 
-    db.prepare(
-      "INSERT INTO staff (name, email, password_hash, role, status) VALUES (?, ?, ?, 'owner', 'active')",
-    ).run("Prototype Owner", adminEmail.toLowerCase(), hashSync(adminPassword, 12));
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");

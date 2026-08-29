@@ -7,8 +7,6 @@ const databasePath = `/tmp/pouch-villa-test-${process.pid}.db`;
 describe("development database and connected journeys", () => {
   beforeAll(() => {
     process.env.DATABASE_URL = databasePath;
-    process.env.DEMO_ADMIN_EMAIL = "test@pouchvilla.demo";
-    process.env.DEMO_ADMIN_PASSWORD = "TestPassword!2026";
   });
 
   it("seeds the requested catalogue scale", async () => {
@@ -18,15 +16,12 @@ describe("development database and connected journeys", () => {
     expect(getProducts()).toHaveLength(48);
   });
 
-  it("seeds the owner account with the configured password so sign-in works", async () => {
-    const { getStaffByEmail } = await import("../src/db");
-    const { compareSync } = await import("bcryptjs");
-    const staff = getStaffByEmail("test@pouchvilla.demo");
-    expect(staff).toBeDefined();
-    // Regression: a configured password was once silently swapped for a random one,
-    // which made sign-in fail while the configured value looked entirely valid.
-    expect(compareSync("TestPassword!2026", staff!.password_hash)).toBe(true);
-    expect(staff!.status).toBe("active");
+  it("seeds no staff account at all, so there is no identity to guess", async () => {
+    const { all } = await import("../src/db");
+    // Access is granted only by redeeming a role code. A seeded account — even one
+    // with a random password — is a standing target and an environment-shaped
+    // identity store, which is what this replaced.
+    expect(all("SELECT id FROM staff")).toHaveLength(0);
   });
 
   it("gives every device at least one compatible case", async () => {
