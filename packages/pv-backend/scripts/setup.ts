@@ -31,8 +31,8 @@ async function main() {
   }
 
   mkdirSync(resolve(root, "data"), { recursive: true });
-  const { loadEnvConfig } = await import("@next/env");
-  loadEnvConfig(root, true);
+  const { loadEnvFiles } = await import("../src/env");
+  loadEnvFiles(root);
   const { getDatabase } = await import("../src/db/index");
   const db = getDatabase();
   const count = db.prepare("SELECT COUNT(*) AS count FROM products").get() as { count: number };

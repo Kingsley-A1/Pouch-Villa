@@ -1,7 +1,7 @@
-import { loadEnvConfig } from "@next/env";
+import { loadEnvFiles } from "../src/env";
 
 async function main() {
-  loadEnvConfig(process.cwd());
+  loadEnvFiles();
   const { getDatabase } = await import("../src/db/index");
   const db = getDatabase();
   const productCount = db.prepare("SELECT COUNT(*) AS count FROM products").get() as {
