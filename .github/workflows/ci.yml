@@ -63,6 +63,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "24"
+          # This job runs plain Node against the checked-out tree and installs
+          # nothing, so there is no package manager for setup-node to cache.
+          package-manager-cache: false
 
       # The gate is only worth having if it still catches a violation, so the check
       # proves itself against known-bad samples before it is trusted on the tree.
