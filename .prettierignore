@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+coverage
+pnpm-lock.yaml
+*.tsbuildinfo
+next-env.d.ts
+
+# Verbatim client transcription — formatting it would edit the record.
+docs/scope.md
+
+# Inherited prototype documentation, retained unmodified for reference.
+docs/archive

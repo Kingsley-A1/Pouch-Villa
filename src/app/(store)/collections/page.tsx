@@ -1,6 +1,0 @@
-import Link from "next/link";
-import { ArrowRight, Sparkle } from "@phosphor-icons/react/dist/ssr";
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import { getCollections, getProducts } from "@/lib/db";
-export const dynamic = "force-dynamic";
-export default function CollectionsPage() { const collections = getCollections(); return <><Breadcrumbs trail={[{ label: "Collections" }]} /><section className="section-space"><div className="container-shell"><p className="eyebrow">Curated demonstration edits</p><h1 className="section-title mt-3">Collections</h1><div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{collections.map((item) => <Link key={item.id} href={`/collections/${item.slug}`} className="group card-surface min-h-60 p-6 transition hover:-translate-y-1 hover:border-[#e30613]"><Sparkle size={27} className="text-[#e30613]" /><h2 className="mt-14 text-2xl font-bold">{item.name}</h2><p className="mt-3 text-sm leading-6 text-zinc-500">{item.description}</p><p className="mt-5 flex items-center gap-2 text-sm font-bold text-[#e30613]">{getProducts({ collection: item.slug }).length} products <ArrowRight size={17} /></p></Link>)}</div></div></section></>; }

@@ -1,4 +1,5 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -14,13 +15,13 @@ Read this fully before your first edit. Where this file and your instincts disag
 
 **Canonical documents**
 
-| Document | Authority |
-|---|---|
-| [`docs/scope.md`](docs/scope.md) | What we committed to. Verbatim transcription — never edit to match what we built. |
-| [`docs/client-inputs.md`](docs/client-inputs.md) | What the client actually supplied, dated. Evidence. |
-| [`docs/open-questions.md`](docs/open-questions.md) | Decisions only the client can make. Check before assuming. |
-| [`docs/work-plan.md`](docs/work-plan.md) | Sequenced delivery plan and the reasoning behind it. |
-| `AGENTS.md` (this file) | How we build. |
+| Document                                           | Authority                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [`docs/scope.md`](docs/scope.md)                   | What we committed to. Verbatim transcription — never edit to match what we built. |
+| [`docs/client-inputs.md`](docs/client-inputs.md)   | What the client actually supplied, dated. Evidence.                               |
+| [`docs/open-questions.md`](docs/open-questions.md) | Decisions only the client can make. Check before assuming.                        |
+| [`docs/work-plan.md`](docs/work-plan.md)           | Sequenced delivery plan and the reasoning behind it.                              |
+| `AGENTS.md` (this file)                            | How we build.                                                                     |
 
 ---
 
@@ -44,18 +45,20 @@ Nine rules. Violating any one is a blocking review failure, not a discussion.
 
 Committed. Deviating requires a written decision record in `docs/decisions/`.
 
-| Concern | Choice | Notes |
-|---|---|---|
-| Framework | **Next.js 16** (App Router) | Read `node_modules/next/dist/docs/` first — see the banner above. Middleware is `proxy` in 16. |
-| Language | **TypeScript**, `strict` | See §7 for the settings we tighten beyond the current baseline. |
-| Database | **CockroachDB** | Postgres wire protocol — but *not* Postgres. See §3. |
-| Object storage | **Cloudflare R2** | All product images, videos, and payment proofs. Never the app filesystem. See §8. |
-| Customer auth | **Google OAuth + email/password** with recovery | Scope items 06 and §2 of the scope. |
-| Staff auth | **Email/password + mandatory 2FA**, no OAuth | Different threat model. See §5. |
-| Source control | **GitHub** | Protected `main`, PR-only, CI green to merge. |
-| Styling | **Tailwind v4** + semantic CSS custom properties | Brand values are tokens, not literals. See §2. |
-| Validation | **Zod**, one schema per boundary | Shared between API route and form. |
-| Email | **Resend**
+| Concern         | Choice                                           | Notes                                                                                                        |
+| --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Framework       | **Next.js 16** (App Router)                      | Read `node_modules/next/dist/docs/` first — see the banner above. Middleware is `proxy` in 16.               |
+| Language        | **TypeScript**, `strict`                         | See §7 for the settings we tighten beyond the current baseline.                                              |
+| Database        | **CockroachDB**                                  | Postgres wire protocol — but _not_ Postgres. See §3.                                                         |
+| Object storage  | **Cloudflare R2**                                | All product images, videos, and payment proofs. Never the app filesystem. See §8.                            |
+| Customer auth   | **Google OAuth + email/password** with recovery  | Scope items 06 and §2 of the scope.                                                                          |
+| Staff auth      | **Email/password + mandatory 2FA**, no OAuth     | Different threat model. See §5.                                                                              |
+| Source control  | **GitHub**                                       | Protected `main`, PR-only, CI green to merge.                                                                |
+| Package manager | **pnpm** workspaces                              | Pinned via `packageManager`. `npm install` would ignore the lockfile and resolve different versions than CI. |
+| Formatting      | **Prettier**                                     | `format:check` is the first gate in `pnpm run verify`.                                                       |
+| Styling         | **Tailwind v4** + semantic CSS custom properties | Brand values are tokens, not literals. See §2.                                                               |
+| Validation      | **Zod**, one schema per boundary                 | Shared between API route and form.                                                                           |
+| Email           | **Resend**                                       |
 
 **Runtime rule:** anything touching the database, R2 credentials, or a session runs on the Node runtime, server-side. No database driver, no S3 client, and no secret is ever imported into a Client Component — directly or transitively.
 
@@ -63,9 +66,10 @@ Committed. Deviating requires a written decision record in `docs/decisions/`.
 
 ## 2. Mobile-first, by default
 
-Pouch Villa's customers are on mid-range Android phones on Nigerian mobile data. That is the *design target*, not the degraded case.
+Pouch Villa's customers are on mid-range Android phones on Nigerian mobile data. That is the _design target_, not the degraded case.
 
 **Layout**
+
 - Base CSS targets **360 px**. Breakpoints only ever widen: `min-width`, never `max-width`.
 - Test at 320 px before claiming a layout is done. Nothing may scroll horizontally at any width — wide tables and code blocks scroll inside their own container.
 - Interactive targets are **≥ 44 × 44 px** with ≥ 8 px between adjacent targets.
@@ -73,11 +77,11 @@ Pouch Villa's customers are on mid-range Android phones on Nigerian mobile data.
 
 **Performance budget** — enforced in CI, measured on a throttled mid-tier Android profile:
 
-| Metric | Budget |
-|---|---|
-| LCP | ≤ 2.5 s |
-| INP | ≤ 200 ms |
-| CLS | ≤ 0.1 |
+| Metric                                   | Budget           |
+| ---------------------------------------- | ---------------- |
+| LCP                                      | ≤ 2.5 s          |
+| INP                                      | ≤ 200 ms         |
+| CLS                                      | ≤ 0.1            |
 | JS shipped to a first-visit product page | ≤ 120 KB gzipped |
 
 - Server Components by default. `"use client"` needs a reason you can state in one sentence.
@@ -120,7 +124,7 @@ The most-repeated instruction from the client, and the rule most likely to be qu
 **Forbidden in source, in any form:**
 phone numbers · WhatsApp numbers · email addresses · street addresses · opening hours · bank account details · prices · delivery fees · tax rates · policy or legal wording · social handles · staff names · category lists · brand names.
 
-**Where they live instead:** an admin-editable settings store, seeded empty, with a typed key registry. Reading an unset setting returns a *typed absence*, never an empty string that renders as a blank space where a phone number should be.
+**Where they live instead:** an admin-editable settings store, seeded empty, with a typed key registry. Reading an unset setting returns a _typed absence_, never an empty string that renders as a blank space where a phone number should be.
 
 **Environment variables are for infrastructure, not business facts.** A database URL is infrastructure. A WhatsApp number is a business fact and belongs in the admin UI where a non-engineer can change it on a Sunday without a deployment. PouchHub put the store address in `NEXT_PUBLIC_STORE_ADDRESS`; do not repeat that.
 
@@ -135,19 +139,22 @@ Seed data is **clearly fictional and clearly labelled**, and no seed path ever r
 **Two separate identity systems.** Customers and staff share no session, no cookie, no table, and no code path. A privilege bug in the storefront must not be able to reach the admin.
 
 **Sessions**
+
 - Server-side session records with a **revocation list**. A stateless JWT that cannot be revoked is not acceptable for staff access — firing someone must end their access immediately.
 - Signing keys come from a real secret. **Never derive a key from a deployment ID, commit SHA, or hostname** — those are not secrets. (PouchHub does this. It is a session-forgery risk and it must not be copied.)
 - Cookies: `HttpOnly`, `Secure`, `SameSite=Lax`, host-prefixed. Rotate the session ID on privilege change and on sign-in.
 - Idle and absolute timeouts. Staff sessions are short.
 
 **Authorisation** — the scope's three layers, kept genuinely distinct:
-1. *Authentication* — who are you?
-2. *Authorisation* — may you perform this action on this object? Enforced in the service layer, never in a component.
-3. *Role-based access* — admin only, and **CEO-configurable at runtime**.
 
-> The scope says *"CEO controls manager and employee permissions"*. That makes permissions **data**, not a compile-time constant. PouchHub's hardcoded role→permission map cannot satisfy this and must not be ported. Roles and grants are database rows the CEO edits; the CEO role itself is not editable and cannot be deleted or demoted by anyone, including itself. Guard against removing the last CEO.
+1. _Authentication_ — who are you?
+2. _Authorisation_ — may you perform this action on this object? Enforced in the service layer, never in a component.
+3. _Role-based access_ — admin only, and **CEO-configurable at runtime**.
+
+> The scope says _"CEO controls manager and employee permissions"_. That makes permissions **data**, not a compile-time constant. PouchHub's hardcoded role→permission map cannot satisfy this and must not be ported. Roles and grants are database rows the CEO edits; the CEO role itself is not editable and cannot be deleted or demoted by anyone, including itself. Guard against removing the last CEO.
 
 **Always**
+
 - Rate-limit authentication, password reset, payment-proof upload, and review submission. Per-IP and per-account.
 - Passwords: Argon2id, minimum 12 characters, checked against a breach list. One minimum, applied everywhere — PouchHub had 8 in one place and 12 in another.
 - Never interpolate a table or column name into SQL, even behind an enum guard. Use a lookup that maps to a distinct prepared statement.
@@ -166,7 +173,7 @@ Seed data is **clearly fictional and clearly labelled**, and no seed path ever r
 - Rounding is explicit and stated at every boundary.
 - An order **snapshots** the price, product name, and variant at placement time. It never joins to live product data for a historical figure — a customer's receipt must not change because someone edited a price.
 - Timestamps are `TIMESTAMPTZ`, stored UTC, rendered in Africa/Lagos. Never a string.
-- Variants are **first-class rows** with their own SKU, price and stock. Never a JSON blob — PouchHub's `variants_json` cannot be indexed, filtered or stock-tracked, and its colour filter is a substring match that silently matches SKUs. Variant *axes* are data, so the same schema serves storage/colour/condition and colour/size alike ([`docs/open-questions.md`](docs/open-questions.md) Q1).
+- Variants are **first-class rows** with their own SKU, price and stock. Never a JSON blob — PouchHub's `variants_json` cannot be indexed, filtered or stock-tracked, and its colour filter is a substring match that silently matches SKUs. Variant _axes_ are data, so the same schema serves storage/colour/condition and colour/size alike ([`docs/open-questions.md`](docs/open-questions.md) Q1).
 - Search is a real Postgres full-text index with trigram fuzzy matching. Not `LIKE '%q%'`.
 - Every foreign key has an index. Every list query has a bounded result set.
 - **Nothing is hard-deleted.** Products, orders, customers and reviews soft-delete with an actor and reason.
@@ -178,27 +185,40 @@ Seed data is **clearly fictional and clearly labelled**, and no seed path ever r
 
 **Structure**
 
+A pnpm workspace of two packages, deployed as one unit. Rationale and the enforced
+boundary: [`docs/decisions/0001-workspace-split.md`](docs/decisions/0001-workspace-split.md).
+
 ```
-src/
-  app/            Routes. Thin. Composition and data loading only.
-    api/v1/       Versioned HTTP API — the contract.
-  server/
-    services/     Business logic. Imports nothing from next/*. Unit-testable.
-    db/           Schema, migrations, typed queries.
-    auth/         Session, permission evaluation.
-  components/     Presentational. No data fetching, no business rules.
-  lib/            Pure, dependency-free helpers.
+packages/pv-backend/    @pv/backend — imports nothing from next/* or react.
+  src/domain/           Types, money and formatting, checked accessors.
+  src/services/         Business logic. Unit-testable in isolation.
+  src/db/               Schema, migrations, typed queries.
+  src/auth/             Sessions, permission evaluation, password hashing.
+  src/index.ts          Barrel. Deliberately excludes ./db.
+
+apps/pv-frontend/       @pv/frontend — Next 16 App Router.
+  src/app/              Routes. Thin. Composition and data loading only.
+    api/v1/             Versioned HTTP API — the contract.
+  src/components/       Presentational. No data fetching, no business rules.
+  src/lib/              Browser-side helpers. Pure.
+  src/server/           Thin adapters over @pv/backend (cookies, redirects).
 ```
 
+**The boundary is enforced, not advisory.** ESLint bans `next`, `next/*`, `react`,
+`react-dom` and the `@/*` alias inside `packages/pv-backend/**`, and the backend
+barrel omits the database layer so no driver or credential can reach a Client
+Component through a transitive import. Reach it explicitly via `@pv/backend/db`.
+
 **Rules**
+
 - **One exported concern per file.** PouchHub's `app/admin/(protected)/[section]/page.tsx` packs ten admin screens into a single catch-all route as minified one-line components. It demos well and it is unmaintainable. Every admin section is its own route, its own file, its own tests.
-- **Write for the reader.** Dense single-line components are a defect regardless of what the formatter allows. Line length ≤ 120. Formatting is Prettier's job, not a matter of taste.
+- **Write for the reader.** Dense single-line components are a defect regardless of what the formatter allows. Prettier is installed and `format:check` is the first step of `pnpm run verify`, so formatting is settled by the tool, not by taste. Print width is 100; the ≤ 120 ceiling covers what Prettier cannot break, such as a long SQL string.
 - Comments explain **why**, never what. A comment restating the code is deleted.
 - No `any`. No non-null `!` — narrow properly. No `as` except at a validated boundary.
 - Names say what a thing is. No `data`, `item`, `handleClick2`, `temp`.
 - Delete dead code. Git remembers it.
 
-**TypeScript — tighten beyond the inherited baseline.** The cloned `tsconfig.json` is Next's default; add `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, and raise `target` past ES2017.
+**TypeScript — tightened, and already applied.** `tsconfig.base.json` at the workspace root sets `strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride` and `noFallthroughCasesInSwitch`, at `target: ES2022`. Both packages extend it. Where an index is provably in range but the compiler cannot prove it, use the checked accessors in `@pv/backend/domain/assert` — never a non-null `!`.
 
 **Every PR** is single-purpose, has a green CI, describes what a reviewer should look at, and includes tests. Conventional Commits. `main` is always deployable.
 
@@ -220,9 +240,10 @@ src/
 Tests assert behaviour a customer or staff member would notice. Coverage percentage is not a goal.
 
 **Required**
+
 - **Unit** — every service function, especially money, stock, permission evaluation, and state transitions.
 - **Integration** — every API endpoint against a real CockroachDB instance. Not SQLite, not a mock; the retry semantics are the point.
-- **Permissions** — an explicit matrix test. For every role × every mutation, assert allowed *and* denied. This is the test that keeps the client's business safe.
+- **Permissions** — an explicit matrix test. For every role × every mutation, assert allowed _and_ denied. This is the test that keeps the client's business safe.
 - **E2E** — the full commerce flow from the signed scope: browse → filter → variant → cart → sign in → order → transfer → proof → track → review. On a mobile viewport.
 - **Accessibility** — automated axe on every route, plus a documented manual keyboard pass per release.
 - **Performance** — Lighthouse CI against the §2 budgets, failing the build.

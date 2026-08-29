@@ -2,50 +2,31 @@
   "name": "pouch-villa",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.12.0",
   "engines": {
-    "node": "24.x"
+    "node": "24.x",
+    "pnpm": ">=11"
   },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "build": "next build",
-    "start": "next start",
+    "dev": "pnpm --filter @pv/frontend dev",
+    "build": "pnpm --filter @pv/frontend build",
+    "start": "pnpm --filter @pv/frontend start",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:routes": "node scripts/verify-routes.mjs",
-    "setup": "node --import tsx scripts/setup.ts",
-    "db:seed": "node --import tsx scripts/seed.ts",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:routes"
-  },
-  "dependencies": {
-    "@phosphor-icons/react": "^2.1.10",
-    "bcryptjs": "^3.0.3",
-    "clsx": "^2.1.1",
-    "jose": "^6.2.3",
-    "next": "16.2.10",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "typecheck": "pnpm -r --workspace-concurrency=1 typecheck",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "test:routes": "pnpm --filter @pv/frontend test:routes",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "setup": "pnpm --filter @pv/backend setup",
+    "db:seed": "pnpm --filter @pv/backend db:seed",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && pnpm run test:routes"
   },
   "devDependencies": {
-    "@next/env": "16.2.10",
-    "@tailwindcss/postcss": "^4",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.3",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.10",
-    "axe-core": "^4.12.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "jsdom": "^29.1.1",
-    "sharp": "^0.35.3",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.1",
-    "typescript": "^5",
-    "vitest": "^4.1.10"
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "typescript": "^5"
   }
 }

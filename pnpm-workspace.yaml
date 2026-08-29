@@ -1,4 +1,11 @@
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
-  - unrs-resolver
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Each of these needs a postinstall to be usable: esbuild and unrs-resolver fetch
+# their platform binary, sharp its libvips build. Reviewed and allowed explicitly
+# rather than left to a prompt.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
