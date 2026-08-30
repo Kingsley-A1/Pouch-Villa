@@ -12,11 +12,23 @@
 
 const DEVELOPMENT_ORIGIN = "http://localhost:3000";
 
+function asHttpOrigin(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(withProtocol);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL &&
-    `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
-  (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) ||
+  asHttpOrigin(process.env.NEXT_PUBLIC_SITE_URL) ||
+  asHttpOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
+  asHttpOrigin(process.env.VERCEL_URL) ||
   DEVELOPMENT_ORIGIN;
 
 export const isIndexable = process.env.NEXT_PUBLIC_SITE_INDEXABLE === "true";
