@@ -1,7 +1,6 @@
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { loadEnvFiles } from "../src/env";
+import { writableTestDatabaseConfigured } from "./helpers/database";
 import type { StaffRoleCode } from "../src/auth/role-codes";
 import { closePool, query } from "../src/db/client";
 import {
@@ -25,11 +24,9 @@ import { permissionsForRole, staffHasPermission } from "../src/services/roles";
  * nothing about either.
  */
 
-loadEnvFiles(resolve(process.cwd(), "../.."));
-loadEnvFiles(process.cwd());
-
-const configured = Boolean(process.env.DATABASE_URL?.trim());
-const describeDb = configured ? describe : describe.skip;
+// These tests create and delete rows, so they run only against a database that is
+// explicitly nominated for testing — never whatever DATABASE_URL happens to hold.
+const describeDb = writableTestDatabaseConfigured() ? describe : describe.skip;
 
 /**
  * The deployment pins who may redeem a CEO code. These tests exercise the role

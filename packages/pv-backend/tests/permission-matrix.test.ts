@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { resolve } from "node:path";
-import { loadEnvFiles } from "../src/env";
+import { readOnlyDatabaseConfigured } from "./helpers/database";
 import { closePool, query } from "../src/db/client";
 import {
   PERMISSIONS,
@@ -17,11 +16,8 @@ import { STAFF_ROLES, type StaffRoleCode } from "../src/auth/role-codes";
  * run against any environment whose grants you want to confirm.
  */
 
-loadEnvFiles(resolve(process.cwd(), "../.."));
-loadEnvFiles(process.cwd());
-
-const configured = Boolean(process.env.DATABASE_URL?.trim());
-const describeDb = configured ? describe : describe.skip;
+// Read-only, so it may confirm the grants of any environment it is pointed at.
+const describeDb = readOnlyDatabaseConfigured() ? describe : describe.skip;
 
 /** The intended matrix, written out in full rather than derived from the migration. */
 const EMPLOYEE_ALLOWED: readonly PermissionCode[] = [

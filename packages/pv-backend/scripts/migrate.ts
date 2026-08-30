@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { loadEnvFiles } from "../src/env";
 import { closePool } from "../src/db/client";
 import { migrate } from "../src/db/migrate";
+import { seedSettingsFromEnvironment } from "../src/services/settings";
 
 /**
  * Applies every pending migration, in order, exactly once.
@@ -23,6 +24,11 @@ async function main() {
     for (const name of applied) console.log(`applied  ${name}`);
     console.log(`\n${applied.length} migration(s) applied in ${Date.now() - started}ms.`);
   }
+
+  // Seeds only fill keys that are still empty, so this is safe on every run and
+  // can never overwrite a value a staff member set in the admin.
+  const seeded = await seedSettingsFromEnvironment();
+  if (seeded.length > 0) console.log(`seeded from environment: ${seeded.join(", ")}`);
 }
 
 main()
