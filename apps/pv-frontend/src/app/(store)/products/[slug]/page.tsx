@@ -1,171 +1,100 @@
+import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, CheckCircle, Info, MapPin, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
+import { getPublishedProductBySlug } from "@pv/backend/services/catalogue";
+import { formatKobo } from "@pv/backend/domain/money";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { ProductActions } from "@/components/product-actions";
-import { ProductGrid } from "@/components/product-grid";
-import { getProductBySlug, getProducts, getSetting, run } from "@pv/backend/db";
-import { availabilityTone, cn } from "@/lib/utils";
-import { availabilityLabel, formatNaira, parseVariants } from "@pv/backend/domain/format";
+
+/**
+ * Catalogue and settings come from the database, so this renders per request.
+ * Prerendering it would freeze the storefront until the next deploy — a product
+ * published in the admin must appear immediately.
+ */
 export const dynamic = "force-dynamic";
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+
+type Params = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
-  if (!product) notFound();
-  run("UPDATE products SET views = views + 1 WHERE id = ?", product.id);
-  const devices = product.devices || [];
-  const variants = parseVariants(product.variants_json);
-  const first = devices[0];
-  const related = first
-    ? getProducts({ brand: first.brand_slug, model: first.slug })
-        .filter((item) => item.id !== product.id)
-        .slice(0, 4)
-    : [];
-  const whatsapp = getSetting("whatsapp_number");
+  const product = await getPublishedProductBySlug(slug);
+  if (product === null) return { title: "Product not found" };
+  return {
+    title: product.name,
+    ...(product.summary ? { description: product.summary } : {}),
+  };
+}
+
+export default async function ProductPage({ params }: Params) {
+  const { slug } = await params;
+  const product = await getPublishedProductBySlug(slug);
+  if (product === null) notFound();
+
+  const hero = product.images[0];
+
   return (
     <>
-      <Breadcrumbs
-        trail={
-          first
-            ? [
-                { label: "Shop", href: "/shop" },
-                {
-                  label: `${first.brand_name} ${first.name}`,
-                  href: `/shop/${first.brand_slug}/${first.slug}`,
-                },
-                { label: product.name },
-              ]
-            : [{ label: "Shop", href: "/shop" }, { label: product.name }]
-        }
-      />
+      <Breadcrumbs trail={[{ label: "Shop", href: "/shop" }, { label: product.name }]} />
       <section className="section-space">
-        <div className="container-shell grid gap-10 lg:grid-cols-[1.05fr_.95fr]">
-          <div className="grid gap-4 sm:grid-cols-[1fr_88px] sm:[grid-template-areas:'main_thumbs']">
-            <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-[#f6f3f1] sm:[grid-area:main]">
+        <div className="container-shell grid gap-10 lg:grid-cols-2">
+          <div className="relative aspect-square overflow-hidden rounded-3xl bg-(--pv-wash)">
+            {hero ? (
               <Image
-                src={product.image}
-                alt={`${product.name} demonstration case`}
+                src={hero.r2Key}
+                alt={hero.alt ?? product.name}
                 fill
-                sizes="(max-width: 1024px) 100vw, 52vw"
-                className="object-cover"
                 priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
               />
-            </div>
-            <div className="flex gap-3 sm:flex-col sm:[grid-area:thumbs]">
-              {[product.image, "/images/pouch-villa-hero.png", product.image].map(
-                (image, index) => (
-                  <div
-                    key={`${image}-${index}`}
-                    className="relative aspect-square w-20 overflow-hidden rounded-xl border border-[#e8e3df] bg-[#f6f3f1]"
-                  >
-                    <Image
-                      src={image}
-                      alt="Demonstration gallery view"
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                    />
-                  </div>
-                ),
-              )}
-            </div>
+            ) : (
+              <div className="grid h-full place-items-center text-sm text-(--pv-muted)">
+                No image has been uploaded for this product yet.
+              </div>
+            )}
           </div>
+
           <div>
-            <p className="eyebrow">Original fictional demonstration product</p>
-            <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-              <h1 className="section-title">{product.name}</h1>
-              <span className={cn("status-pill", availabilityTone(product.availability))}>
-                {availabilityLabel(product.availability)}
-              </span>
-            </div>
-            <p className="mt-4 text-2xl font-extrabold text-[#e30613]">
-              {formatNaira(product.demo_price)}
+            <h1 className="section-title">{product.name}</h1>
+            <p className="mt-4 text-2xl font-extrabold text-(--pv-red)">
+              {product.fromKobo === null ? "Price on request" : formatKobo(product.fromKobo)}
             </p>
-            <p className="mt-5 leading-7 text-zinc-600">{product.description}</p>
-            <div className="my-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#e8e3df]">
-              <div className="bg-[#fcfaf8] p-4">
-                <p className="text-xs text-zinc-500">Material</p>
-                <p className="mt-1 font-bold">{product.material}</p>
-              </div>
-              <div className="bg-[#fcfaf8] p-4">
-                <p className="text-xs text-zinc-500">Protection</p>
-                <p className="mt-1 font-bold">{product.protection}</p>
-              </div>
-              <div className="bg-[#fcfaf8] p-4">
-                <p className="text-xs text-zinc-500">Style</p>
-                <p className="mt-1 font-bold">{product.style}</p>
-              </div>
-              <div className="bg-[#fcfaf8] p-4">
-                <p className="text-xs text-zinc-500">MagSafe related</p>
-                <p className="mt-1 font-bold">{product.magsafe ? "Yes" : "No"}</p>
-              </div>
-            </div>
-            <div id="confirm-phone">
-              <ProductActions
-                product={product}
-                devices={devices}
-                variants={variants}
-                whatsappNumber={whatsapp}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className="border-y border-[#e8e3df] bg-[#fcfaf8]">
-        <div className="container-shell grid gap-6 py-10 md:grid-cols-3">
-          <div className="flex gap-3">
-            <CheckCircle className="text-[#e30613]" size={24} />
-            <div>
-              <p className="font-bold">Compatibility</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
-                {devices.map((item) => `${item.brand_name} ${item.name}`).join(", ")}
+            {product.summary ? (
+              <p className="mt-4 leading-7 text-(--pv-muted)">{product.summary}</p>
+            ) : null}
+
+            <h2 className="mt-8 text-lg font-bold">Options</h2>
+            {product.variants.length === 0 ? (
+              <p className="mt-2 text-sm text-(--pv-muted)">
+                No variants have been configured for this product yet.
               </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <MapPin className="text-[#e30613]" size={24} />
-            <div>
-              <p className="font-bold">Pickup information</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
-                Staff confirms availability and pickup details after reservation.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <ShieldCheck className="text-[#e30613]" size={24} />
-            <div>
-              <p className="font-bold">Policy summary</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-500">
-                No payment or final sale occurs through this prototype.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className="section-space">
-        <div className="container-shell">
-          <div className="mb-8 flex items-end justify-between">
-            <div>
-              <p className="eyebrow">Same confirmed device</p>
-              <h2 className="section-title mt-3">Related compatible products</h2>
-            </div>
-            {first ? (
-              <Link
-                href={`/shop/${first.brand_slug}/${first.slug}`}
-                className="button-ghost hidden sm:inline-flex"
-              >
-                View all <ArrowRight size={18} />
-              </Link>
+            ) : (
+              <ul className="mt-3 grid gap-2">
+                {product.variants.map((variant) => (
+                  <li
+                    key={variant.id}
+                    className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-(--pv-line) px-4 py-2"
+                  >
+                    <span className="text-sm font-semibold">
+                      {Object.values(variant.axes).join(" · ") || variant.sku}
+                    </span>
+                    <span className="text-sm tabular-nums">
+                      {formatKobo(variant.priceKobo)}
+                      {variant.inStock <= 0 ? (
+                        <span className="ml-2 text-(--pv-muted)">Out of stock</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {product.description ? (
+              <>
+                <h2 className="mt-8 text-lg font-bold">Details</h2>
+                <p className="mt-2 leading-7 text-(--pv-muted)">{product.description}</p>
+              </>
             ) : null}
           </div>
-          {related.length ? (
-            <ProductGrid products={related} />
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-5 text-amber-900">
-              <Info size={22} /> No related demonstration products are linked yet.
-            </div>
-          )}
         </div>
       </section>
     </>

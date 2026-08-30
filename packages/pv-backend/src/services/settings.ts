@@ -56,6 +56,13 @@ export async function readSetting(key: SettingKey): Promise<SettingValue> {
   return { present: true, value: row.value, origin: row.origin };
 }
 
+/** Absent is a value here, so a caller never has to handle `undefined` as well. */
+export const ABSENT: SettingValue = { present: false };
+
+export function pick(settings: Map<SettingKey, SettingValue>, key: SettingKey): SettingValue {
+  return settings.get(key) ?? ABSENT;
+}
+
 export async function readSettings(
   keys: readonly SettingKey[],
 ): Promise<Map<SettingKey, SettingValue>> {

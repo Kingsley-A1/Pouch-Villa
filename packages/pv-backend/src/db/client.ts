@@ -36,7 +36,9 @@ export function getPool(): Pool {
     connectionString: connectionString(),
     max: Number(process.env.DATABASE_POOL_MAX ?? 10),
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    // A serverless CockroachDB cluster resumes from cold on the first connection
+    // after an idle period, which has taken well over ten seconds.
+    connectionTimeoutMillis: Number(process.env.DATABASE_CONNECT_TIMEOUT_MS ?? 30_000),
     // Managed CockroachDB requires TLS. Certificate verification stays on.
     application_name: "pouch-villa",
   });

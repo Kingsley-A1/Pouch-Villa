@@ -7,8 +7,8 @@
     ".": "./src/index.ts",
     "./domain/*": "./src/domain/*.ts",
     "./auth/*": "./src/auth/*.ts",
-    "./db": "./src/db/index.ts",
-    "./db/*": "./src/db/*.ts"
+    "./db/*": "./src/db/*.ts",
+    "./services/*": "./src/services/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

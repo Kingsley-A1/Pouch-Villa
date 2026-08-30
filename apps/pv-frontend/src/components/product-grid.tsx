@@ -1,28 +1,28 @@
-import type { Product } from "@pv/backend/domain/types";
+import type { CatalogueListItem } from "@pv/backend/services/catalogue";
 import { ProductCard } from "@/components/product-card";
-import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
+/**
+ * An empty catalogue says so plainly. Rule 2: nothing is invented to fill a grid,
+ * because a plausible placeholder that reaches production becomes a lie the client
+ * discovers in front of a customer.
+ */
 export function ProductGrid({
   products,
-  emptyTitle = "No compatible products found",
+  emptyMessage = "No products have been published yet.",
 }: {
-  products: Product[];
-  emptyTitle?: string;
+  products: CatalogueListItem[];
+  emptyMessage?: string;
 }) {
-  if (!products.length)
+  if (products.length === 0) {
     return (
-      <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-zinc-300 bg-[#fcfaf8] p-8 text-center">
-        <div>
-          <MagnifyingGlass size={34} className="mx-auto mb-3 text-zinc-400" />
-          <h2 className="text-xl font-bold">{emptyTitle}</h2>
-          <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-            Try changing a filter or request a case so staff can help source the right fit.
-          </p>
-        </div>
-      </div>
+      <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
+        {emptyMessage}
+      </p>
     );
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}
