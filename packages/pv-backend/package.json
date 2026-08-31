@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "setup": "node --import tsx scripts/setup.ts",
-    "db:seed": "node --import tsx scripts/seed.ts",
-    "db:migrate": "node --import tsx scripts/migrate.ts"
+    "db:migrate": "node --import tsx scripts/migrate.ts",
+    "claim-code": "node --import tsx scripts/claim-code.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
