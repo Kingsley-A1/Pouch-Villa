@@ -34,11 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
-# local development database and uploads
+# local development database
 **/data/*.db
 **/data/*.db-*
-**/public/uploads/*
-!**/public/uploads/.gitkeep
 
 # host metadata
 .vercel
