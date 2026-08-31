@@ -124,7 +124,3 @@ export async function processImage(bytes: Buffer): Promise<ProcessedImage> {
 
   return { width, height, hash, renditions };
 }
-
-export function mediaKey(productId: string, hash: string, rendition: string) {
-  return `products/${productId}/${hash}-${rendition}.webp`;
-}

@@ -1,7 +1,7 @@
 import { query, queryOne } from "../db/client";
 import { kobo, type Kobo } from "../domain/money";
 import { isStorageConfigured } from "../storage/r2";
-import { urlsForHash } from "./media";
+import { urlsForHash } from "./media-urls";
 
 /**
  * Read paths for the storefront and the admin catalogue.

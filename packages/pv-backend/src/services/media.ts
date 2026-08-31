@@ -1,15 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { getPool, query } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import {
-  DERIVATIVES,
-  MAX_IMAGE_BYTES,
-  mediaKey,
-  processImage,
-  type DerivativeName,
-} from "../storage/images";
-import { deleteObject, getObjectBytes, presignUpload, publicUrl, putObject } from "../storage/r2";
+import { DERIVATIVES, MAX_IMAGE_BYTES, processImage, type DerivativeName } from "../storage/images";
+import { mediaKey } from "../storage/media-key";
+import { deleteObject, getObjectBytes, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
+import { urlsForHash } from "./media-urls";
 
 /**
  * Product media, uploaded in two steps.
@@ -249,26 +245,6 @@ export async function listProductMedia(productId: string): Promise<AdminMedia[]>
     sortOrder: row.sort_order,
     urls: urlsForHash(productId, row.content_hash, row.r2_key),
   }));
-}
-
-/**
- * Media predating the rendition pipeline has no content hash; those rows fall
- * back to whatever single key they were stored with rather than 404ing.
- */
-export function urlsForHash(
-  productId: string,
-  contentHash: string | null,
-  fallbackKey: string,
-): Record<DerivativeName, string> {
-  if (contentHash === null) {
-    const url = publicUrl(fallbackKey);
-    return { thumb: url, card: url, hero: url };
-  }
-  return {
-    thumb: publicUrl(mediaKey(productId, contentHash, "thumb")),
-    card: publicUrl(mediaKey(productId, contentHash, "card")),
-    hero: publicUrl(mediaKey(productId, contentHash, "hero")),
-  };
 }
 
 /**

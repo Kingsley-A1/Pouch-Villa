@@ -42,6 +42,12 @@ const nextConfig: NextConfig = {
   // pv-backend ships TypeScript source rather than a build artefact, so the app
   // compiles it as part of its own build.
   transpilePackages: ["@pv/backend"],
+  // sharp is a native addon: it must be required at runtime from its own
+  // node_modules location, never bundled into a chunk, or its dlopen of the
+  // sibling libvips binary breaks. Only the media-upload path touches sharp at
+  // all — catalogue reads no longer import it (see storage/media-key.ts) — but
+  // wherever it is imported, this keeps the build from bundling it.
+  serverExternalPackages: ["sharp"],
   images: {
     remotePatterns: mediaRemotePatterns(),
   },
