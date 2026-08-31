@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requirePermission } from "@/server/session";
 import { listAllBrands } from "@pv/backend/services/brands";
 import { listAllCategories } from "@pv/backend/services/categories";
+import { listAllDevices } from "@pv/backend/services/devices";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ProductForm } from "../product-form";
 import { createProductAction } from "../actions";
@@ -11,7 +12,11 @@ export const metadata: Metadata = { title: "New product" };
 
 export default async function NewProductPage() {
   await requirePermission("product.manage");
-  const [brands, categories] = await Promise.all([listAllBrands(), listAllCategories()]);
+  const [brands, categories, devices] = await Promise.all([
+    listAllBrands(),
+    listAllCategories(),
+    listAllDevices(),
+  ]);
 
   return (
     <div className="grid gap-6">
@@ -21,6 +26,7 @@ export default async function NewProductPage() {
         action={createProductAction}
         brands={brands}
         categories={categories}
+        devices={devices}
         submitLabel="Create product"
       />
     </div>

@@ -2,183 +2,211 @@
 
 # Delivery Work Plan
 
-**Repository:** `PouchVilla`, cloned from PouchHub at `7c90a80`, 16 commits of provenance retained. Remote now set to `github.com/Kingsley-A1/Pouch-Villa` (empty, nothing pushed yet).
-**Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md)
+**Repository:** [`github.com/Kingsley-A1/Pouch-Villa`](https://github.com/Kingsley-A1/Pouch-Villa) · `main` · CI green
+**Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md) · **Decisions:** [`decisions/`](decisions/)
+
+**Status at last update:** Phases 0, 1 and 2 complete. Phase 3 (Commerce) is next and is the largest remaining block of work.
+
+> §1 and §2 below are the original assessment of the inherited prototype, kept as
+> the record of _why_ the rebuild was chosen. They describe PouchHub as it was
+> received, not the system as it stands. Everything from §3 onward is current.
 
 ---
 
-## 1. Verdict on the inherited codebase
+## 1. Verdict on the inherited codebase _(historical — as assessed at clone time)_
 
-PouchHub is a **1,603-line prototype**, and an honest one — its own documentation states that payments, customer accounts and live stock are _"intentionally out of scope"_. It was built to demonstrate a phone-case storefront, and at that it succeeds.
+PouchHub was a **1,603-line prototype**, and an honest one — its own documentation stated that payments, customer accounts and live stock were _"intentionally out of scope"_. It was built to demonstrate a phone-case storefront, and at that it succeeded.
 
-It is not a foundation for the signed scope, and the gap is not close:
+It was not a foundation for the signed scope, and the gap was not close:
 
-| Scope item                                    | Present in PouchHub                                                              |
-| --------------------------------------------- | -------------------------------------------------------------------------------- |
-| Browse, search & filter                       | ⚠️ Partial — `LIKE '%q%'`, no relevance or index                                 |
-| Specs & variants                              | ❌ A JSON text blob; no per-variant price or stock                               |
-| Like & share                                  | ❌ Absent                                                                        |
-| Add to cart                                   | ❌ **No cart exists**                                                            |
-| Register / sign in (Email or Google)          | ❌ **No customer accounts at all**, by design                                    |
-| Place order                                   | ❌ No order or order-line entity                                                 |
-| Pay by transfer                               | ❌ Absent                                                                        |
-| Payment proof                                 | ❌ Absent                                                                        |
-| Track order                                   | ❌ Absent                                                                        |
-| Review product                                | ❌ Absent                                                                        |
-| Contact                                       | ⚠️ A WhatsApp message _preview_ that deliberately sends nothing                  |
-| CEO-configurable RBAC                         | ❌ A hardcoded compile-time map — **structurally cannot** satisfy the scope      |
-| Orders / Payments / Customers / Reviews admin | ❌ Absent. The "Customers" screen is `GROUP BY` over reservations, not an entity |
+| Scope item                                    | Present in PouchHub                                                               |
+| --------------------------------------------- | --------------------------------------------------------------------------------- |
+| Browse, search & filter                       | ⚠️ Partial — `LIKE '%q%'`, no relevance or index                                  |
+| Specs & variants                              | ❌ A JSON text blob; no per-variant price or stock                                |
+| Like & share                                  | ❌ Absent                                                                         |
+| Add to cart                                   | ❌ **No cart exists**                                                             |
+| Register / sign in (Email or Google)          | ❌ **No customer accounts at all**, by design                                     |
+| Place order                                   | ❌ No order or order-line entity                                                  |
+| Pay by transfer                               | ❌ Absent                                                                         |
+| Payment proof                                 | ❌ Absent                                                                         |
+| Track order                                   | ❌ Absent                                                                         |
+| Review product                                | ❌ Absent                                                                         |
+| Contact                                       | ⚠️ A WhatsApp message _preview_ that deliberately sent nothing                    |
+| CEO-configurable RBAC                         | ❌ A hardcoded compile-time map — **structurally could not** satisfy the scope    |
+| Orders / Payments / Customers / Reviews admin | ❌ Absent. The "Customers" screen was `GROUP BY` over reservations, not an entity |
 
-Roughly **two of twelve** customer-flow items and **two of eight** admin pages exist in any usable form.
+Roughly **two of twelve** customer-flow items and **two of eight** admin pages existed in any usable form.
 
-There is also a discovery worth stating plainly: **PouchHub _is_ a renamed Pouch Villa prototype.** The database global is `__pouchVillaDb`, the session cookie is `pv_admin_session`, every CSS token is `--pv-*`, the seed account is `admin@pouchvilla.demo`, and `docs/assumptions-and-confirmations.md` opens with _"Pouch Villa is a Calabar-based retailer specialising in phone cases."_ The rename to Pouch Hub only ever touched the surface. That is good news for effort and bad news for hygiene — localStorage keys are still `pouch-villa-saved`, `pouch-villa-phone`, `pouch-villa-recent`, which will collide across brands on a shared origin.
+There was also a discovery worth stating plainly: **PouchHub _was_ a renamed Pouch Villa prototype.** The database global was `__pouchVillaDb`, the session cookie `pv_admin_session`, every CSS token `--pv-*`. The rename to Pouch Hub only ever touched the surface.
 
-**Recommendation: keep the repository, rebuild the substance.** The clone is worth having for its design system, its accessibility discipline, its verification harness and its documentation habit. Those are real and they took time. But the schema, the persistence layer, the auth model and the admin architecture are all load-bearing in the wrong direction, and every one of them is cheaper to replace now than to migrate later.
-
----
-
-## 2. Keep / Rebuild / Delete
-
-### ✅ Keep and build on
-
-| Asset                                         | Why it earns its place                                                                                                                                                                                            |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Design system** (`globals.css`)             | Genuinely good. Semantic tokens, fluid `clamp()` type, `:focus-visible` at 3 px, `prefers-reduced-motion`, 44 px minimum button height, deliberate 48 px+ inputs. Retheme the tokens — do not rewrite the system. |
-| **Verification harness**                      | `npm run verify` chaining lint → typecheck → test → build → route-check is exactly the right instinct. Extend it; keep the shape.                                                                                 |
-| **Documentation culture**                     | An assumptions register, a promotion path, an explicit _awaiting confirmation_ pattern, and a documented rejection of a bad research package. Rare and valuable. Carried into `docs/`.                            |
-| **The "never invent client data" discipline** | Already the strongest habit in the codebase and now rule #2 in `AGENTS.md`.                                                                                                                                       |
-| **Comment quality**                           | Several comments explain a real past failure and why the fix looks odd. That is the good kind.                                                                                                                    |
-| **Brand identity direction**                  | Red/white with the case mark is confirmed by the supplied logos.                                                                                                                                                  |
-
-### 🔁 Rebuild — right idea, wrong implementation
-
-| Area                   | Problem                                                                                                                                                              | Replacement                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **Persistence**        | `node:sqlite`, single global handle, **silent fallback to `:memory:`** on an unwritable path, `/tmp` on serverless — wiped on every cold start. Data loss by design. | CockroachDB, pooled, migration-versioned. No silent fallback: fail loudly. |
-| **Product schema**     | `variants_json` TEXT. Colour filtering is `variants_json LIKE '%blue%'` — it will match a SKU or a description and silently return wrong results.                    | Variants as rows with SKU, price, stock. Variant axes as data.             |
-| **RBAC**               | Compile-time `Record<Role, Permission[]>`.                                                                                                                           | Roles and grants as rows the CEO edits at runtime.                         |
-| **Admin architecture** | Ten screens in one 25-line catch-all `[section]` route, written as minified one-liners.                                                                              | One route, one file, one test file per section.                            |
-| **Auth**               | See §2.1 — several issues, one serious.                                                                                                                              | Separate customer and staff stacks; server-side revocable sessions.        |
-| **Media**              | Writes to `public/uploads`; throws on Vercel because a runtime-written file is never served.                                                                         | Direct-to-R2 pre-signed upload.                                            |
-| **Search**             | `LIKE '%q%'`, unindexable.                                                                                                                                           | Postgres FTS + trigram.                                                    |
-| **References**         | `Math.random()` + 4 digits into a `UNIQUE` column.                                                                                                                   | CSPRNG with real entropy.                                                  |
-| **Images**             | `unoptimized: true` globally, to dodge a hosting-plan limit.                                                                                                         | Proper optimisation; fix the plan, not the code.                           |
-
-#### 2.1 Auth findings, ranked
-
-1. 🔴 **Deployment-ID-derived signing key.** `src/lib/auth.ts` falls back to `sha256("pouch-villa-session:" + VERCEL_DEPLOYMENT_ID)` when `AUTH_SECRET` is missing. A deployment ID is **not a secret** — anyone who learns it can mint a valid `owner` session. The comment explains it was added to stop sign-in breaking. Understandable under demo pressure; unacceptable in production. **Must not be ported.**
-2. 🟠 **Env-var-driven admin credentials, re-applied on every boot.** `applyAdminCredentials` resets the password _and_ forces `role='owner', status='active'` on each start. Environment becomes the identity store, and a disabled owner silently re-enables on redeploy.
-3. 🟠 **No revocation.** Stateless 8-hour JWT. Removing someone's access requires waiting them out.
-4. 🟠 **No login rate limiting.** Open to credential stuffing.
-5. 🟡 **Table name interpolated into SQL** in `updateRequestStatus`. Currently safe behind a `z.enum`, but the pattern is one careless edit from an injection.
-6. 🟡 **Inconsistent password minimums** — 8 for the seeded owner, 12 for staff created in the UI.
-
-### 🗑️ Delete
-
-Case-compatibility (`find-my-case`, `product_devices`, `devices`, `brands`-as-compatibility, `request-case`), reservations, `back_in_stock_interests`, the WhatsApp-preview flow, all `pouch-villa-*` localStorage keys, all seed data, all PouchHub copy, and `.vercel`/`.openai` host metadata.
-
-> **One caveat, deliberately flagged.** If [`open-questions.md`](open-questions.md) Q1 resolves toward accessories, the device-compatibility model becomes _the_ differentiating feature — "show me cases that fit my phone" is exactly what a Pouches & Protection catalogue needs. **Do not delete `product_devices` until Q1 is answered.** The target schema below keeps compatibility as an optional facet precisely so this decision stays cheap.
+**Recommendation, taken: keep the repository, rebuild the substance.** The clone was worth having for its design system, its accessibility discipline, its verification harness and its documentation habit. The schema, persistence layer, auth model and admin architecture were all load-bearing in the wrong direction, and every one was cheaper to replace than to migrate.
 
 ---
 
-## 3. Target architecture
+## 2. Keep / Rebuild / Delete — outcome
 
-### The one decision that de-risks everything
+| Area                     | Prototype problem                                                  | Status                                                          |
+| ------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| **Design system**        | Genuinely good — semantic tokens, focus rings, 44 px targets       | ✅ Kept and retheme                                             |
+| **Verification harness** | Right instinct, thin coverage                                      | ✅ Kept and extended — see §5                                   |
+| **Persistence**          | `node:sqlite`, silent fallback to `:memory:`, `/tmp` on serverless | ✅ Replaced — CockroachDB, pooled, retry-aware, fails loudly    |
+| **Product schema**       | `variants_json` TEXT; colour filter was `LIKE '%blue%'`            | ✅ Replaced — variants as rows, axes as data                    |
+| **RBAC**                 | Compile-time `Record<Role, Permission[]>`                          | ✅ Replaced — roles and grants as rows the CEO edits at runtime |
+| **Admin architecture**   | Ten screens in one catch-all route, minified one-liners            | ✅ Replaced — one route, one file per section                   |
+| **Auth**                 | Six findings, one critical — see §2.1                              | ✅ Replaced — separate stacks, server-side revocable sessions   |
+| **Media**                | Wrote to `public/uploads`; cannot work on serverless               | ✅ Replaced — direct-to-R2 pre-signed upload                    |
+| **Search**               | `LIKE '%q%'`, unindexable                                          | ✅ Replaced — Postgres FTS + trigram                            |
+| **Images**               | `unoptimized: true` globally, to dodge a hosting-plan limit        | ✅ Removed — `next/image` with per-environment `remotePatterns` |
+| **References**           | `Math.random()` + 4 digits into a `UNIQUE` column                  | ⏳ Phase 3 — order references not yet built                     |
 
-The scope says _mobile devices_; the client's live POS says _cases and accessories_ ([`client-inputs.md`](client-inputs.md) §4). Rather than guess, the catalogue makes **variant axes data instead of columns**:
+### 2.1 Auth findings — all resolved
+
+| #   | Finding                                                                | Resolution                                                               |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 1   | 🔴 Deployment-ID-derived signing key — a deployment ID is not a secret | Removed. Production without `AUTH_SECRET` refuses to start.              |
+| 2   | 🟠 Env-var admin credentials re-applied on every boot                  | Removed. No account is seeded; access comes from a redeemed role code.   |
+| 3   | 🟠 No revocation — stateless 8-hour JWT                                | Server-side `staff_session`; suspension revokes in the same transaction. |
+| 4   | 🟠 No login rate limiting                                              | Five attempts per email per fifteen minutes, read from the audit trail.  |
+| 5   | 🟡 Table name interpolated into SQL                                    | That code path is deleted.                                               |
+| 6   | 🟡 Inconsistent password minimums — 8 vs 12                            | One minimum, 12, in `@pv/backend/auth/password`.                         |
+
+### Deleted
+
+Reservations, `back_in_stock_interests`, the WhatsApp-preview flow, all `pouch-villa-*` localStorage keys, all prototype seed data, all PouchHub copy, `.vercel`/`.openai` host metadata, and the entire SQLite layer.
+
+**`product_devices` was kept**, and the earlier caveat is now resolved: [`open-questions.md`](open-questions.md) Q1 answered _accessories, no handsets_, which makes device compatibility the catalogue's differentiating facet rather than a leftover. It ships as `product_compatibility` with its own admin screen.
+
+---
+
+## 3. Architecture as built
 
 ```
-product
-  ├── product_variant          one row per buyable thing — SKU, price, stock
-  │     └── variant_value      axis + value  ("storage: 256GB", "colour: Black",
-  │                                            "condition: Refurbished — Grade A")
-  ├── product_media            R2 keys, ordered, with intrinsic dimensions
-  ├── product_category         many-to-many; categories self-reference for the 2-tier tree
-  └── product_compatibility    OPTIONAL — links an accessory to devices it fits
+packages/pv-backend/          @pv/backend — imports nothing from next/* or react
+  src/domain/                 money (branded kobo), Zod schemas, checked accessors
+  src/auth/                   sessions, role codes, permission catalogue, passwords
+  src/db/                     pooled client, retry-aware transactions, migrations
+  src/services/               business logic — catalogue, products, media, staff,
+                              roles, settings, delivery, devices, customers, email
+  src/storage/                R2 client, image validation and derivatives
+  migrations/                 forward-only, checksummed
+
+apps/pv-frontend/             @pv/frontend — Next 16 App Router
+  src/app/(store)/            storefront
+  src/app/admin/              claim · login · verify-email · (protected)/…
+  src/server/                 thin adapters over @pv/backend (cookies, redirects)
 ```
 
-One schema serves both answers. If they sell handsets, the axes are storage/colour/condition. If they sell cases, the axes are colour/model and `product_compatibility` powers "fits your phone". If they sell both — the likeliest outcome — nothing needs to change. **This costs perhaps a day now and saves a schema migration under deadline later.**
+**Load-bearing choices, all now implemented**
 
-### Other load-bearing choices
-
-- **Stock is an append-only ledger**, not a mutable counter. Quantity is a sum. This is correct under CockroachDB's serializable isolation and transaction retries, where a read-modify-write counter is a live bug, and it gives the client a full stock history for free.
-- **Orders snapshot** price, name and variant at placement. A receipt must never change because a price was edited.
-- **Money is integer kobo** in a branded type.
-- **Permissions are rows.** `role`, `permission`, `role_permission`, all CEO-editable, with the CEO role protected from deletion, demotion, and last-CEO removal.
-- **Two identity stacks**, sharing nothing.
-- **Service layer is framework-free.** `src/server/services/` imports nothing from `next/*`, so the API and Server Actions are both thin adapters and the POS integration in Q3 has somewhere to land.
+- **Stock is an append-only ledger.** Quantity is a sum, never a mutated counter — correct under CockroachDB's serializable isolation, and it yields a full stock history for free.
+- **Money is integer kobo** in a branded type a bare `number` cannot satisfy.
+- **Permissions are rows.** The CEO edits Manager and Employee grants at runtime; the CEO role is protected, and `role.manage`/`staff.manage` cannot be delegated to any other role.
+- **Two identity stacks** sharing no session, cookie, table or code path. Google authenticates for both and authorises for neither — see [`decisions/0002-access-and-verification.md`](decisions/0002-access-and-verification.md).
+- **Variant axes are data**, so the catalogue absorbs a change in what is sold without a migration.
+- **Media is validated by magic bytes**, re-encoded to strip EXIF, and served as pre-generated WebP derivatives from immutable content-hashed keys.
 
 ---
 
 ## 4. Phases
 
-Each phase ends at a **gate**. A gate is not a status update — it is a demo against the acceptance line, with `npm run verify` output pasted.
+Each phase ends at a **gate** — a demo against the acceptance line, with `pnpm run verify` output pasted.
 
-Durations assume **two engineers**. Confirm team size before treating them as commitments.
+### ✅ Phase 0 — Foundation
 
-### Phase 0 — Foundation _(~1 week)_
+Prototype domain code and branding stripped. CockroachDB with retry-aware transactions and forward-only checksummed migrations. `tsconfig.base.json` tightened. GitHub Actions CI: format, lint, typecheck, business-fact grep, tests, build, route check. pnpm workspace split. Prettier.
 
-Strip PouchHub domain code and branding. CockroachDB connection with retry-aware transactions and forward-only migrations. New `tsconfig` strictness. CI on GitHub Actions: lint, typecheck, test, build, **hardcoded-business-fact grep**, Lighthouse budgets. Staging environment. R2 buckets — public for media, **private for proofs**. Structured logging, error tracking, request IDs.
+**Gate met:** CI green on `main`; migrations applied and idempotent on re-run; the hardcoded-fact check self-tests against known-bad samples before it is trusted, and caught two real violations on its first run.
 
-**Gate:** CI green on an empty app deployed to staging; a migration applied and rolled forward; the hardcoded-fact check demonstrably failing a deliberate violation.
+### ✅ Phase 1 — Identity & RBAC
 
-### Phase 1 — Identity & RBAC _(~1.5 weeks)_
+Staff auth: role-code account creation, password and Google sign-in, code-based email verification, server-side revocable sessions, per-email rate limiting, audit log. Roles and grants as data. CEO bootstrap via an audited CLI — never an env var.
 
-Customer auth: email/password + Google OAuth + recovery. Staff auth: separate stack, 2FA, revocable server-side sessions. Roles and permissions as data. CEO bootstrap via an audited command — **never an env var**. Rate limiting. Audit log. Full role × mutation permission matrix test.
+**Gate met:** the permission matrix passes in both directions (3 roles × 20 permissions); a CEO permission change takes effect for a signed-in Manager without a deploy; a revoked or suspended session dies immediately. All verified against a live CockroachDB.
 
-**Gate:** the permission matrix test passes in both directions; a CEO changes a manager's permissions in the UI and the change takes effect without a deploy; a revoked session dies immediately.
+### ✅ Phase 2 — Catalogue & media
 
-> Deliberately first. Retrofitting authorisation onto existing features is where security bugs are born.
+Products, variants, variant axes, categories (2-tier), brands, devices and compatibility. Full admin CRUD — create, edit, price, stock, publish/unpublish, soft-delete, restore — mobile-first. Direct-to-R2 upload with pre-signed URLs, magic-byte validation, EXIF stripping, thumb/card/hero WebP derivatives on immutable content-hashed keys. Postgres FTS with trigram fuzzy matching. Faceted filtering by category, brand and device.
 
-### Phase 2 — Catalogue & media _(~2 weeks)_
+**Gate met, with one carry-over.** A staff member can create a product with variants and images, edit it, unpublish it and delete it, every step audited; search returns the right product for a misspelling ("otterbocks" → "OtterBox Defender Case"), for a description-only word, and for a plural. Publishing is refused for a product with no active priced variant.
 
-Products, variants, variant axes, categories (2-tier per Q2), brands. Direct-to-R2 upload with pre-signed URLs, magic-byte validation, EXIF strip, derivative generation. Full admin CRUD — create, edit, price, availability, publish/unpublish, soft-delete, restore — **mobile-first**. Postgres FTS + trigram search. Faceted filtering.
+> **Carry-over to Phase 3:** the create-a-product-on-a-phone run-through has been verified by service-level and integration tests, not by a human on a handset, because there is no E2E harness yet and no CEO account has been claimed. It is folded into Phase 3's E2E work rather than left as a silent gap.
 
-**Gate:** on a phone, a staff member creates a product with three variants and four images, edits it, unpublishes it, and deletes it — every step audited; search returns sensible results for a misspelling.
+### ⏳ Phase 3 — Commerce _(next — largest remaining block)_
 
-### Phase 3 — Commerce _(~2.5 weeks)_
+The customer half of the system, none of which exists yet.
 
-Cart (guest + authenticated, merged on sign-in). Checkout. Order placement with an **idempotency key**. Bank-transfer instructions from admin settings. Payment-proof upload to the private bucket. Order tracking with the Q6 state machine. Like & share. Reviews with moderation. Contact requests. Transactional email.
+1. **Customer identity.** Email/password + Google, recovery. No role codes, no 2FA, and **no email verification** — per [`decisions/0002`](decisions/0002-access-and-verification.md), an inbox round-trip mid-checkout is the most expensive step we could add. Customer email is a contact channel, not an auth factor.
+2. **Cart.** Guest and authenticated, merged on sign-in.
+3. **Checkout and order placement**, with an **idempotency key** — Nigerian mobile data drops mid-request and a double-submitted order is a real, foreseeable loss.
+4. **Order snapshots.** Price, product name and variant frozen at placement; a receipt must never change because someone edited a price.
+5. **Order references** from a CSPRNG with real entropy, not `Math.random()`.
+6. **Bank transfer** instructions read from the settings store (already populated and admin-editable).
+7. **Payment-proof upload** to the **private** R2 bucket, short-lived signed URLs, every access audited.
+8. **Order tracking** against the Q6 state machine, and the `/profile` page.
+9. **Reviews** — anyone may review, held for approval before publication (Q9).
+10. **Contact requests** and transactional email.
+11. The four admin stubs — Orders, Payments & Proofs, Reviews, Contact — filled in behind their existing permissions.
+12. **E2E harness**, and the mobile run-throughs carried over from Phase 2.
 
-**Gate:** the complete scope flow — browse → filter → variant → cart → sign in → order → transfer → proof → track → review — passes E2E on a mobile viewport; a double-submitted order creates exactly one order.
+**Gate:** browse → filter → variant → cart → sign in → order → transfer → proof → track → review passes E2E on a mobile viewport in about five minutes; a double-submitted order creates exactly one order.
 
-### Phase 4 — Admin operations _(~1.5 weeks)_
+### ⏳ Phase 4 — Admin operations
 
-All eight scope admin pages as their own routes: Products, Brands/Categories, Orders, Payments & Proofs, Customers, Reviews, Contact Requests, Roles & Permissions. Dashboard. Every list mobile-usable. Supporting pages — About, Privacy, Terms — admin-editable, rendering _awaiting confirmation_ until Q10 lands.
+Dashboard depth, saved views, bulk actions, and the operational polish that only surfaces once real orders exist. Supporting pages — About, Privacy, Terms — are already admin-editable and render an explicit _awaiting confirmation_ notice until Q10 lands.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
 
-### Phase 5 — Hardening & launch _(~1.5 weeks)_
+### ⏳ Phase 5 — Hardening & launch
 
-Security review against §5 with a written report. Load testing. WCAG 2.2 AA audit including manual keyboard and screen-reader passes. Backup and **tested restore**. Runbook. Real data migration from bizblock. Staff training. Pilot, then launch.
+Security review against §5 with a written report. Load testing. WCAG 2.2 AA audit including manual keyboard and screen-reader passes. Lighthouse budgets enforced in CI. Backup and **tested restore**. Runbook. Staff training. Pilot, then launch.
 
 **Gate:** a restore drill actually performed and timed; the security report signed off; the client's staff complete their own tasks unaided.
 
-**Indicative total: ~10 weeks with two engineers**, assuming [`open-questions.md`](open-questions.md) Q1 and Q3 are answered before Phase 2 begins.
+---
+
+## 5. Verification as it stands
+
+`pnpm run verify` runs: `format:check` → `lint` → `typecheck` → `check:facts` → `test` → `build` → `test:routes`.
+
+| Layer                 | Coverage                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping |
+| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search    |
+| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                  |
+| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                    |
+| **Routes**            | Every storefront route returns 200; every protected admin route 307s to `/admin/login`                        |
+| **E2E**               | ❌ Not yet — Phase 3                                                                                          |
+| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                  |
+| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                        |
+
+**Test databases are separate.** Writing integration tests require `TEST_DATABASE_URL` and refuse to run if it matches `DATABASE_URL`. This exists because an early run left twenty-six live role codes in the production database.
 
 ---
 
-## 5. Risks
+## 6. Risks
 
-| Risk                                      | Impact                                                     | Mitigation                                                                                            |
-| ----------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Q1 unanswered by Phase 2**              | 🔴 Schema rework                                           | Axis-as-data model absorbs either answer. Escalate weekly.                                            |
-| **Q3 unanswered — dual system of record** | 🔴 Stock drift, staff distrust, silent overselling         | Single authoritative ledger now; a documented sync seam. Force the decision before launch, not after. |
-| **Refurbished handsets in scope**         | 🟠 IMEI, battery health, grading, warranty — unpriced work | Resolve via Q1 and re-quote **before** committing to a date.                                          |
-| **CockroachDB transaction retries**       | 🟠 Rare, ugly, hard-to-reproduce production bugs           | Retry wrapper mandatory in Phase 0; integration tests run against real CockroachDB, never SQLite.     |
-| **Payment-proof exposure**                | 🔴 Financial data leak, reputational and regulatory        | Private bucket, signed URLs, access audited, penetration-tested in Phase 5.                           |
-| **Client supplies no real content**       | 🟠 A launch with nothing in it                             | Content deadlines tracked as delivery items with named owners, not as an afterthought.                |
-| **Manual transfer reconciliation**        | 🟠 Does not scale; staff burden grows with success         | Ship well in V1; propose payment-gateway integration as a costed Phase 2 item.                        |
-| **Scope creep from "growth features"**    | 🟡 Erodes the V1 date                                      | The scope's own wording — _"introduced in later phases"_ — is the answer. Log, price, schedule.       |
+| Risk                                   | Impact                                               | Status                                                                                           |
+| -------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Q2 category mapping unanswered**     | 🟡 Navigation and filters                            | Open. Not blocking: categories are admin rows, so remapping is never a deployment.               |
+| **No CEO account claimed**             | 🔴 The admin is unreachable; no data can be entered  | **Blocking.** One CLI command away — see §7.                                                     |
+| **Catalogue is empty**                 | 🟠 Nothing for a shopper to see                      | By design — no invented data. Unblocks the moment a CEO claims access and enters real products.  |
+| **Manual transfer reconciliation**     | 🟠 Does not scale; staff burden grows with success   | Ship well in V1; propose a payment gateway as a costed later item.                               |
+| **Payment-proof exposure**             | 🔴 Financial data leak, reputational and regulatory  | Private bucket and audited signed URLs are designed; built in Phase 3, pen-tested in Phase 5.    |
+| **CockroachDB latency**                | 🟡 2–3 s per query even warm, on this cluster        | Absorbed in test timeouts; watch it against the §2 LCP budget once real pages carry real data.   |
+| **No E2E harness**                     | 🟠 Flows verified by service tests, not by a browser | Folded into Phase 3, where the flow it would test finally exists.                                |
+| **Branch protection unavailable**      | 🟡 `main` is directly pushable                       | GitHub requires Pro for a private repo. Client decision: upgrade, or make the repository public. |
+| **Scope creep from "growth features"** | 🟡 Erodes the V1 date                                | The scope's own wording — _"introduced in later phases"_ — is the answer. Log, price, schedule.  |
 
 ---
 
-## 6. Immediate next actions
+## 7. Immediate next actions
 
-1. **Send Q1, Q3, Q4 and Q5 to the client today.** Q1 and Q3 gate the schema; a week of silence is a week of Phase 2 at risk.
-2. Create the GitHub repository, push, protect `main`, require PR + green CI.
-3. Provision CockroachDB and R2; wire staging.
-4. Confirm team size so §4 durations become commitments rather than estimates.
-5. Begin Phase 0 — it depends on none of the open questions.
-
-> Phase 0 is deliberately independent of every client answer. Work starts now.
+1. **Claim the CEO account.** Nothing else in the admin can happen first, and it is one command:
+   ```
+   pnpm --filter @pv/backend claim-code --role CEO
+   ```
+   Redeem the printed code at `/admin/claim`. `BOOTSTRAP_CEO_EMAIL` pins who may redeem it, so the code alone is not enough if it is seen in a terminal or a log.
+2. **Enter real catalogue data** through the admin — brands, the two-tier categories, devices, then products with variants, prices, stock and images. The storefront renders it immediately; nothing needs a deploy.
+3. **Answer Q2** — the 33-row category mapping, the four orphans, and whether `OtterBox Defender Case` is a brand rather than a category. Recommendation on file: it is a brand.
+4. **Decide branch protection** — upgrade to GitHub Pro or make the repository public.
+5. **Begin Phase 3.** It depends on none of the above except a populated catalogue for its E2E flow.

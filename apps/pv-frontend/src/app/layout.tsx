@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { isIndexable, siteUrl } from "@/lib/seo";
-import "./globals.css";
 
-// Namespaced to avoid colliding with Tailwind v4's own --font-sans theme token.
-const sans = Inter({ subsets: ["latin"], variable: "--pv-font-sans", display: "swap" });
-const display = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--pv-font-display",
-  display: "swap",
-});
+/**
+ * Fonts are self-hosted rather than fetched from Google at build time.
+ *
+ * `next/font/google` downloads the face during `next build`, which makes every
+ * build depend on a third party being reachable — it failed builds here twice.
+ * These packages ship the same faces as woff2 inside node_modules, so a build
+ * needs no network beyond the package registry, and a visitor's browser makes no
+ * request to Google either. Q7 confirmed the client accepts the current
+ * typeface, so this is a delivery change, not a design one.
+ *
+ * The CSS custom properties these expose are declared in globals.css.
+ */
+import "@fontsource-variable/inter";
+import "@fontsource-variable/plus-jakarta-sans";
+import "./globals.css";
 
 const title = "Pouch Villa";
 const description =
@@ -38,7 +44,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

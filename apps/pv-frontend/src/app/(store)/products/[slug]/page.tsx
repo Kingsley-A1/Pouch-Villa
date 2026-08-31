@@ -39,7 +39,7 @@ export default async function ProductPage({ params }: Params) {
           <div className="relative aspect-square overflow-hidden rounded-3xl bg-(--pv-wash)">
             {hero ? (
               <Image
-                src={hero.r2Key}
+                src={hero.heroUrl}
                 alt={hero.alt ?? product.name}
                 fill
                 priority

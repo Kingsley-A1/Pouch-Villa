@@ -20,7 +20,11 @@ export default async function globalSetup() {
   const pool = new Pool({ connectionString, connectionTimeoutMillis: 60_000, max: 1 });
   try {
     await pool.query("SELECT 1");
+  } catch {
+    // Best-effort only. This is a warmup, not a precondition: the suites that
+    // need a database skip or fail on their own terms, and the pure unit tests
+    // must still run when the cluster is unreachable.
   } finally {
-    await pool.end();
+    await pool.end().catch(() => {});
   }
 }

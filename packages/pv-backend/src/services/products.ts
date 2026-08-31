@@ -82,6 +82,7 @@ export type AdminProduct = {
   brandId: string | null;
   status: ProductStatus;
   categoryIds: string[];
+  deviceIds: string[];
   variants: AdminVariant[];
 };
 
@@ -101,9 +102,13 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
   );
   if (product === null) return null;
 
-  const [categories, variantRows] = await Promise.all([
+  const [categories, devices, variantRows] = await Promise.all([
     query<{ category_id: string }>(
       "SELECT category_id FROM product_category WHERE product_id = $1",
+      [id],
+    ),
+    query<{ device_id: string }>(
+      "SELECT device_id FROM product_compatibility WHERE product_id = $1",
       [id],
     ),
     query<{
@@ -135,6 +140,7 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
     brandId: product.brand_id,
     status: product.status,
     categoryIds: categories.map((row) => row.category_id),
+    deviceIds: devices.map((row) => row.device_id),
     variants: variantRows.map((row) => ({
       id: row.id,
       sku: row.sku,
@@ -162,6 +168,7 @@ export type ProductInput = {
   description: string | null;
   brandId: string | null;
   categoryIds: string[];
+  deviceIds: string[];
 };
 
 export async function createProduct(input: ProductInput, actor: { staffId: string }) {
@@ -183,6 +190,12 @@ export async function createProduct(input: ProductInput, actor: { staffId: strin
       await tx.query("INSERT INTO product_category (product_id, category_id) VALUES ($1, $2)", [
         id,
         categoryId,
+      ]);
+    }
+    for (const deviceId of input.deviceIds) {
+      await tx.query("INSERT INTO product_compatibility (product_id, device_id) VALUES ($1, $2)", [
+        id,
+        deviceId,
       ]);
     }
 
@@ -225,6 +238,14 @@ export async function updateProduct(id: string, input: ProductInput, actor: { st
       await tx.query("INSERT INTO product_category (product_id, category_id) VALUES ($1, $2)", [
         id,
         categoryId,
+      ]);
+    }
+
+    await tx.query("DELETE FROM product_compatibility WHERE product_id = $1", [id]);
+    for (const deviceId of input.deviceIds) {
+      await tx.query("INSERT INTO product_compatibility (product_id, device_id) VALUES ($1, $2)", [
+        id,
+        deviceId,
       ]);
     }
 

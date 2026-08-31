@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import type { AdminProduct } from "@pv/backend/services/products";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
+import type { AdminDevice } from "@pv/backend/services/devices";
 import {
   Field,
   FormError,
@@ -21,17 +22,20 @@ export function ProductForm({
   action,
   brands,
   categories,
+  devices,
   editing,
   submitLabel,
 }: {
   action: Action;
   brands: AdminBrand[];
   categories: AdminCategory[];
+  devices: AdminDevice[];
   editing?: AdminProduct;
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState(action, INITIAL_ACTION_STATE);
   const editingCategoryIds = new Set(editing?.categoryIds ?? []);
+  const editingDeviceIds = new Set(editing?.deviceIds ?? []);
 
   return (
     <form
@@ -85,6 +89,35 @@ export function ProductForm({
           ))}
         </div>
       </fieldset>
+
+      {devices.length > 0 ? (
+        <fieldset>
+          <legend className="text-sm font-bold text-(--pv-ink)">Fits these devices</legend>
+          <p className="mt-1 text-xs text-(--pv-muted)">
+            Powers &ldquo;show me what fits my phone&rdquo;. Leave blank if it fits anything.
+          </p>
+          <div className="mt-2 grid max-h-64 gap-1.5 overflow-y-auto">
+            {devices.map((device) => (
+              <label
+                key={device.id}
+                className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
+              >
+                <input
+                  type="checkbox"
+                  name="deviceIds"
+                  value={device.id}
+                  defaultChecked={editingDeviceIds.has(device.id)}
+                  className="h-5 w-5 accent-(--pv-red)"
+                />
+                <span className="text-sm">
+                  {device.brandName} {device.name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
+
       <FormError message={state.error} />
       <FormSuccess message={state.message} />
       <SubmitButton pendingLabel="Saving…" className="justify-self-start">

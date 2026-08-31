@@ -82,6 +82,14 @@ export const deliveryZoneSchema = z
     },
   );
 
+export const deviceSchema = z.object({
+  brandId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  slug,
+  releasedYear: z.coerce.number().int().min(1990).max(2100).nullable(),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+});
+
 export const productSchema = z.object({
   name: z.string().trim().min(1).max(200),
   slug,
@@ -89,6 +97,7 @@ export const productSchema = z.object({
   description: z.string().trim().max(5000).nullable(),
   brandId: z.string().uuid().nullable(),
   categoryIds: z.array(z.string().uuid()).default([]),
+  deviceIds: z.array(z.string().uuid()).default([]),
 });
 
 /** Not exhaustive — a variant may set any subset of the known axes, or none. */

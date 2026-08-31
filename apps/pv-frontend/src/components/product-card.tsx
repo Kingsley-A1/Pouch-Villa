@@ -19,7 +19,7 @@ export function ProductCard({ product }: { product: CatalogueListItem }) {
       <div className="relative aspect-square overflow-hidden rounded-t-2xl bg-(--pv-wash)">
         {image ? (
           <Image
-            src={image.r2Key}
+            src={image.cardUrl}
             alt={image.alt ?? product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

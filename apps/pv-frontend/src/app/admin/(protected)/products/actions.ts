@@ -16,6 +16,7 @@ function parseProductInput(formData: FormData) {
     description: formData.get("description") || null,
     brandId: formData.get("brandId") || null,
     categoryIds: formData.getAll("categoryIds"),
+    deviceIds: formData.getAll("deviceIds"),
   });
 }
 

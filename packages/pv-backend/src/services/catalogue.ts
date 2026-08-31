@@ -1,5 +1,7 @@
 import { query, queryOne } from "../db/client";
 import { kobo, type Kobo } from "../domain/money";
+import { isStorageConfigured } from "../storage/r2";
+import { urlsForHash } from "./media";
 
 /**
  * Read paths for the storefront and the admin catalogue.
@@ -18,8 +20,16 @@ export type CatalogueVariant = {
   axes: Record<string, string>;
 };
 
+/**
+ * Resolved CDN URLs, not bucket keys — a key is not addressable, and making the
+ * caller build the URL is how a storefront ends up rendering a broken image.
+ * `width`/`height` are the original's intrinsic dimensions so every render can
+ * reserve its box and contribute nothing to CLS.
+ */
 export type CatalogueImage = {
-  r2Key: string;
+  thumbUrl: string;
+  cardUrl: string;
+  heroUrl: string;
   alt: string | null;
   width: number | null;
   height: number | null;
@@ -55,6 +65,20 @@ export type CatalogueProduct = {
 export const DEFAULT_PAGE_SIZE = 24;
 export const MAX_PAGE_SIZE = 100;
 
+/**
+ * Trigram similarity a name must reach to count as a fuzzy match.
+ *
+ * Stated explicitly rather than relying on the `%` operator, which reads the
+ * `pg_trgm.similarity_threshold` session setting — a value that would have to be
+ * set on every pooled connection and could silently differ between environments.
+ *
+ * 0.2 rather than the 0.3 default because similarity is measured against the
+ * whole product name: "otterbocks" against "OtterBox Defender Case" scores 0.26,
+ * since the trailing words dilute it. Postgres solves that with
+ * `word_similarity()`, which CockroachDB has not implemented.
+ */
+const FUZZY_THRESHOLD = 0.2;
+
 type ProductRow = {
   id: string;
   slug: string;
@@ -70,7 +94,26 @@ type ProductRow = {
   image_alt: string | null;
   image_width: number | null;
   image_height: number | null;
+  image_hash: string | null;
 };
+
+/**
+ * Resolves a media row to CDN URLs. Returns null rather than throwing when
+ * storage is unconfigured, so a misconfigured environment renders a storefront
+ * without pictures instead of a 500 on every page.
+ */
+function toImage(
+  productId: string,
+  key: string | null,
+  contentHash: string | null,
+  alt: string | null,
+  width: number | null,
+  height: number | null,
+): CatalogueImage | null {
+  if (key === null || !isStorageConfigured()) return null;
+  const urls = urlsForHash(productId, contentHash, key);
+  return { thumbUrl: urls.thumb, cardUrl: urls.card, heroUrl: urls.hero, alt, width, height };
+}
 
 function toListItem(row: ProductRow): CatalogueListItem {
   return {
@@ -81,15 +124,14 @@ function toListItem(row: ProductRow): CatalogueListItem {
     brandName: row.brand_name,
     fromKobo: row.from_kobo === null ? null : kobo(Number(row.from_kobo)),
     inStock: Number(row.in_stock ?? 0),
-    primaryImage:
-      row.image_key === null
-        ? null
-        : {
-            r2Key: row.image_key,
-            alt: row.image_alt,
-            width: row.image_width,
-            height: row.image_height,
-          },
+    primaryImage: toImage(
+      row.id,
+      row.image_key,
+      row.image_hash,
+      row.image_alt,
+      row.image_width,
+      row.image_height,
+    ),
   };
 }
 
@@ -122,11 +164,12 @@ const PRODUCT_SELECT = `
             FROM stock_entry se
             JOIN product_variant v2 ON v2.id = se.variant_id
            WHERE v2.product_id = p.id AND v2.deleted_at IS NULL) AS in_stock,
-         m.r2_key AS image_key, m.alt AS image_alt, m.width AS image_width, m.height AS image_height
+         m.r2_key AS image_key, m.alt AS image_alt, m.width AS image_width,
+         m.height AS image_height, m.content_hash AS image_hash
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN LATERAL (
-      SELECT r2_key, alt, width, height
+      SELECT r2_key, alt, width, height, content_hash
         FROM product_media
        WHERE product_id = p.id AND kind = 'image'
        ORDER BY sort_order
@@ -172,25 +215,45 @@ export async function listPublishedProducts(filters: ProductListFilters = {}) {
        WHERE pcm.product_id = p.id AND d.slug = $${values.length}
     )`);
   }
-  if (filters.search) {
-    values.push(`%${filters.search}%`);
-    conditions.push(`(p.name ILIKE $${values.length} OR p.summary ILIKE $${values.length})`);
+  /**
+   * Full text first, trigram second. The `@@` arm answers "these words appear",
+   * the `%` arm catches a misspelling the tokeniser would never match, and the
+   * ranking below orders by both together. Results are ordered by relevance, so
+   * cursor pagination does not apply to a search.
+   */
+  const search = filters.search?.trim();
+  let term = "";
+  if (search) {
+    values.push(search);
+    term = `$${values.length}`;
+    conditions.push(
+      `(p.search_vector @@ plainto_tsquery('english', ${term})
+        OR similarity(p.name, ${term}) >= ${FUZZY_THRESHOLD})`,
+    );
   }
-  if (filters.cursor) {
+
+  // A search is ordered by relevance, so an id cursor would be meaningless.
+  if (filters.cursor && !search) {
     values.push(filters.cursor);
     conditions.push(`p.id > $${values.length}`);
   }
 
+  const order = search
+    ? `ORDER BY (ts_rank(p.search_vector, plainto_tsquery('english', ${term}))
+                 + similarity(p.name, ${term})) DESC, p.id`
+    : "ORDER BY p.id";
+
   values.push(limit + 1);
   const rows = await query<ProductRow>(
-    `${PRODUCT_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY p.id LIMIT $${values.length}`,
+    `${PRODUCT_SELECT} WHERE ${conditions.join(" AND ")} ${order} LIMIT $${values.length}`,
     values,
   );
 
   const page = rows.slice(0, limit).map(toListItem);
   return {
     products: page,
-    nextCursor: rows.length > limit ? (page[page.length - 1]?.id ?? null) : null,
+    // Relevance order is not a stable cursor key, so a search returns one page.
+    nextCursor: search || rows.length <= limit ? null : (page[page.length - 1]?.id ?? null),
   };
 }
 
@@ -241,19 +304,17 @@ export async function listImages(productId: string): Promise<CatalogueImage[]> {
     alt: string | null;
     width: number | null;
     height: number | null;
+    content_hash: string | null;
   }>(
-    `SELECT r2_key, alt, width, height
+    `SELECT r2_key, alt, width, height, content_hash
        FROM product_media
       WHERE product_id = $1 AND kind = 'image'
       ORDER BY sort_order`,
     [productId],
   );
-  return rows.map((row) => ({
-    r2Key: row.r2_key,
-    alt: row.alt,
-    width: row.width,
-    height: row.height,
-  }));
+  return rows
+    .map((row) => toImage(productId, row.r2_key, row.content_hash, row.alt, row.width, row.height))
+    .filter((image): image is CatalogueImage => image !== null);
 }
 
 export type CategoryNode = {

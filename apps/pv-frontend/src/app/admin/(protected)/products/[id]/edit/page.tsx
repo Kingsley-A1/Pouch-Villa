@@ -4,9 +4,13 @@ import { requirePermission } from "@/server/session";
 import { getProductForEdit } from "@pv/backend/services/products";
 import { listAllBrands } from "@pv/backend/services/brands";
 import { listAllCategories } from "@pv/backend/services/categories";
+import { listAllDevices } from "@pv/backend/services/devices";
+import { listProductMedia } from "@pv/backend/services/media";
+import { isStorageConfigured } from "@pv/backend/storage/r2";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ProductForm } from "../../product-form";
 import { VariantsSection } from "../../variants-section";
+import { MediaSection } from "../../media-section";
 import { StatusControl } from "../../status-control";
 import { updateProductAction } from "../../actions";
 import type { ActionState } from "@/lib/action-state";
@@ -24,10 +28,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function EditProductPage({ params }: Params) {
   await requirePermission("product.manage");
   const { id } = await params;
-  const [product, brands, categories] = await Promise.all([
+  const storageConfigured = isStorageConfigured();
+  const [product, brands, categories, devices, media] = await Promise.all([
     getProductForEdit(id),
     listAllBrands(),
     listAllCategories(),
+    listAllDevices(),
+    storageConfigured ? listProductMedia(id) : Promise.resolve([]),
   ]);
   if (product === null) notFound();
 
@@ -50,11 +57,14 @@ export default async function EditProductPage({ params }: Params) {
         action={boundUpdate}
         brands={brands}
         categories={categories}
+        devices={devices}
         editing={product}
         submitLabel="Save changes"
       />
 
       <VariantsSection productId={product.id} variants={product.variants} />
+
+      <MediaSection productId={product.id} media={media} storageConfigured={storageConfigured} />
     </div>
   );
 }

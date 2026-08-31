@@ -19,6 +19,15 @@
 html {
   scroll-behavior: smooth;
 }
+/*
+ * Face names come from the self-hosted @fontsource-variable packages imported in
+ * layout.tsx. Namespaced --pv-* to avoid colliding with Tailwind v4's own
+ * --font-sans theme token.
+ */
+:root {
+  --pv-font-sans: "Inter Variable", "Inter";
+  --pv-font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans";
+}
 body {
   margin: 0;
   background: #fff;
