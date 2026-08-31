@@ -1,4 +1,6 @@
 import { query, queryOne, type Queryable } from "../db/client";
+import { withTransaction } from "../db/transaction";
+import { recordAudit } from "./audit";
 
 /**
  * Settings hold every business fact, and there is exactly one source of truth: this
@@ -134,4 +136,29 @@ export async function writeSetting(
               updated_at = now()`,
     [key, value, staffId],
   );
+}
+
+/**
+ * Writes several settings in one transaction with one audit record, for a single
+ * admin form submission (the bank details screen edits three keys at once, for
+ * instance). Per-key writes still use `writeSetting` directly where only one
+ * value changes.
+ */
+export async function writeSettings(
+  entries: Partial<Record<SettingKey, string | null>>,
+  actor: { staffId: string },
+) {
+  return withTransaction(async (tx) => {
+    for (const [key, value] of Object.entries(entries) as [SettingKey, string | null][]) {
+      await writeSetting(tx, key, value, actor.staffId);
+    }
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: "settings.updated",
+      entityType: "setting",
+      entityId: Object.keys(entries).join(","),
+      after: entries,
+    });
+  });
 }

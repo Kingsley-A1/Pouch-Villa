@@ -1,4 +1,4 @@
-import { query, type Queryable } from "../db/client";
+import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import {
   generateRoleCode,
@@ -10,6 +10,7 @@ import {
 import { hashPassword } from "../auth/password";
 import { recordAudit } from "./audit";
 import { assertNotLastCeo } from "./roles";
+import { revokeAllStaffSessions } from "../auth/staff-session";
 
 /**
  * A staff account exists only where a role code was redeemed. Nothing is seeded,
@@ -223,7 +224,7 @@ export async function setStaffStatus(
 
     // Suspension must end access now, not when a token happens to expire.
     if (status === "suspended") {
-      await revokeAllSessionsFor(tx, staffId, "staff suspended");
+      await revokeAllStaffSessions(tx, staffId, "staff suspended");
     }
 
     await recordAudit(tx, {
@@ -237,15 +238,6 @@ export async function setStaffStatus(
     });
     return true;
   });
-}
-
-export async function revokeAllSessionsFor(tx: Queryable, staffId: string, reason: string) {
-  await tx.query(
-    `UPDATE staff_session
-        SET revoked_at = now(), revoked_reason = $2
-      WHERE staff_id = $1 AND revoked_at IS NULL`,
-    [staffId, reason],
-  );
 }
 
 export async function listRoleCodes() {
@@ -263,4 +255,50 @@ export async function listRoleCodes() {
       ORDER BY created_at DESC
       LIMIT 100`,
   );
+}
+
+export type AdminStaffMember = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: StaffRoleCode;
+  status: "active" | "suspended";
+  emailVerified: boolean;
+  lastLoginAt: Date | null;
+  createdAt: Date;
+};
+
+export async function listStaff(): Promise<AdminStaffMember[]> {
+  const rows = await query<{
+    id: string;
+    email: string;
+    full_name: string;
+    role_code: StaffRoleCode;
+    status: "active" | "suspended";
+    email_verified_at: Date | null;
+    last_login_at: Date | null;
+    created_at: Date;
+  }>(
+    `SELECT id, email, full_name, role_code, status, email_verified_at, last_login_at, created_at
+       FROM staff
+      WHERE deleted_at IS NULL
+      ORDER BY created_at`,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    fullName: row.full_name,
+    role: row.role_code,
+    status: row.status,
+    emailVerified: row.email_verified_at !== null,
+    lastLoginAt: row.last_login_at,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function countStaff(): Promise<number> {
+  const row = await queryOne<{ total: string }>(
+    "SELECT count(*)::STRING AS total FROM staff WHERE deleted_at IS NULL AND status = 'active'",
+  );
+  return Number(row?.total ?? 0);
 }

@@ -1,0 +1,59 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { requirePermission } from "@/server/session";
+import { listAllProducts } from "@pv/backend/services/products";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Products" };
+
+export default async function ProductsAdminPage() {
+  await requirePermission("product.view");
+  const products = await listAllProducts();
+
+  return (
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Products</h1>
+          <p className="mt-1 text-sm text-(--pv-muted)">{products.length} total</p>
+        </div>
+        <Link
+          href="/admin/products/new"
+          className="flex min-h-11 items-center rounded-xl bg-(--pv-red) px-5 text-sm font-bold text-white"
+        >
+          Add product
+        </Link>
+      </div>
+
+      {products.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
+          No products yet.
+        </p>
+      ) : (
+        <ul className="grid gap-3">
+          {products.map((product) => (
+            <li key={product.id}>
+              <Link
+                href={`/admin/products/${product.id}/edit`}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-(--pv-line) bg-white p-4 hover:border-(--pv-red)"
+              >
+                <div>
+                  <p className="font-bold">
+                    {product.name}
+                    <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-bold tracking-wide text-(--pv-muted) uppercase">
+                      {product.status}
+                    </span>
+                  </p>
+                  <p className="text-xs text-(--pv-muted)">
+                    {product.brandName ?? "No brand"} · {product.variantCount} variant
+                    {product.variantCount === 1 ? "" : "s"} · stock {product.inStock}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

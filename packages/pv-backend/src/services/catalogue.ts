@@ -319,3 +319,12 @@ export async function catalogueIsEmpty(): Promise<boolean> {
   );
   return Number(row?.total ?? 0) === 0;
 }
+
+export async function countAllProducts(): Promise<{ total: number; published: number }> {
+  const row = await queryOne<{ total: string; published: string }>(
+    `SELECT count(*)::STRING AS total,
+            count(*) FILTER (WHERE status = 'published')::STRING AS published
+       FROM product WHERE deleted_at IS NULL`,
+  );
+  return { total: Number(row?.total ?? 0), published: Number(row?.published ?? 0) };
+}

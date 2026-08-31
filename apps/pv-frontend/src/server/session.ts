@@ -1,50 +1,84 @@
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
-  SESSION_TTL_SECONDS,
-  signSession,
-  verifySession,
-  type Session,
-} from "@pv/backend/auth/session";
-import { can, type Permission } from "@pv/backend/auth/permissions";
+  ABSOLUTE_TTL_MS,
+  SESSION_COOKIE,
+  issueStaffSession,
+  verifyStaffSession,
+  type StaffPrincipal,
+} from "@pv/backend/auth/staff-session";
+import { logout } from "@pv/backend/services/staff-login";
+import { staffHasPermission } from "@pv/backend/services/roles";
+import type { PermissionCode } from "@pv/backend/auth/permission-codes";
 
-const COOKIE = "pv_admin_session";
+export type { StaffPrincipal };
 
-export type { Session };
+/**
+ * `__Host-` requires the Secure attribute, so it only applies once the app is
+ * actually served over HTTPS — in local development the plain name is used
+ * instead, matching the existing `secure: NODE_ENV === "production"` pattern.
+ */
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const COOKIE_NAME = IS_PRODUCTION ? `__Host-${SESSION_COOKIE}` : SESSION_COOKIE;
 
-export async function createSession(session: Session) {
-  const token = await signSession(session);
-  (await cookies()).set(COOKIE, token, {
+async function requestContext(): Promise<{ ip?: string; userAgent?: string }> {
+  const list = await headers();
+  const ip = list.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const userAgent = list.get("user-agent");
+  return {
+    ...(ip ? { ip } : {}),
+    ...(userAgent ? { userAgent } : {}),
+  };
+}
+
+export async function createStaffSession(staffId: string) {
+  const context = await requestContext();
+  const { token, expiresAt } = await issueStaffSession(staffId, context);
+  (await cookies()).set(COOKIE_NAME, token, {
     httpOnly: true,
+    secure: IS_PRODUCTION,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_TTL_SECONDS,
+    maxAge: Math.floor(ABSOLUTE_TTL_MS / 1000),
+    expires: expiresAt,
     priority: "high",
   });
 }
 
-export async function clearSession() {
-  (await cookies()).delete(COOKIE);
+export async function clearStaffSession() {
+  const store = await cookies();
+  const token = store.get(COOKIE_NAME)?.value;
+  if (token) await logout(token);
+  store.delete(COOKIE_NAME);
 }
 
-export const getSession = cache(async (): Promise<Session | null> => {
-  const token = (await cookies()).get(COOKIE)?.value;
+/** `cache()` scopes this to one request, so one session lookup serves a whole tree. */
+export const getStaffPrincipal = cache(async (): Promise<StaffPrincipal | null> => {
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySession(token);
+  return verifyStaffSession(token);
 });
 
-export async function requireSession() {
-  const session = await getSession();
-  if (!session) redirect("/admin/login");
-  return session;
+export async function requireStaffPrincipal(): Promise<StaffPrincipal> {
+  const principal = await getStaffPrincipal();
+  if (principal === null) redirect("/admin/login");
+  return principal;
 }
 
-export async function requirePermission(permission: Permission) {
-  const session = await requireSession();
-  if (!can(session.role, permission)) {
-    throw new Error("You do not have permission to perform this action.");
+/**
+ * Authority is re-derived from the database on every call — nothing about a
+ * grant is cached in the cookie or the session row, so a permission change
+ * made in the admin takes effect for an already-signed-in user immediately.
+ */
+export async function requirePermission(permission: PermissionCode): Promise<StaffPrincipal> {
+  const principal = await requireStaffPrincipal();
+  if (!(await staffHasPermission(principal.staffId, permission))) {
+    redirect("/admin?denied=1");
   }
-  return session;
+  return principal;
+}
+
+export async function currentRequestContext() {
+  return requestContext();
 }
