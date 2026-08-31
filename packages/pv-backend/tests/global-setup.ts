@@ -15,7 +15,8 @@ export default async function globalSetup() {
   if (!process.env.DATABASE_URL?.trim() && !process.env.TEST_DATABASE_URL?.trim()) return;
 
   const { Pool } = await import("pg");
-  const connectionString = process.env.TEST_DATABASE_URL?.trim() || process.env.DATABASE_URL!.trim();
+  const connectionString =
+    process.env.TEST_DATABASE_URL?.trim() || process.env.DATABASE_URL!.trim();
   const pool = new Pool({ connectionString, connectionTimeoutMillis: 60_000, max: 1 });
   try {
     await pool.query("SELECT 1");
