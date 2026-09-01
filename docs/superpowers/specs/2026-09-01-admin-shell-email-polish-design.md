@@ -1,6 +1,6 @@
 # Admin Shell and Email Polish
 
-**Status:** Approved  
+**Status:** Approved
 **Date:** 2026-09-01
 
 ## Scope
