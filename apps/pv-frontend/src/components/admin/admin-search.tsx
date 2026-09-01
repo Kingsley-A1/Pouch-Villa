@@ -51,13 +51,7 @@ export function AdminSearch({ sections }: { sections: NavSection[] }) {
 
   useEffect(() => {
     const normalised = query.trim();
-    setActiveIndex(0);
-    setFailed(false);
-    if (normalised.length < 2) {
-      setRemoteResults([]);
-      setLoading(false);
-      return;
-    }
+    if (normalised.length < 2) return;
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -196,7 +190,16 @@ export function AdminSearch({ sections }: { sections: NavSection[] }) {
 
   const inputProps = {
     value: query,
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value),
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextQuery = event.target.value;
+      setQuery(nextQuery);
+      setActiveIndex(0);
+      setFailed(false);
+      if (nextQuery.trim().length < 2) {
+        setRemoteResults([]);
+        setLoading(false);
+      }
+    },
     onKeyDown,
     role: "combobox",
     "aria-label": "Search the admin",
