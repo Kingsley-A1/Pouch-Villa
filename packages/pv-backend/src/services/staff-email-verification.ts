@@ -62,8 +62,19 @@ export async function sendVerificationCode(staffId: string, email: string): Prom
   await sendEmail({
     to: email,
     subject: `${code} is your Pouch Villa verification code`,
-    text: `Your Pouch Villa verification code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes. If you did not request this, ignore this email.`,
-    html: `<p>Your Pouch Villa verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:.08em">${code}</p><p>It expires in ${CODE_TTL_MINUTES} minutes. If you did not request this, ignore this email.</p>`,
+    content: {
+      title: "Verify your email",
+      preheader: `Your verification code expires in ${CODE_TTL_MINUTES} minutes.`,
+      blocks: [
+        {
+          type: "code",
+          label: "Verification code",
+          value: code,
+          hint: `This code expires in ${CODE_TTL_MINUTES} minutes.`,
+        },
+      ],
+      footer: "If you did not request this, you can ignore this message.",
+    },
   });
 }
 

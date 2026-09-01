@@ -35,11 +35,13 @@ Vitest, Testing Library, Resend HTTP API.
 ### Task 1: Standard desktop admin sidebar
 
 **Files:**
+
 - Modify: `apps/pv-frontend/src/app/admin/(protected)/admin-sidebar.tsx`
 - Modify: `apps/pv-frontend/src/app/admin/(protected)/layout.tsx`
 - Create: `apps/pv-frontend/tests/admin-sidebar.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `NavSection[]`, `usePathname()`, and local storage key
   `pv-admin-sidebar-open`.
 - Produces: `AdminSidebar({ sections }: { sections: NavSection[] })` with expanded and collapsed
@@ -94,6 +96,7 @@ git commit -m "feat(admin): standardize the desktop sidebar"
 ### Task 2: Password visibility and stronger auth brackets
 
 **Files:**
+
 - Modify: `apps/pv-frontend/src/components/admin/form-controls.tsx`
 - Modify: `apps/pv-frontend/src/app/admin/login/login-form.tsx`
 - Modify: `apps/pv-frontend/src/app/admin/claim/claim-form.tsx`
@@ -101,6 +104,7 @@ git commit -m "feat(admin): standardize the desktop sidebar"
 - Create: `apps/pv-frontend/tests/password-input.test.tsx`
 
 **Interfaces:**
+
 - Produces: `PasswordInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">)`.
 - Preserves: native input `name`, `id`, `required`, `minLength`, and `autoComplete` behavior.
 
@@ -153,13 +157,16 @@ git commit -m "feat(auth): add password visibility controls"
 ### Task 3: Shared branded transactional emails
 
 **Files:**
+
 - Create: `packages/pv-backend/src/services/email-template.ts`
 - Create: `packages/pv-backend/tests/email-template.test.ts`
+- Modify: `packages/pv-backend/tests/staff-login.integration.test.ts`
 - Modify: `packages/pv-backend/src/services/email.ts`
 - Modify: `packages/pv-backend/src/services/order-email.ts`
 - Modify: `packages/pv-backend/src/services/staff-email-verification.ts`
 
 **Interfaces:**
+
 - Produces:
   `renderTransactionalEmail(input: TransactionalEmailInput): { html: string; text: string }`.
 - `TransactionalEmailInput` contains `brandName`, `title`, `preheader`, optional `greeting`, and a
@@ -225,10 +232,12 @@ git commit -m "feat(email): add branded transactional templates"
 ### Task 4: Release verification and isolated push
 
 **Files:**
+
 - Modify only if formatting requires it: files already listed in Tasks 1-3
 - Verify: all commits since `origin/main`
 
 **Interfaces:**
+
 - Produces: one isolated branch whose commits contain only the approved spec, plan, tests, admin UI,
   auth control, and email-template work.
 

@@ -158,7 +158,8 @@ describeDb("staff email verification", () => {
 
     await sendVerificationCode(staffId, email);
     const call = vi.mocked(sendEmail).mock.calls.at(-1)?.[0];
-    const code = call?.text.match(/\b\d{6}\b/)?.[0];
+    const codeBlock = call?.content.blocks.find((block) => block.type === "code");
+    const code = codeBlock?.type === "code" ? codeBlock.value : undefined;
     expect(code).toBeTruthy();
 
     await verifyEmailCode(staffId, code!);

@@ -1,3 +1,5 @@
+import { renderTransactionalEmail, type TransactionalEmailInput } from "./email-template";
+
 /**
  * Thin Resend wrapper. There is no local fallback that pretends to send mail: if
  * RESEND_API_KEY is configured, a send failure is a real error the caller must
@@ -15,8 +17,7 @@ export class EmailNotConfiguredError extends Error {
 export type SendEmailInput = {
   to: string;
   subject: string;
-  html: string;
-  text: string;
+  content: Omit<TransactionalEmailInput, "brandName">;
 };
 
 export async function sendEmail(input: SendEmailInput): Promise<void> {
@@ -24,6 +25,10 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
   const fromAddress = process.env.RESEND_EMAIL_SEND_FROM;
   const fromName = process.env.RESEND_EMAIL_SEND_FROM_NAME;
   if (!apiKey || !fromAddress) throw new EmailNotConfiguredError();
+  const rendered = renderTransactionalEmail({
+    ...input.content,
+    brandName: fromName?.trim() || fromAddress,
+  });
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -35,8 +40,8 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
       from: fromName ? `${fromName} <${fromAddress}>` : fromAddress,
       to: [input.to],
       subject: input.subject,
-      html: input.html,
-      text: input.text,
+      html: rendered.html,
+      text: rendered.text,
     }),
   });
 
