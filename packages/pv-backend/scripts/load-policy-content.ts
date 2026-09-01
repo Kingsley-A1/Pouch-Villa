@@ -5,8 +5,8 @@ import { closePool, queryOne } from "../src/db/client";
 import { writeSettings, type SettingKey } from "../src/services/settings";
 
 /**
- * Loads client-supplied page content from `docs/decisions/About-Policy.md` into
- * the settings store.
+ * Loads the supporting-page content from `docs/decisions/` into the settings
+ * store.
  *
  * **Why a script rather than a constant in a component.** AGENTS.md §4 forbids
  * policy or legal wording in source, and that rule earns its keep here: wording
@@ -22,12 +22,29 @@ import { writeSettings, type SettingKey } from "../src/services/settings";
  * admin, re-running this would overwrite them, so it is explicitly opt-in per
  * key via --force.
  *
- * Covers About and Return & Warranty only. Q10 remains open for Privacy and
- * Terms, and those pages keep their awaiting-confirmation notice rather than
- * carrying wording nobody signed off.
+ * About and Return & Warranty are the client's own wording. Privacy and Terms
+ * were drafted against the NDPA 2023 from an audit of what this repository
+ * actually does, per Q10's instruction to use "the best information available".
+ * They are marked pending legal review in the source document.
  */
 
-const SOURCE = resolve(import.meta.dirname, "../../../docs/decisions/About-Policy.md");
+const DOCS = resolve(import.meta.dirname, "../../../docs/decisions");
+
+/**
+ * Which document supplies which page, and under which `## ` heading.
+ *
+ * Privacy and Terms were drafted against the NDPA 2023 from an audit of what
+ * this repository actually does — every processor, cookie and retention rule in
+ * them was read out of the code. They carry a pending-legal-review banner in the
+ * source document, which is deliberately *not* loaded into the page: the caveat
+ * is for Pouch Villa, not for a shopper.
+ */
+const SOURCES: { key: SettingKey; file: string; heading: string }[] = [
+  { key: "policy.about", file: "About-Policy.md", heading: "About Pouch Villa" },
+  { key: "policy.returns", file: "About-Policy.md", heading: "Return & Warranty Policy" },
+  { key: "policy.privacy", file: "Privacy-Terms.md", heading: "Privacy Policy" },
+  { key: "policy.terms", file: "Privacy-Terms.md", heading: "Terms & Conditions" },
+];
 
 /** Pulls one `## ` section out of the document, minus its own heading. */
 function section(markdown: string, heading: string): string | null {
@@ -50,16 +67,9 @@ async function main() {
   loadEnvFiles(process.cwd());
 
   const force = process.argv.includes("--force");
-  const markdown = await readFile(SOURCE, "utf8");
-
-  const about = section(markdown, "About Pouch Villa");
-  const returns = section(markdown, "Return & Warranty Policy");
-
-  if (about === null || returns === null) {
-    throw new Error(
-      "Could not find the 'About Pouch Villa' and 'Return & Warranty Policy' sections in the source document.",
-    );
-  }
+  const only = process.argv.includes("--only")
+    ? process.argv[process.argv.indexOf("--only") + 1]
+    : null;
 
   // Attributed to the CEO, who owns this content. There is no synthetic actor:
   // the audit trail should name a real person.
@@ -70,24 +80,35 @@ async function main() {
     throw new Error("No CEO account exists yet. Claim one before loading page content.");
   }
 
-  const entries: Partial<Record<SettingKey, string>> = {
-    "policy.about": about,
-    "policy.returns": returns,
-  };
+  const cache = new Map<string, string>();
+  const entries: Partial<Record<SettingKey, string>> = {};
 
-  for (const [key, value] of Object.entries(entries) as [SettingKey, string][]) {
-    const existing = await queryOne<{ value: string | null; origin: string }>(
-      "SELECT value, origin FROM setting WHERE key = $1",
-      [key],
+  for (const source of SOURCES) {
+    if (only !== null && source.key !== only) continue;
+
+    let markdown = cache.get(source.file);
+    if (markdown === undefined) {
+      markdown = await readFile(resolve(DOCS, source.file), "utf8");
+      cache.set(source.file, markdown);
+    }
+
+    const body = section(markdown, source.heading);
+    if (body === null) {
+      throw new Error(`Could not find "## ${source.heading}" in ${source.file}.`);
+    }
+
+    const existing = await queryOne<{ value: string | null }>(
+      "SELECT value FROM setting WHERE key = $1",
+      [source.key],
     );
     const alreadySet = existing !== null && existing.value !== null && existing.value !== "";
 
     if (alreadySet && !force) {
-      console.log(`  skipped  ${key}  (already set; pass --force to overwrite)`);
-      delete entries[key];
+      console.log(`  skipped  ${source.key}  (already set; pass --force to overwrite)`);
       continue;
     }
-    console.log(`  writing  ${key}  (${value.length} characters)`);
+    console.log(`  writing  ${source.key}  (${body.length} characters)`);
+    entries[source.key] = body;
   }
 
   if (Object.keys(entries).length === 0) {
