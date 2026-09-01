@@ -87,19 +87,19 @@ records. The migration backfills existing records so the release is useful immed
 
 Searchable sources and authority:
 
-| Source | Required permission | Safe searchable identity |
-| --- | --- | --- |
-| Product and SKU | `product.view` | name, slug, SKU |
-| Order | `order.view` | reference, customer name, email, phone |
-| Customer | `customer.view` | name, email, phone |
-| Payment | `payment.view` | order reference and payment status |
-| Brand and category | `category.manage` | name and slug |
-| Device | `category.manage` | brand, model name, slug |
-| Staff | `staff.view` | name, email, role |
-| Review | `review.moderate` | reviewer, product snapshot, order reference |
-| Enquiry | `enquiry.manage` | sender name, email, phone |
-| Delivery zone | `delivery.manage` | name and LGA |
-| Setting | `settings.view` | typed setting key and admin label only |
+| Source             | Required permission | Safe searchable identity                    |
+| ------------------ | ------------------- | ------------------------------------------- |
+| Product and SKU    | `product.view`      | name, slug, SKU                             |
+| Order              | `order.view`        | reference, customer name, email, phone      |
+| Customer           | `customer.view`     | name, email, phone                          |
+| Payment            | `payment.view`      | order reference and payment status          |
+| Brand and category | `category.manage`   | name and slug                               |
+| Device             | `category.manage`   | brand, model name, slug                     |
+| Staff              | `staff.view`        | name, email, role                           |
+| Review             | `review.moderate`   | reviewer, product snapshot, order reference |
+| Enquiry            | `enquiry.manage`    | sender name, email, phone                   |
+| Delivery zone      | `delivery.manage`   | name and LGA                                |
+| Setting            | `settings.view`     | typed setting key and admin label only      |
 
 The index never contains passwords, tokens, session identifiers, bank details, payment-proof URLs or
 keys, setting values, enquiry messages, review bodies, or audit before/after payloads. Audit events
