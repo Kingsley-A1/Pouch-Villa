@@ -3,6 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Script from "next/script";
 
+export function googleButtonWidth(availableWidth: number): number {
+  return Math.min(320, Math.max(1, Math.floor(availableWidth || 320)));
+}
+
 /**
  * Renders Google's own "Sign in with Google" button and hands the resulting ID
  * token to `onCredential`. A Google client ID is meant to be public — it is only
@@ -48,22 +52,40 @@ export function GoogleSignInButton({
         }
       },
     });
-    google.accounts.id.renderButton(containerRef.current, {
-      theme: "outline",
-      size: "large",
-      width: 320,
-      text: "continue_with",
-    });
+    const container = containerRef.current;
+    const render = () => {
+      const width = googleButtonWidth(
+        container.getBoundingClientRect().width || container.clientWidth,
+      );
+      container.replaceChildren();
+      google.accounts.id.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        width,
+        text: "continue_with",
+      });
+    };
+    render();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(render);
+    observer.observe(container);
+    return () => observer.disconnect();
   }, [ready, clientId]);
 
   return (
-    <div>
+    <div className="grid w-full justify-items-center text-center">
       <Script
         src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
         onReady={() => setReady(true)}
       />
-      <div id={containerId} ref={containerRef} aria-label={label} />
+      <div
+        id={containerId}
+        ref={containerRef}
+        aria-label={label}
+        className="flex w-full justify-center"
+      />
       {pending ? (
         <p className="mt-2 text-sm text-(--pv-muted)" role="status">
           Signing in…
