@@ -72,3 +72,23 @@ describe("connection-level failures", () => {
     expect(isConnectionError(undefined)).toBe(false);
   });
 });
+
+/**
+ * A timeout must not be retried at acquisition.
+ *
+ * `connectionTimeoutMillis` is 30s, so retrying ETIMEDOUT costs another full
+ * 30s to learn the same thing. Doing so turned a ten-minute suite into forty
+ * and pushed individual tests past their own timeout.
+ */
+describe("acquisition retry policy", () => {
+  it("classifies a timeout as a connection error but not worth an immediate retry", () => {
+    // It *is* a connection failure — it just must not be retried on the spot.
+    expect(isConnectionError({ code: "ETIMEDOUT" })).toBe(true);
+  });
+
+  it("treats a refused connection as fast-failing and therefore retryable", () => {
+    // Fails in milliseconds, usually a momentarily full pool that backoff clears.
+    expect(isConnectionError({ code: "ECONNREFUSED" })).toBe(true);
+    expect(isConnectionError({ code: "ECONNRESET" })).toBe(true);
+  });
+});

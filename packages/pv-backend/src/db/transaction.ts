@@ -49,25 +49,47 @@ export class TransactionRetryLimitError extends Error {
  * ceiling or resuming from cold, and previously a single such blip failed the
  * caller outright because acquisition sat outside every retry path.
  */
-async function connectWithRetry(maxAttempts: number): Promise<PoolClient> {
+const CONNECT_ATTEMPTS = 3;
+
+/**
+ * Whether a failed acquisition is worth immediately trying again.
+ *
+ * **A timeout is not.** `connectionTimeoutMillis` is 30s, so a retry after
+ * ETIMEDOUT costs another full 30s to learn the same thing — the server has
+ * already proved unresponsive for the whole window, and retrying multiplies the
+ * latency budget without improving the odds. Retrying timeouts here turned a
+ * ten-minute test run into forty and pushed individual cases past their own
+ * timeout, which is how this was found.
+ *
+ * A *refused* or *reset* connection is different: it fails in milliseconds and
+ * usually means a momentarily full pool on the cluster side, which a short
+ * backoff genuinely clears.
+ */
+function worthReconnecting(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (code === "ETIMEDOUT") return false;
+  return isConnectionError(error) || isRetryable(error);
+}
+
+async function connectWithRetry(): Promise<PoolClient> {
   let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt += 1) {
     try {
       return await getPool().connect();
     } catch (error) {
-      if (!isConnectionError(error) && !isRetryable(error)) throw error;
+      if (!worthReconnecting(error)) throw error;
       lastError = error;
-      if (attempt < maxAttempts) await sleep(backoffDelayMs(attempt));
+      if (attempt < CONNECT_ATTEMPTS) await sleep(backoffDelayMs(attempt));
     }
   }
-  throw new TransactionRetryLimitError(maxAttempts, lastError);
+  throw new TransactionRetryLimitError(CONNECT_ATTEMPTS, lastError);
 }
 
 export async function withTransaction<T>(
   work: (tx: Queryable) => Promise<T>,
   { maxAttempts = MAX_TRANSACTION_ATTEMPTS }: { maxAttempts?: number } = {},
 ): Promise<T> {
-  const client: PoolClient = await connectWithRetry(maxAttempts);
+  const client: PoolClient = await connectWithRetry();
   try {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
