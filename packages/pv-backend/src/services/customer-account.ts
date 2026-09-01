@@ -7,6 +7,7 @@ import { getPool, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { normalisePhone } from "../domain/phone";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
 
 /**
@@ -117,6 +118,7 @@ export async function signUp(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncAdminSearchDocument(tx, "customer", customerId);
 
     return { customerId };
   });
@@ -215,6 +217,7 @@ export async function loginCustomerWithGoogle(
     }
 
     if (row.status !== "active") throw new CustomerSuspendedError();
+    await syncAdminSearchDocument(tx, "customer", row.id);
     return { customerId: row.id };
   });
 }
@@ -249,6 +252,7 @@ export async function findOrCreateCustomerForOrder(
         WHERE id = $1`,
       [found.id, input.phone],
     );
+    await syncAdminSearchDocument(tx, "customer", found.id);
     return found.id;
   }
 
@@ -258,7 +262,9 @@ export async function findOrCreateCustomerForOrder(
        RETURNING id`,
     [email, input.fullName, input.phone],
   );
-  return (created.rows[0] as { id: string }).id;
+  const customerId = (created.rows[0] as { id: string }).id;
+  await syncAdminSearchDocument(tx, "customer", customerId);
+  return customerId;
 }
 
 // ---------------------------------------------------------------------------
@@ -436,6 +442,7 @@ export async function suspendCustomer(
       entityId: customerId,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "customer", customerId);
   });
 }
 
@@ -454,6 +461,7 @@ export async function restoreCustomer(
       entityType: "customer",
       entityId: customerId,
     });
+    await syncAdminSearchDocument(tx, "customer", customerId);
   });
 }
 
@@ -479,6 +487,7 @@ export async function softDeleteCustomer(
       entityId: customerId,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "customer", customerId);
   });
 }
 

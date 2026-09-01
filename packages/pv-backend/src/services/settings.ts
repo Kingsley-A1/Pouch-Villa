@@ -1,6 +1,7 @@
 import { query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 
 /**
  * Settings hold every business fact, and there is exactly one source of truth: this
@@ -137,6 +138,7 @@ export async function writeSetting(
               updated_at = now()`,
     [key, value, staffId],
   );
+  await syncAdminSearchDocument(tx, "setting", key);
 }
 
 /**

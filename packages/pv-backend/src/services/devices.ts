@@ -1,5 +1,6 @@
 import { query } from "../db/client";
 import { withTransaction } from "../db/transaction";
+import { syncAdminSearchDocument } from "./admin-search-index";
 import { recordAudit } from "./audit";
 
 /**
@@ -89,6 +90,7 @@ export async function createDevice(input: DeviceInput, actor: { staffId: string 
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "device", id);
     return id;
   });
 }
@@ -122,6 +124,7 @@ export async function updateDevice(id: string, input: DeviceInput, actor: { staf
       before: before.rows[0],
       after: input,
     });
+    await syncAdminSearchDocument(tx, "device", id);
     return true;
   });
 }
@@ -143,6 +146,7 @@ export async function deleteDevice(id: string, actor: { staffId: string }) {
       entityId: id,
       before: removed.rows[0],
     });
+    await syncAdminSearchDocument(tx, "device", id);
     return true;
   });
 }

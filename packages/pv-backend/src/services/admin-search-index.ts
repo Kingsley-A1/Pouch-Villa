@@ -1,5 +1,6 @@
 import type { PermissionCode } from "../auth/permission-codes";
-import type { Queryable } from "../db/client";
+import { type Queryable } from "../db/client";
+import { withTransaction } from "../db/transaction";
 import type { AdminSearchEntity } from "./admin-search";
 
 type SearchDocumentRow = {
@@ -121,4 +122,79 @@ export async function syncAdminSearchDocument(
       document.required_permission,
     ],
   );
+}
+
+export async function syncAdminSearchDocuments(
+  tx: Queryable,
+  entity: AdminSearchEntity,
+  entityIds: readonly string[],
+): Promise<void> {
+  for (const entityId of entityIds) {
+    await syncAdminSearchDocument(tx, entity, entityId);
+  }
+}
+
+export async function syncPaymentSearchDocumentsForOrder(
+  tx: Queryable,
+  orderId: string,
+): Promise<void> {
+  const payments = await tx.query<{ id: string }>("SELECT id FROM payment WHERE order_id = $1", [
+    orderId,
+  ]);
+  await syncAdminSearchDocuments(
+    tx,
+    "payment",
+    payments.rows.map((payment) => payment.id),
+  );
+}
+
+export async function syncDeviceSearchDocumentsForBrand(
+  tx: Queryable,
+  brandId: string,
+): Promise<void> {
+  const devices = await tx.query<{ id: string }>("SELECT id FROM device WHERE brand_id = $1", [
+    brandId,
+  ]);
+  await syncAdminSearchDocuments(
+    tx,
+    "device",
+    devices.rows.map((device) => device.id),
+  );
+}
+
+const SOURCE_IDS_SQL: Readonly<Record<AdminSearchEntity, string>> = {
+  product: "SELECT id::STRING AS id FROM product",
+  order: "SELECT id::STRING AS id FROM customer_order",
+  customer: "SELECT id::STRING AS id FROM customer",
+  payment: "SELECT id::STRING AS id FROM payment",
+  brand: "SELECT id::STRING AS id FROM brand",
+  category: "SELECT id::STRING AS id FROM category",
+  device: "SELECT id::STRING AS id FROM device",
+  staff: "SELECT id::STRING AS id FROM staff",
+  review: "SELECT id::STRING AS id FROM review",
+  enquiry: "SELECT id::STRING AS id FROM contact_request",
+  delivery_zone: "SELECT id::STRING AS id FROM delivery_zone",
+  setting: "SELECT key AS id FROM setting",
+};
+
+export type AdminSearchRebuildCounts = Readonly<Record<AdminSearchEntity, number>>;
+
+/** Recreates every safe projection without exposing any source content to the caller. */
+export async function rebuildAdminSearchIndex(): Promise<AdminSearchRebuildCounts> {
+  return withTransaction(async (tx) => {
+    await tx.query("DELETE FROM admin_search_document");
+    const counts = {} as Record<AdminSearchEntity, number>;
+
+    for (const entity of Object.keys(SOURCE_IDS_SQL) as AdminSearchEntity[]) {
+      const sourceIds = await tx.query<{ id: string }>(SOURCE_IDS_SQL[entity]);
+      await syncAdminSearchDocuments(
+        tx,
+        entity,
+        sourceIds.rows.map((row) => row.id),
+      );
+      counts[entity] = sourceIds.rows.length;
+    }
+
+    return counts;
+  });
 }

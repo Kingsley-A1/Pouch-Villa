@@ -1,5 +1,6 @@
-import { getPool, query, queryOne } from "../db/client";
+import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
+import { syncAdminSearchDocument, syncDeviceSearchDocumentsForBrand } from "./admin-search-index";
 import { recordAudit } from "./audit";
 
 export type AdminBrand = {
@@ -66,6 +67,7 @@ export async function createBrand(input: BrandInput, actor: { staffId: string })
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "brand", id);
     return id;
   });
 }
@@ -94,18 +96,27 @@ export async function updateBrand(id: string, input: BrandInput, actor: { staffI
       before: before.rows[0],
       after: input,
     });
+    await syncAdminSearchDocument(tx, "brand", id);
+    await syncDeviceSearchDocumentsForBrand(tx, id);
     return true;
   });
 }
 
 export async function setBrandActive(id: string, isActive: boolean, actor: { staffId: string }) {
-  await query("UPDATE brand SET is_active = $2, updated_at = now() WHERE id = $1", [id, isActive]);
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: isActive ? "brand.activated" : "brand.deactivated",
-    entityType: "brand",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    await tx.query("UPDATE brand SET is_active = $2, updated_at = now() WHERE id = $1", [
+      id,
+      isActive,
+    ]);
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: isActive ? "brand.activated" : "brand.deactivated",
+      entityType: "brand",
+      entityId: id,
+    });
+    await syncAdminSearchDocument(tx, "brand", id);
+    await syncDeviceSearchDocumentsForBrand(tx, id);
   });
 }
 
@@ -123,6 +134,8 @@ export async function softDeleteBrand(id: string, reason: string, actor: { staff
       entityId: id,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "brand", id);
+    await syncDeviceSearchDocumentsForBrand(tx, id);
   });
 }
 

@@ -1,7 +1,8 @@
-import { getPool, query, queryOne } from "../db/client";
+import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { kobo, type Kobo } from "../domain/money";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 
 /**
  * Delivery zones, fees and timeframes as admin-managed rows (Q8). An order's
@@ -113,6 +114,7 @@ export async function createDeliveryZone(input: DeliveryZoneInput, actor: { staf
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "delivery_zone", id);
     return id;
   });
 }
@@ -146,6 +148,7 @@ export async function updateDeliveryZone(
       before: before.rows[0],
       after: input,
     });
+    await syncAdminSearchDocument(tx, "delivery_zone", id);
     return true;
   });
 }
@@ -155,16 +158,19 @@ export async function setDeliveryZoneActive(
   isActive: boolean,
   actor: { staffId: string },
 ) {
-  await query("UPDATE delivery_zone SET is_active = $2, updated_at = now() WHERE id = $1", [
-    id,
-    isActive,
-  ]);
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: isActive ? "delivery_zone.activated" : "delivery_zone.deactivated",
-    entityType: "delivery_zone",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    await tx.query("UPDATE delivery_zone SET is_active = $2, updated_at = now() WHERE id = $1", [
+      id,
+      isActive,
+    ]);
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: isActive ? "delivery_zone.activated" : "delivery_zone.deactivated",
+      entityType: "delivery_zone",
+      entityId: id,
+    });
+    await syncAdminSearchDocument(tx, "delivery_zone", id);
   });
 }
 
@@ -186,5 +192,6 @@ export async function softDeleteDeliveryZone(
       entityId: id,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "delivery_zone", id);
   });
 }

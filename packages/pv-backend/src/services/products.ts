@@ -1,8 +1,9 @@
-import { getPool, query, queryOne, type Queryable } from "../db/client";
+import { query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { kobo, type Kobo } from "../domain/money";
 import { firstFreeSlug, slugify } from "../domain/slug";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 
 /**
  * Admin-side product and variant management. Every mutation is a single
@@ -213,6 +214,7 @@ export async function createProduct(input: ProductInput, actor: { staffId: strin
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "product", id);
     return id;
   });
 }
@@ -265,6 +267,7 @@ export async function updateProduct(id: string, input: ProductInput, actor: { st
       before: before.rows[0],
       after: input,
     });
+    await syncAdminSearchDocument(tx, "product", id);
     return true;
   });
 }
@@ -309,36 +312,43 @@ export async function setProductStatus(
       before: before.rows[0],
       after: { status },
     });
+    await syncAdminSearchDocument(tx, "product", id);
     return true;
   });
 }
 
 export async function softDeleteProduct(id: string, reason: string, actor: { staffId: string }) {
-  await query(
-    "UPDATE product SET deleted_at = now(), deleted_by = $2, deleted_reason = $3, status = 'archived' WHERE id = $1",
-    [id, actor.staffId, reason],
-  );
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: "product.deleted",
-    entityType: "product",
-    entityId: id,
-    after: { reason },
+  await withTransaction(async (tx) => {
+    await tx.query(
+      "UPDATE product SET deleted_at = now(), deleted_by = $2, deleted_reason = $3, status = 'archived' WHERE id = $1",
+      [id, actor.staffId, reason],
+    );
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: "product.deleted",
+      entityType: "product",
+      entityId: id,
+      after: { reason },
+    });
+    await syncAdminSearchDocument(tx, "product", id);
   });
 }
 
 export async function restoreProduct(id: string, actor: { staffId: string }) {
-  await query(
-    "UPDATE product SET deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL, status = 'draft' WHERE id = $1",
-    [id],
-  );
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: "product.restored",
-    entityType: "product",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    await tx.query(
+      "UPDATE product SET deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL, status = 'draft' WHERE id = $1",
+      [id],
+    );
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: "product.restored",
+      entityType: "product",
+      entityId: id,
+    });
+    await syncAdminSearchDocument(tx, "product", id);
   });
 }
 
@@ -406,6 +416,7 @@ export async function createVariant(
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "product", productId);
     return id;
   });
 }
@@ -413,7 +424,7 @@ export async function createVariant(
 export async function updateVariant(id: string, input: VariantInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
     const before = await tx.query(
-      "SELECT sku, price_kobo, compare_at_kobo, sort_order FROM product_variant WHERE id = $1",
+      "SELECT product_id, sku, price_kobo, compare_at_kobo, sort_order FROM product_variant WHERE id = $1",
       [id],
     );
     if (before.rows.length === 0) return false;
@@ -441,34 +452,45 @@ export async function updateVariant(id: string, input: VariantInput, actor: { st
       before: before.rows[0],
       after: input,
     });
+    const productId = (before.rows[0] as { product_id: string }).product_id;
+    await syncAdminSearchDocument(tx, "product", productId);
     return true;
   });
 }
 
 export async function setVariantActive(id: string, isActive: boolean, actor: { staffId: string }) {
-  await query("UPDATE product_variant SET is_active = $2, updated_at = now() WHERE id = $1", [
-    id,
-    isActive,
-  ]);
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: isActive ? "variant.activated" : "variant.deactivated",
-    entityType: "product_variant",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    const updated = await tx.query(
+      "UPDATE product_variant SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING product_id",
+      [id, isActive],
+    );
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: isActive ? "variant.activated" : "variant.deactivated",
+      entityType: "product_variant",
+      entityId: id,
+    });
+    const productId = (updated.rows[0] as { product_id: string } | undefined)?.product_id;
+    if (productId !== undefined) await syncAdminSearchDocument(tx, "product", productId);
   });
 }
 
 export async function softDeleteVariant(id: string, actor: { staffId: string }) {
-  await query("UPDATE product_variant SET deleted_at = now(), updated_at = now() WHERE id = $1", [
-    id,
-  ]);
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: "variant.deleted",
-    entityType: "product_variant",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    const updated = await tx.query(
+      "UPDATE product_variant SET deleted_at = now(), updated_at = now() WHERE id = $1 RETURNING product_id",
+      [id],
+    );
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: "variant.deleted",
+      entityType: "product_variant",
+      entityId: id,
+    });
+    const productId = (updated.rows[0] as { product_id: string } | undefined)?.product_id;
+    if (productId !== undefined) await syncAdminSearchDocument(tx, "product", productId);
   });
 }
 

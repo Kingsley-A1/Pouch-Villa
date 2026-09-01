@@ -5,12 +5,15 @@ import { migrate } from "../src/db/migrate";
 import { withTransaction } from "../src/db/transaction";
 import { searchAdmin } from "../src/services/admin-search";
 import { syncAdminSearchDocument } from "../src/services/admin-search-index";
+import { createBrand, softDeleteBrand } from "../src/services/brands";
 import { writableTestDatabaseConfigured } from "./helpers/database";
 
 const describeDb = writableTestDatabaseConfigured() ? describe : describe.skip;
 
 const staffId = randomUUID();
 const productId = randomUUID();
+const productSku = `QZ-${productId.slice(0, 12).toUpperCase()}`;
+let brandId: string | null = null;
 
 describeDb("admin search document synchronization", () => {
   beforeAll(async () => {
@@ -27,8 +30,8 @@ describeDb("admin search document synchronization", () => {
     );
     await query(
       `INSERT INTO product_variant (product_id, sku, price_kobo)
-       VALUES ($1, 'QZ-SYNC-7788', 10000)`,
-      [productId],
+       VALUES ($1, $2, 10000)`,
+      [productId, productSku],
     );
   }, 120_000);
 
@@ -37,6 +40,12 @@ describeDb("admin search document synchronization", () => {
       productId,
       staffId,
     ]).catch(() => {});
+    if (brandId !== null) {
+      await query("DELETE FROM admin_search_document WHERE entity_id = $1", [brandId]).catch(
+        () => {},
+      );
+      await query("DELETE FROM brand WHERE id = $1", [brandId]).catch(() => {});
+    }
     await query("DELETE FROM product_variant WHERE product_id = $1", [productId]).catch(() => {});
     await query("DELETE FROM product WHERE id = $1", [productId]).catch(() => {});
     await query("DELETE FROM staff WHERE id = $1", [staffId]).catch(() => {});
@@ -46,13 +55,27 @@ describeDb("admin search document synchronization", () => {
   it("projects searchable product identity and removes a soft-deleted product", async () => {
     await withTransaction((tx) => syncAdminSearchDocument(tx, "product", productId));
 
-    const indexed = await searchAdmin(staffId, { query: "QZ-SYNC-7788" });
+    const indexed = await searchAdmin(staffId, { query: productSku });
     expect(indexed.map((result) => result.entityId)).toContain(productId);
 
     await query("UPDATE product SET deleted_at = now() WHERE id = $1", [productId]);
     await withTransaction((tx) => syncAdminSearchDocument(tx, "product", productId));
 
-    const removed = await searchAdmin(staffId, { query: "QZ-SYNC-7788" });
+    const removed = await searchAdmin(staffId, { query: productSku });
     expect(removed.map((result) => result.entityId)).not.toContain(productId);
+  });
+
+  it("keeps a brand searchable through its public mutation service", async () => {
+    brandId = await createBrand(
+      { name: "Zephyr Sync Brand", slug: `zephyr-${randomUUID()}`, sortOrder: 0 },
+      { staffId },
+    );
+
+    const indexed = await searchAdmin(staffId, { query: "Zephyr Sync" });
+    expect(indexed.map((result) => result.entityId)).toContain(brandId);
+
+    await softDeleteBrand(brandId, "Integration cleanup", { staffId });
+    const removed = await searchAdmin(staffId, { query: "Zephyr Sync" });
+    expect(removed.map((result) => result.entityId)).not.toContain(brandId);
   });
 });

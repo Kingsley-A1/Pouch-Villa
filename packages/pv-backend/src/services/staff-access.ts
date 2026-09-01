@@ -11,6 +11,7 @@ import { hashPassword } from "../auth/password";
 import { recordAudit } from "./audit";
 import { assertNotLastCeo } from "./roles";
 import { revokeAllStaffSessions } from "../auth/staff-session";
+import { syncAdminSearchDocument } from "./admin-search-index";
 
 /**
  * A staff account exists only where a role code was redeemed. Nothing is seeded,
@@ -202,6 +203,7 @@ export async function redeemRoleCode(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncAdminSearchDocument(tx, "staff", staffId);
 
     return { staffId, role: record.role_code };
   });
@@ -236,6 +238,7 @@ export async function setStaffStatus(
       after: { status },
       requestId: actor.requestId,
     });
+    await syncAdminSearchDocument(tx, "staff", staffId);
     return true;
   });
 }

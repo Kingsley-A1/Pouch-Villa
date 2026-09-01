@@ -11,6 +11,7 @@ import {
 import { normalisePhone } from "../domain/phone";
 import { generateOrderReference } from "../domain/reference";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument, syncPaymentSearchDocumentsForOrder } from "./admin-search-index";
 import { findOrCreateCustomerForOrder } from "./customer-account";
 
 /**
@@ -352,8 +353,8 @@ export async function placeOrder(
 
     // The payment we are expecting, so the admin's Payments screen has a row to
     // reconcile against rather than inferring one from the order.
-    await tx.query(
-      `INSERT INTO payment (order_id, amount_kobo, status) VALUES ($1, $2, 'expected')`,
+    const payment = await tx.query(
+      `INSERT INTO payment (order_id, amount_kobo, status) VALUES ($1, $2, 'expected') RETURNING id`,
       [orderId, totalKobo],
     );
 
@@ -390,6 +391,9 @@ export async function placeOrder(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncAdminSearchDocument(tx, "order", orderId);
+    const paymentId = (payment.rows[0] as { id: string }).id;
+    await syncAdminSearchDocument(tx, "payment", paymentId);
 
     return { orderId, reference, totalKobo, replayed: false };
   });
@@ -475,6 +479,8 @@ export async function transitionOrder(
       before: { status: order.status },
       after: { status: to, reason: options.reason ?? null },
     });
+    await syncAdminSearchDocument(tx, "order", orderId);
+    if (to === "cancelled") await syncPaymentSearchDocumentsForOrder(tx, orderId);
 
     return to;
   });

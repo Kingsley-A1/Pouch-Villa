@@ -1,5 +1,6 @@
-import { getPool, query, queryOne } from "../db/client";
+import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
+import { syncAdminSearchDocument } from "./admin-search-index";
 import { recordAudit } from "./audit";
 
 export type AdminCategory = {
@@ -82,6 +83,7 @@ export async function createCategory(input: CategoryInput, actor: { staffId: str
       entityId: id,
       after: input,
     });
+    await syncAdminSearchDocument(tx, "category", id);
     return id;
   });
 }
@@ -116,21 +118,25 @@ export async function updateCategory(id: string, input: CategoryInput, actor: { 
       before: before.rows[0],
       after: input,
     });
+    await syncAdminSearchDocument(tx, "category", id);
     return true;
   });
 }
 
 export async function setCategoryActive(id: string, isActive: boolean, actor: { staffId: string }) {
-  await query("UPDATE category SET is_active = $2, updated_at = now() WHERE id = $1", [
-    id,
-    isActive,
-  ]);
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: isActive ? "category.activated" : "category.deactivated",
-    entityType: "category",
-    entityId: id,
+  await withTransaction(async (tx) => {
+    await tx.query("UPDATE category SET is_active = $2, updated_at = now() WHERE id = $1", [
+      id,
+      isActive,
+    ]);
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: isActive ? "category.activated" : "category.deactivated",
+      entityType: "category",
+      entityId: id,
+    });
+    await syncAdminSearchDocument(tx, "category", id);
   });
 }
 
@@ -155,6 +161,7 @@ export async function softDeleteCategory(id: string, reason: string, actor: { st
       entityId: id,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "category", id);
   });
 }
 

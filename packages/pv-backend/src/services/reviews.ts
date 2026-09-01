@@ -2,6 +2,7 @@ import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { normalisePhone } from "../domain/phone";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
 
 /**
@@ -137,6 +138,7 @@ export async function submitReview(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncAdminSearchDocument(tx, "review", reviewId);
 
     return { reviewId, verifiedPurchase: orderLineId !== null };
   });
@@ -292,6 +294,7 @@ async function moderate(
       before: before.rows[0],
       after: { status, reason: reason ?? null },
     });
+    await syncAdminSearchDocument(tx, "review", reviewId);
   });
 }
 
@@ -326,6 +329,7 @@ export async function softDeleteReview(
       entityId: reviewId,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "review", reviewId);
   });
 }
 
@@ -370,6 +374,7 @@ export async function moderateReviews(
         before: { status: "pending" },
         after: { status, reason: reason ?? null, viaBulkAction: true },
       });
+      await syncAdminSearchDocument(tx, "review", row.id);
     }
 
     return updated.rows.length;

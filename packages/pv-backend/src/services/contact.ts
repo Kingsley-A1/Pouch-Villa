@@ -3,6 +3,7 @@ import { withTransaction } from "../db/transaction";
 import { normalisePhone } from "../domain/phone";
 import { normaliseOrderReference } from "../domain/reference";
 import { recordAudit } from "./audit";
+import { syncAdminSearchDocument } from "./admin-search-index";
 import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
 
 /**
@@ -84,6 +85,7 @@ export async function submitContactRequest(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncAdminSearchDocument(tx, "enquiry", enquiryId);
 
     return { enquiryId };
   });
@@ -200,6 +202,7 @@ export async function setContactStatus(
       before: before.rows[0],
       after: { status, note: note ?? null },
     });
+    await syncAdminSearchDocument(tx, "enquiry", id);
   });
 }
 
@@ -221,5 +224,6 @@ export async function softDeleteContactRequest(
       entityId: id,
       after: { reason },
     });
+    await syncAdminSearchDocument(tx, "enquiry", id);
   });
 }

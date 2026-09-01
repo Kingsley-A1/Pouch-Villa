@@ -12,6 +12,7 @@ import {
 } from "../storage/documents";
 import { deleteObject, getObjectBytes, presignRead, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
+import { syncPaymentSearchDocumentsForOrder } from "./admin-search-index";
 import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
 import { transitionOrder } from "./orders";
 
@@ -194,6 +195,7 @@ export async function finaliseProofUpload(
       requestId: context.requestId,
       ip: context.ip,
     });
+    await syncPaymentSearchDocumentsForOrder(tx, staged.order_id);
 
     return id;
   });
@@ -286,6 +288,7 @@ export async function acceptProof(
       entityId: proofId,
       after: { orderId: proof.order_id },
     });
+    await syncPaymentSearchDocumentsForOrder(tx, proof.order_id);
   });
 
   await transitionOrder(proof.order_id, "payment_confirmed", {
@@ -344,6 +347,7 @@ export async function rejectProof(
       entityId: proofId,
       after: { orderId: proof.order_id, reason },
     });
+    await syncPaymentSearchDocumentsForOrder(tx, proof.order_id);
   });
 
   const current = await queryOne<{ status: OrderStatus }>(
