@@ -4,6 +4,7 @@ import { permissionsForRole } from "@pv/backend/services/roles";
 import { BrandMark } from "@/components/brand-mark";
 import { ConnectionStatus } from "@/components/connection-status";
 import { AdminMobileNav } from "./admin-mobile-nav";
+import { AdminSearch } from "@/components/admin/admin-search";
 import { AdminSidebar } from "./admin-sidebar";
 import { LogoutButton } from "./logout-button";
 import { NAV_SECTIONS } from "./nav-sections";
@@ -16,11 +17,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-dvh bg-(--pv-wash)">
       <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-(--pv-surface)">
-        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6">
           <Link href="/admin" aria-label="Admin home">
             <BrandMark compact />
           </Link>
-          <div className="flex items-center gap-4">
+          <AdminSearch sections={sections} />
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-bold">{principal.fullName}</p>
               <p className="text-xs text-(--pv-muted)">{principal.role}</p>
