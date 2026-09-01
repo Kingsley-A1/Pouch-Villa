@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Eye, EyeSlash } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 export function SubmitButton({
@@ -72,11 +74,13 @@ export function Field({
   hint?: string;
 }) {
   return (
-    <label htmlFor={name} className="grid gap-1.5">
-      <span className="text-sm font-bold text-(--pv-ink)">{label}</span>
+    <div className="grid gap-1.5">
+      <label htmlFor={name} className="text-sm font-bold text-(--pv-ink)">
+        {label}
+      </label>
       {children}
       {hint ? <span className="text-xs text-(--pv-muted)">{hint}</span> : null}
-    </label>
+    </div>
   );
 }
 
@@ -85,6 +89,37 @@ const fieldClass =
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} id={props.name} className={cn(fieldClass, props.className)} />;
+}
+
+export function PasswordInput({
+  className,
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        id={props.name}
+        type={visible ? "text" : "password"}
+        className={cn(fieldClass, "pr-14", className)}
+      />
+      <button
+        type="button"
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+        className="absolute inset-y-0 right-0 flex min-h-11 min-w-11 items-center justify-center rounded-r-xl text-(--pv-muted) hover:text-(--pv-ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)"
+      >
+        {visible ? (
+          <EyeSlash aria-hidden="true" size={20} weight="bold" />
+        ) : (
+          <Eye aria-hidden="true" size={20} weight="bold" />
+        )}
+      </button>
+    </div>
+  );
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {

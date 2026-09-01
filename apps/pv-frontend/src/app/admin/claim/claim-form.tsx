@@ -2,7 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
-import { Field, FormError, SubmitButton, TextInput } from "@/components/admin/form-controls";
+import {
+  Field,
+  FormError,
+  PasswordInput,
+  SubmitButton,
+  TextInput,
+} from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { claimWithGoogle, claimWithPassword } from "./actions";
 
@@ -37,13 +43,7 @@ export function ClaimForm({ googleClientId }: { googleClientId: string | null })
           <TextInput name="email" type="email" required autoComplete="email" />
         </Field>
         <Field label="Password" name="password" hint="At least 12 characters">
-          <TextInput
-            name="password"
-            type="password"
-            required
-            minLength={12}
-            autoComplete="new-password"
-          />
+          <PasswordInput name="password" required minLength={12} autoComplete="new-password" />
         </Field>
         <FormError message={state.error} />
         <SubmitButton pendingLabel="Creating account…">Create account</SubmitButton>

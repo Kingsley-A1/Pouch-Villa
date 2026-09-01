@@ -2,7 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
-import { Field, FormError, SubmitButton, TextInput } from "@/components/admin/form-controls";
+import {
+  Field,
+  FormError,
+  PasswordInput,
+  SubmitButton,
+  TextInput,
+} from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { loginAction, loginWithGoogleAction } from "./actions";
 
@@ -22,7 +28,7 @@ export function LoginForm({ googleClientId }: { googleClientId: string | null })
           <TextInput name="email" type="email" required autoComplete="email" />
         </Field>
         <Field label="Password" name="password">
-          <TextInput name="password" type="password" required autoComplete="current-password" />
+          <PasswordInput name="password" required autoComplete="current-password" />
         </Field>
         <FormError message={state.error} />
         <SubmitButton pendingLabel="Signing in…">Sign in</SubmitButton>

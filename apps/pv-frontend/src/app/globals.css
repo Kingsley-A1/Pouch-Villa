@@ -380,7 +380,7 @@ nav[aria-label="Breadcrumb"] + .section-space {
   pointer-events: none;
   --bracket: var(--pv-red);
   --len: 18px;
-  --weight: 2px;
+  --weight: 3px;
   background:
     /* top-left */
     linear-gradient(var(--bracket), var(--bracket)) top left / var(--len) var(--weight) no-repeat,
