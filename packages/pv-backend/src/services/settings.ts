@@ -29,6 +29,7 @@ export type SettingKey =
   | "store.contact_email"
   | "delivery.free_threshold_kobo"
   | "policy.about"
+  | "policy.returns"
   | "policy.privacy"
   | "policy.terms";
 

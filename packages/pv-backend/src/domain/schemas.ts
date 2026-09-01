@@ -155,6 +155,7 @@ export const storeSettingsFormSchema = z.object({
 
 export const policySettingsFormSchema = z.object({
   "policy.about": z.string().trim().max(20_000),
+  "policy.returns": z.string().trim().max(20_000),
   "policy.privacy": z.string().trim().max(20_000),
   "policy.terms": z.string().trim().max(20_000),
 });

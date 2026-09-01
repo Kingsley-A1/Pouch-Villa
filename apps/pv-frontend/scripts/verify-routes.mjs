@@ -31,6 +31,8 @@ const databaseRoutes = [
   "/search",
   "/cart",
   "/contact",
+  "/about",
+  "/returns",
   "/privacy",
   "/terms",
 ];

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { PolicyPage } from "@/components/policy-page";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata: Metadata = { title: "Pouch Villa" };
 
 /**
  * Read from the settings store on every request, so the client can correct their
@@ -11,14 +11,10 @@ export const metadata: Metadata = { title: "Privacy Policy" };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const settings = await readSettings(["policy.privacy"]);
-  const policy = pick(settings, "policy.privacy");
+  const settings = await readSettings(["policy.about"]);
+  const policy = pick(settings, "policy.about");
 
   return (
-    <PolicyPage
-      title="Privacy Policy"
-      what="privacy policy"
-      content={policy.present ? policy.value : null}
-    />
+    <PolicyPage title="About" what="about page" content={policy.present ? policy.value : null} />
   );
 }

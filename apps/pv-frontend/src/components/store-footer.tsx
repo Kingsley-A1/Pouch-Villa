@@ -27,6 +27,8 @@ export function StoreFooter() {
             Information
           </p>
           <div className="grid gap-3 text-sm text-(--pv-footer-soft)">
+            <Link href="/about">About us</Link>
+            <Link href="/returns">Returns &amp; warranty</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
           </div>

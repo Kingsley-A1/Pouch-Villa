@@ -16,7 +16,8 @@
     "test": "vitest run",
     "setup": "node --import tsx scripts/setup.ts",
     "db:migrate": "node --import tsx scripts/migrate.ts",
-    "claim-code": "node --import tsx scripts/claim-code.ts"
+    "claim-code": "node --import tsx scripts/claim-code.ts",
+    "load-policy": "node --import tsx scripts/load-policy-content.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",

@@ -90,6 +90,23 @@ export async function withTransaction<T>(
   { maxAttempts = MAX_TRANSACTION_ATTEMPTS }: { maxAttempts?: number } = {},
 ): Promise<T> {
   const client: PoolClient = await connectWithRetry();
+
+  /**
+   * A checked-out client whose socket dies emits `'error'`, and an EventEmitter
+   * error with no listener becomes an **uncaught exception** — which in a
+   * request handler is far worse than the failed query it accompanies.
+   *
+   * `getPool().on("error")` does not cover this: that handles *idle* clients
+   * still in the pool. Between checkout and release, this listener is the only
+   * thing standing between a dropped connection and a process-level crash. The
+   * awaited query rejects as normal, so the caller still sees the real error
+   * through the promise; this only stops the duplicate event from escaping.
+   */
+  const swallowSocketError = (error: Error) => {
+    console.error("Pooled client error during transaction", { message: error.message });
+  };
+  client.on("error", swallowSocketError);
+
   try {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -107,6 +124,7 @@ export async function withTransaction<T>(
     }
     throw new TransactionRetryLimitError(maxAttempts, lastError);
   } finally {
+    client.off("error", swallowSocketError);
     client.release();
   }
 }

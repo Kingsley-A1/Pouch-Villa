@@ -1,44 +1,24 @@
-import { Breadcrumbs } from "@/components/breadcrumbs";
-export default function TermsPage() {
+import type { Metadata } from "next";
+import { pick, readSettings } from "@pv/backend/services/settings";
+import { PolicyPage } from "@/components/policy-page";
+
+export const metadata: Metadata = { title: "Terms & Conditions" };
+
+/**
+ * Read from the settings store on every request, so the client can correct their
+ * own wording in the admin without waiting for a deployment.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function Page() {
+  const settings = await readSettings(["policy.terms"]);
+  const policy = pick(settings, "policy.terms");
+
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Terms" }]} />
-      <article className="section-space">
-        <div className="container-shell max-w-3xl">
-          <p className="eyebrow">Prototype terms</p>
-          <h1 className="section-title mt-3">Terms of use</h1>
-          <div className="mt-8 grid gap-7 leading-7 text-(--pv-muted)">
-            <section>
-              <h2 className="text-xl font-bold text-(--pv-ink)">Not a live store</h2>
-              <p className="mt-2">
-                Products, prices, availability, policies, hours and contact details are
-                demonstration data unless explicitly confirmed as supplied client material.
-              </p>
-            </section>
-            <section>
-              <h2 className="text-xl font-bold text-(--pv-ink)">Reservations are non-binding</h2>
-              <p className="mt-2">
-                A generated reference demonstrates workflow only. It is not a sale, payment receipt,
-                live-stock guarantee or pickup promise.
-              </p>
-            </section>
-            <section>
-              <h2 className="text-xl font-bold text-(--pv-ink)">Compatibility confirmation</h2>
-              <p className="mt-2">
-                Customers must confirm the exact phone model. Production launch requires Pouch Villa
-                to verify each product-to-device relationship.
-              </p>
-            </section>
-            <section>
-              <h2 className="text-xl font-bold text-(--pv-ink)">Client approval</h2>
-              <p className="mt-2">
-                Final commercial terms, returns, warranties, pricing and business policies must be
-                supplied and approved by Pouch Villa before launch.
-              </p>
-            </section>
-          </div>
-        </div>
-      </article>
-    </>
+    <PolicyPage
+      title="Terms & Conditions"
+      what="terms and conditions"
+      content={policy.present ? policy.value : null}
+    />
   );
 }

@@ -19,6 +19,7 @@ export default async function SettingsAdminPage() {
     "store.whatsapp_number",
     "store.contact_email",
     "policy.about",
+    "policy.returns",
     "policy.privacy",
     "policy.terms",
   ]);
@@ -46,6 +47,7 @@ export default async function SettingsAdminPage() {
       />
       <PolicySettingsForm
         about={pick(settings, "policy.about")}
+        returns={pick(settings, "policy.returns")}
         privacy={pick(settings, "policy.privacy")}
         terms={pick(settings, "policy.terms")}
       />

@@ -15,10 +15,12 @@ import { savePolicySettingsAction } from "./actions";
 
 export function PolicySettingsForm({
   about,
+  returns,
   privacy,
   terms,
 }: {
   about: SettingValue;
+  returns: SettingValue;
   privacy: SettingValue;
   terms: SettingValue;
 }) {
@@ -29,10 +31,12 @@ export function PolicySettingsForm({
       action={formAction}
       className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
     >
-      <h2 className="text-lg font-bold">About, Privacy &amp; Terms</h2>
+      <h2 className="text-lg font-bold">Supporting pages</h2>
       <p className="text-sm text-(--pv-muted)">
-        These pages are not drafted for you — legally operative wording needs a named owner on your
-        side. Left blank, each page shows an explicit awaiting-confirmation notice.
+        Legally operative wording needs a named owner on your side, so nothing here is drafted for
+        you. Left blank, a page shows an explicit awaiting-confirmation notice rather than inventing
+        a policy. A blank line starts a new paragraph; a line starting <code>## </code> is a heading
+        and <code>- </code> a bullet.
       </p>
 
       <Field label="About" name="policy.about">
@@ -42,6 +46,14 @@ export function PolicySettingsForm({
           defaultValue={about.present ? about.value : ""}
         />
         <OriginBadge value={about} />
+      </Field>
+      <Field label="Return &amp; Warranty Policy" name="policy.returns">
+        <TextArea
+          name="policy.returns"
+          className="min-h-40"
+          defaultValue={returns.present ? returns.value : ""}
+        />
+        <OriginBadge value={returns} />
       </Field>
       <Field label="Privacy Policy" name="policy.privacy">
         <TextArea
