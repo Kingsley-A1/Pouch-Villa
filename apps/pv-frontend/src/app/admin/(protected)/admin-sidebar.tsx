@@ -3,19 +3,43 @@
 import { useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  ChatCircleDots,
+  CreditCard,
+  DeviceMobile,
+  GearSix,
+  IdentificationCard,
+  MapPin,
+  Package,
+  Receipt,
+  ShieldCheck,
+  SidebarSimple,
+  SquaresFour,
+  Star,
+  Tag,
+  Users,
+} from "@phosphor-icons/react";
 import type { NavSection } from "./nav-sections";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "pv-admin-sidebar-open";
-
-/**
- * The open/closed preference lives in localStorage, read through an external
- * store rather than copied into state by an effect. An effect that setStates on
- * mount costs an extra render of the whole nav on every admin page load, and
- * React now flags it; `useSyncExternalStore` is the primitive built for reading
- * a value that lives outside React and differs between server and client.
- */
 const listeners = new Set<() => void>();
+
+const SECTION_ICONS: Record<string, typeof SquaresFour> = {
+  "/admin": SquaresFour,
+  "/admin/products": Package,
+  "/admin/categories": Tag,
+  "/admin/devices": DeviceMobile,
+  "/admin/delivery": MapPin,
+  "/admin/orders": Receipt,
+  "/admin/payments": CreditCard,
+  "/admin/customers": Users,
+  "/admin/reviews": Star,
+  "/admin/contact": ChatCircleDots,
+  "/admin/staff": IdentificationCard,
+  "/admin/roles": ShieldCheck,
+  "/admin/settings": GearSix,
+};
 
 function subscribeToPreference(onChange: () => void) {
   listeners.add(onChange);
@@ -49,76 +73,88 @@ function writePreference(open: boolean) {
 }
 
 /**
- * The desktop admin sidebar, collapsible.
- *
- * Collapsed it keeps a rail of initials rather than disappearing, so the nav
- * never becomes unreachable and the main content still has a landmark beside
- * it. The choice persists per browser — someone who works collapsed should not
- * have to re-collapse on every page.
+ * The desktop sidebar keeps navigation reachable as either a labelled panel or
+ * a conventional icon rail. Its browser-local preference changes presentation,
+ * never permissions; the server still supplies only authorised sections.
  */
 export function AdminSidebar({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
-  // Expanded on the server: it is the default, and it is what most sessions
-  // render, so hydration settles on the common case without a visible jump.
   const open = useSyncExternalStore(subscribeToPreference, readPreference, () => true);
-
   const toggle = useCallback(() => writePreference(!open), [open]);
 
   return (
-    <nav
-      aria-label="Admin sections"
+    <aside
       className={cn(
-        "hidden shrink-0 lg:block",
-        // Width is the only thing that animates, so the main column reflows
-        // smoothly instead of snapping.
-        "transition-[width] duration-200 motion-reduce:transition-none",
-        open ? "w-56" : "w-14",
+        "hidden shrink-0 border-r border-(--pv-line) bg-white lg:block",
+        "transition-[width] duration-175 ease-out motion-reduce:transition-none",
+        open ? "w-60" : "w-[4.5rem]",
       )}
     >
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className="mb-2 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-sm font-semibold text-(--pv-muted) hover:bg-white"
+      <nav
+        aria-label="Admin sections"
+        className="sticky top-16 h-[calc(100dvh-4rem)] overflow-y-auto p-3"
       >
-        <span aria-hidden="true" className="text-base leading-none">
-          {open ? "«" : "»"}
-        </span>
-        {open ? <span>Collapse</span> : null}
-        <span className="sr-only">{open ? "Collapse sidebar" : "Expand sidebar"}</span>
-      </button>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
+          className={cn(
+            "mb-3 flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-semibold text-(--pv-muted)",
+            "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+            open ? "px-3" : "justify-center px-0",
+          )}
+        >
+          <SidebarSimple aria-hidden="true" size={21} weight="bold" />
+          <span
+            aria-hidden="true"
+            className={cn(
+              "whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none",
+              open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+            )}
+          >
+            Collapse
+          </span>
+        </button>
 
-      <ul className="grid gap-1">
-        {sections.map((section) => {
-          // `/admin` is a prefix of every other route, so it only counts as
-          // active on an exact match — otherwise Dashboard highlights forever.
-          const active =
-            section.href === "/admin" ? pathname === "/admin" : pathname.startsWith(section.href);
-          return (
-            <li key={section.href}>
-              <Link
-                href={section.href}
-                aria-current={active ? "page" : undefined}
-                title={open ? undefined : section.label}
-                className={cn(
-                  "flex min-h-11 items-center rounded-xl text-sm font-semibold",
-                  open ? "px-3" : "justify-center px-0",
-                  active ? "bg-white text-(--pv-red)" : "text-(--pv-ink) hover:bg-white",
-                )}
-              >
-                {open ? (
-                  section.label
-                ) : (
-                  <>
-                    <span aria-hidden="true">{section.label.charAt(0)}</span>
-                    <span className="sr-only">{section.label}</span>
-                  </>
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+        <ul className="grid gap-1">
+          {sections.map((section) => {
+            const active =
+              section.href === "/admin" ? pathname === "/admin" : pathname.startsWith(section.href);
+            const Icon = SECTION_ICONS[section.href] ?? SquaresFour;
+
+            return (
+              <li key={section.href}>
+                <Link
+                  href={section.href}
+                  aria-label={section.label}
+                  aria-current={active ? "page" : undefined}
+                  title={open ? undefined : section.label}
+                  className={cn(
+                    "flex min-h-11 items-center gap-3 rounded-xl text-sm font-semibold",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+                    open ? "px-3" : "justify-center px-0",
+                    active
+                      ? "bg-(--pv-cream) text-(--pv-red)"
+                      : "text-(--pv-ink) hover:bg-(--pv-wash)",
+                  )}
+                >
+                  <Icon aria-hidden="true" size={21} weight={active ? "fill" : "regular"} />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none",
+                      open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+                    )}
+                  >
+                    {section.label}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </aside>
   );
 }

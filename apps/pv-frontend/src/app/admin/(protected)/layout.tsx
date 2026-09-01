@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-dvh bg-(--pv-wash)">
       <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-white">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/admin" aria-label="Admin home">
             <BrandMark compact />
           </Link>
@@ -42,9 +42,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       ) : null}
 
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
+      <div className="flex min-h-[calc(100dvh-4rem)]">
         <AdminSidebar sections={sections} />
-        <main className="min-w-0 flex-1 pb-16">{children}</main>
+        <main className="min-w-0 flex-1 pb-16">
+          <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">{children}</div>
+        </main>
       </div>
     </div>
   );
