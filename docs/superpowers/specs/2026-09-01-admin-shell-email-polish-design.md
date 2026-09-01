@@ -44,7 +44,8 @@ required for the message to remain recognisable or usable.
 
 ## Verification
 
-Regression tests must first fail for the missing sidebar contract, password toggle, bracket weight,
-and shared email shell. The release then requires focused tests, formatting, lint, TypeScript,
-business-fact checks, the full repository verification command, a diff review against
+Regression tests must first fail for the missing sidebar contract, password toggle, and shared email
+shell. The decorative bracket weight is verified in the built stylesheet and release diff rather
+than by a brittle source-text assertion. The release then requires focused tests, formatting, lint,
+TypeScript, business-fact checks, the full repository verification command, a diff review against
 `origin/main`, and confirmation that the pushed commit is the only new remote-main change.
