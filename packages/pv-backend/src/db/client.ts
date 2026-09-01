@@ -64,6 +64,39 @@ export function isRetryable(error: unknown): boolean {
   return typeof code === "string" && RETRYABLE_SQLSTATE.has(code);
 }
 
+/**
+ * Socket-level failures, which carry no SQLSTATE at all.
+ *
+ * A managed CockroachDB cluster culls idle connections and refuses new ones once
+ * its ceiling is reached, so `pg` raises a plain `Error("Connection terminated
+ * unexpectedly")` with **no `code` property**, or a Node syscall error like
+ * `ECONNRESET`. `isRetryable` reads a SQLSTATE and therefore classifies every one
+ * of these as fatal, which is why a transient blip surfaced as a failed request
+ * rather than a retried one.
+ *
+ * Kept separate from `isRetryable` deliberately: a server-signalled abort (40001)
+ * means the transaction definitively did not commit, whereas losing the socket
+ * can be ambiguous. Only callers that know no work has begun may treat these as
+ * retryable — see `withTransaction`.
+ */
+const RETRYABLE_SYSCALLS = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EPIPE",
+  "EHOSTUNREACH",
+]);
+
+export function isConnectionError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && RETRYABLE_SYSCALLS.has(code)) return true;
+  const message = (error as { message?: unknown }).message;
+  return (
+    typeof message === "string" && /Connection terminated|Client has encountered/i.test(message)
+  );
+}
+
 export type Queryable = Pick<PoolClient, "query">;
 
 export async function query<Row extends QueryResultRow>(
