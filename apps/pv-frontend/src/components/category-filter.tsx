@@ -58,7 +58,7 @@ function FilterLink({
       className={cn(
         "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold",
         active
-          ? "border-(--pv-red) bg-(--pv-red) text-white"
+          ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
           : "border-(--pv-line) text-(--pv-ink)",
       )}
     >

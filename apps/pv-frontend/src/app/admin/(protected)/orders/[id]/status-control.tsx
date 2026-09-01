@@ -41,9 +41,9 @@ export function StatusControl({ orderId, steps }: { orderId: string; steps: Avai
             className={`inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-bold ${
               chosen?.status === step.status
                 ? step.destructive
-                  ? "border-(--pv-danger) bg-(--pv-danger) text-white"
-                  : "border-(--pv-red) bg-(--pv-red) text-white"
-                : "border-(--pv-line) bg-white"
+                  ? "border-(--pv-danger) bg-(--pv-danger) text-(--pv-on-brand)"
+                  : "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
+                : "border-(--pv-line) bg-(--pv-surface)"
             }`}
           >
             {step.label}

@@ -64,13 +64,16 @@ export function VariantsSection({
                 />
               </li>
             ) : (
-              <li key={variant.id} className="rounded-2xl border border-(--pv-line) bg-white p-4">
+              <li
+                key={variant.id}
+                className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-bold">
                       {variant.sku}
                       {!variant.isActive ? (
-                        <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-(--pv-muted)">
+                        <span className="ml-2 rounded-full bg-(--pv-wash) px-2 py-0.5 text-xs font-semibold text-(--pv-muted)">
                           Inactive
                         </span>
                       ) : null}

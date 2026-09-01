@@ -61,7 +61,9 @@ export function ConnectionStatus() {
       role="status"
       aria-live="polite"
       className={`px-4 py-2 text-center text-sm font-semibold ${
-        offline ? "bg-(--pv-danger) text-white" : "bg-amber-100 text-amber-900"
+        offline
+          ? "bg-(--pv-danger) text-(--pv-on-brand)"
+          : "bg-[color-mix(in_srgb,var(--pv-warning)_18%,var(--pv-surface))] text-(--pv-warning)"
       }`}
     >
       {offline ? (

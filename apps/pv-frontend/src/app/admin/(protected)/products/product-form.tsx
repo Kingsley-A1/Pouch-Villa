@@ -131,7 +131,7 @@ export function ProductForm({
   return (
     <form action={formAction} className="panel-bracket grid gap-5 p-5">
       {offerDraft ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--pv-warning)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-warning)_12%,var(--pv-surface))] px-4 py-3 text-sm text-(--pv-warning)">
           <span>You have an unfinished product on this device. Images are not kept.</span>
           <span className="flex gap-2">
             <button type="button" className="button-ghost" onClick={restoreDraft}>

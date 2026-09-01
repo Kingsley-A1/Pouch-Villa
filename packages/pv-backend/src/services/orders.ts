@@ -751,3 +751,50 @@ export async function countOrdersByStatus(): Promise<Record<string, number>> {
   );
   return Object.fromEntries(rows.map((row) => [row.status, Number(row.total)]));
 }
+
+export type BulkTransitionResult = {
+  moved: number;
+  /** References the machine refused, with why — shown rather than swallowed. */
+  refused: { reference: string; reason: string }[];
+};
+
+/**
+ * Advancing several orders at once — "these six are packed", on a phone, once.
+ *
+ * Deliberately **not** one transaction. A batch is a convenience, not an atomic
+ * business fact: if four of six can legally move and two cannot, the right
+ * outcome is four moved and two explained, not six refused because of an order
+ * someone else had already cancelled. Each order keeps its own transaction, its
+ * own timeline entry and its own audit record.
+ *
+ * Every move still goes through `transitionOrder`, so the state machine and the
+ * fulfilment branch are enforced exactly as they are for a single order. There
+ * is no bulk path that bypasses them.
+ */
+export async function transitionOrders(
+  orderIds: readonly string[],
+  to: OrderStatus,
+  actor: { type: TransitionActor; id?: string | null },
+  options: { reason?: string | null } = {},
+): Promise<BulkTransitionResult> {
+  const refused: { reference: string; reason: string }[] = [];
+  let moved = 0;
+
+  for (const orderId of orderIds) {
+    try {
+      await transitionOrder(orderId, to, actor, options);
+      moved += 1;
+    } catch (error) {
+      const order = await getOrderById(orderId).catch(() => null);
+      refused.push({
+        reference: order?.reference ?? orderId,
+        reason:
+          error instanceof Error && error.name === "IllegalTransitionError"
+            ? error.message
+            : "could not be updated",
+      });
+    }
+  }
+
+  return { moved, refused };
+}

@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-dvh bg-(--pv-wash)">
-      <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-white">
+      <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-(--pv-surface)">
         <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/admin" aria-label="Admin home">
             <BrandMark compact />
@@ -34,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <ConnectionStatus />
 
       {!principal.emailVerified ? (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm text-amber-900">
+        <div className="border-b border-[color-mix(in_srgb,var(--pv-warning)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-warning)_12%,var(--pv-surface))] px-4 py-2.5 text-center text-sm text-(--pv-warning)">
           Your email is not verified.{" "}
           <Link href="/admin/verify-email" className="font-bold underline">
             Verify now

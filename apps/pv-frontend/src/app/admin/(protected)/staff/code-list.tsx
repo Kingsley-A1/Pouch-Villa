@@ -26,7 +26,7 @@ export function CodeList({ codes }: { codes: Code[] }) {
       {live.map((code) => (
         <li
           key={code.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--pv-line) bg-white p-3"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--pv-line) bg-(--pv-surface) p-3"
         >
           <div>
             <p className="text-sm font-bold">

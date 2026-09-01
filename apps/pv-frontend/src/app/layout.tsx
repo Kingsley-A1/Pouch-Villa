@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { isIndexable, siteUrl } from "@/lib/seo";
+import { readThemePreference } from "@/server/theme";
 
 /**
  * Fonts are self-hosted rather than fetched from Google at build time.
@@ -42,9 +43,20 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+/**
+ * The theme choice is stamped onto <html> here, server-side, so the correct
+ * palette is in the very first byte of HTML. No inline script, therefore no
+ * flash of the wrong theme and nothing that a strict CSP would have to
+ * whitelist (§5).
+ *
+ * "system" writes no attribute at all, which is what lets the
+ * `prefers-color-scheme` media query in globals.css decide.
+ */
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const theme = await readThemePreference();
+
   return (
-    <html lang="en">
+    <html lang="en" {...(theme === "system" ? {} : { "data-theme": theme })}>
       <body>{children}</body>
     </html>
   );

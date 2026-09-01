@@ -4,6 +4,7 @@ import { listProofQueue } from "@pv/backend/services/payments";
 import { formatKobo } from "@pv/backend/domain/money";
 import { describeStatus } from "@pv/backend/domain/order-status";
 import { requirePermission } from "@/server/session";
+import { SavedViews } from "@/components/admin/saved-views";
 import { ProofReview } from "./proof-review";
 
 export const metadata: Metadata = { title: "Payments & proofs" };
@@ -36,8 +37,8 @@ export default async function PaymentsAdminPage({ searchParams }: Params) {
             aria-current={filter === candidate ? "page" : undefined}
             className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold capitalize ${
               filter === candidate
-                ? "border-(--pv-red) bg-(--pv-red) text-white"
-                : "border-(--pv-line) bg-white"
+                ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
+                : "border-(--pv-line) bg-(--pv-surface)"
             }`}
           >
             {candidate}
@@ -45,8 +46,10 @@ export default async function PaymentsAdminPage({ searchParams }: Params) {
         ))}
       </div>
 
+      <SavedViews screen="payments" currentQuery={`status=${filter}`} />
+
       {queue.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-white p-6 text-sm text-(--pv-muted)">
+        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-(--pv-surface) p-6 text-sm text-(--pv-muted)">
           {filter === "pending"
             ? "No receipts are waiting to be checked."
             : `No ${filter} receipts.`}
@@ -59,7 +62,10 @@ export default async function PaymentsAdminPage({ searchParams }: Params) {
         */
         <ul className="mt-6 grid gap-4 lg:grid-cols-2">
           {queue.map((entry) => (
-            <li key={entry.proofId} className="rounded-2xl border border-(--pv-line) bg-white p-5">
+            <li
+              key={entry.proofId}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <Link

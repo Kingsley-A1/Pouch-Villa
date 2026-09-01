@@ -35,7 +35,7 @@ export function DeviceFilter({
             aria-current={activeSlug === "" ? "true" : undefined}
             className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${
               activeSlug === ""
-                ? "border-(--pv-red) bg-(--pv-red) text-white"
+                ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
                 : "border-(--pv-line) text-(--pv-ink)"
             }`}
           >
@@ -49,7 +49,7 @@ export function DeviceFilter({
               aria-current={activeSlug === device.slug ? "true" : undefined}
               className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap ${
                 activeSlug === device.slug
-                  ? "border-(--pv-red) bg-(--pv-red) text-white"
+                  ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
                   : "border-(--pv-line) text-(--pv-ink)"
               }`}
             >

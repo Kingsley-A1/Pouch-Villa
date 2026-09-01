@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { orderStatusChangeSchema } from "@pv/backend/domain/schemas";
-import { getOrderById, transitionOrder } from "@pv/backend/services/orders";
+import { getOrderById, transitionOrder, transitionOrders } from "@pv/backend/services/orders";
 import { sendOrderStatusEmail, sendPaymentConfirmedEmail } from "@pv/backend/services/order-email";
-import { checkTransition } from "@pv/backend/domain/order-status";
+import { checkTransition, isOrderStatus } from "@pv/backend/domain/order-status";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { requirePermission } from "@/server/session";
 
@@ -74,4 +75,75 @@ export async function transitionOrderAction(
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   return { error: null, message: "Order updated." };
+}
+
+/**
+ * Advancing several orders at once — "these six are packed", once, on a phone.
+ *
+ * A plain form action: the list is server-rendered and the checkboxes are the
+ * selection, so there is no client state and the flow survives JavaScript never
+ * arriving. Feedback returns as a redirect parameter.
+ *
+ * The permission is derived from the transition being requested, exactly as for
+ * a single order, and every order still goes through the state machine. There is
+ * no bulk path that bypasses either.
+ *
+ * A batch is not atomic on purpose: if four of six can legally move and two
+ * cannot, four move and two are named. Refusing all six because of an order a
+ * colleague had already cancelled would be the more surprising outcome.
+ */
+export async function bulkTransitionAction(formData: FormData): Promise<void> {
+  const orderIds = formData.getAll("orderIds").filter((id): id is string => typeof id === "string");
+  const status = formData.get("status");
+  const filter = formData.get("filter");
+
+  const back = (note: string) => {
+    const params = new URLSearchParams();
+    if (typeof filter === "string" && filter !== "") params.set("status", filter);
+    params.set("done", note);
+    return `/admin/orders?${params.toString()}`;
+  };
+
+  if (orderIds.length === 0) redirect(back("Choose at least one order first."));
+  if (typeof status !== "string" || !isOrderStatus(status)) {
+    redirect(back("That step is not valid."));
+  }
+
+  const first = orderIds[0];
+  if (first === undefined) redirect(back("Choose at least one order first."));
+
+  // The permission is whatever this move needs. Sampling one order is enough:
+  // the bar only appears when the whole list shares a status and a fulfilment
+  // path, so every selected order needs the same permission.
+  const sample = await getOrderById(first);
+  if (sample === null) redirect(back("Those orders could not be found."));
+
+  const check = checkTransition(sample.status, status, {
+    fulfilment: sample.fulfilment,
+    actor: "staff",
+  });
+  const principal = await requirePermission(
+    check.allowed ? (check.transition.permission ?? "order.manage") : "order.manage",
+  );
+
+  const result = await transitionOrders(orderIds, status, {
+    type: "staff",
+    id: principal.staffId,
+  });
+
+  revalidatePath("/admin/orders");
+
+  if (result.moved === 0) {
+    redirect(back(`None could be moved. ${result.refused[0]?.reason ?? ""}`.trim()));
+  }
+  const moved = `${result.moved} ${result.moved === 1 ? "order" : "orders"} updated.`;
+  redirect(
+    back(
+      result.refused.length === 0
+        ? moved
+        : `${moved} ${result.refused.length} could not be: ${result.refused
+            .map((entry) => entry.reference)
+            .join(", ")}.`,
+    ),
+  );
 }

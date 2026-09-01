@@ -47,7 +47,7 @@ export function RoleEditor({
   return (
     <form
       action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-white p-5"
+      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
     >
       <input type="hidden" name="role" value={role} />
       <h2 className="text-lg font-bold">{role === "MANAGER" ? "Manager" : "Employee"}</h2>

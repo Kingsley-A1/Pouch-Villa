@@ -20,7 +20,7 @@ export function StatusControl({ productId, status }: { productId: string; status
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold tracking-wide uppercase">
+      <span className="rounded-full bg-(--pv-wash) px-3 py-1 text-xs font-bold tracking-wide uppercase">
         {status}
       </span>
       {NEXT_ACTIONS[status].map((action) => (

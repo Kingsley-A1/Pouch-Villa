@@ -73,7 +73,7 @@ export function ErrorState({
   return (
     <section className="section-space">
       <div className="container-shell">
-        <div className="mx-auto max-w-xl rounded-3xl border border-(--pv-line) bg-white p-8 text-center">
+        <div className="mx-auto max-w-xl rounded-3xl border border-(--pv-line) bg-(--pv-surface) p-8 text-center">
           <p className="eyebrow">{offline ? "No connection" : "Something went wrong"}</p>
           <h1 className="mt-3 text-2xl font-bold">
             {offline ? "You appear to be offline." : title}

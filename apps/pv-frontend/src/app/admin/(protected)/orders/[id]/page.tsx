@@ -42,7 +42,7 @@ export default async function OrderDetailPage({ params }: Params) {
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem] lg:items-start">
         <div className="grid gap-5">
-          <section className="rounded-2xl border border-(--pv-line) bg-white p-5">
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">Items</h2>
             <ul className="mt-3 grid gap-2">
               {order.lines.map((line) => (
@@ -80,7 +80,7 @@ export default async function OrderDetailPage({ params }: Params) {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-(--pv-line) bg-white p-5">
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">History</h2>
             <ol className="mt-3 grid gap-2 text-sm">
               {order.timeline.map((entry, index) => (
@@ -99,14 +99,14 @@ export default async function OrderDetailPage({ params }: Params) {
         </div>
 
         <div className="grid gap-5">
-          <section className="rounded-2xl border border-(--pv-line) bg-white p-5">
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">Next step</h2>
             <div className="mt-3">
               <StatusControl orderId={order.id} steps={steps} />
             </div>
           </section>
 
-          <section className="rounded-2xl border border-(--pv-line) bg-white p-5">
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">Buyer</h2>
             <dl className="mt-3 grid gap-2 text-sm">
               <div>
@@ -152,7 +152,7 @@ export default async function OrderDetailPage({ params }: Params) {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-(--pv-line) bg-white p-5">
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">Payment proofs</h2>
             {proofs.length === 0 ? (
               <p className="mt-2 text-sm text-(--pv-muted)">Nothing uploaded yet.</p>

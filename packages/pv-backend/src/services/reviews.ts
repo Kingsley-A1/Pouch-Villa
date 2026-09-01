@@ -328,3 +328,50 @@ export async function softDeleteReview(
     });
   });
 }
+
+/**
+ * Moderating a batch in one transaction.
+ *
+ * Because anyone may review (Q9), the pending queue is a real workload with real
+ * spam in it, and clearing it one click at a time is the difference between a
+ * moderation queue someone keeps up with and one they abandon.
+ *
+ * One transaction, so a batch either lands whole or not at all — a half-applied
+ * batch would leave staff unsure what they had actually approved. Each review
+ * still gets its own audit record, because "who approved this one" must stay
+ * answerable per review, not per click.
+ */
+export async function moderateReviews(
+  reviewIds: readonly string[],
+  status: "approved" | "rejected",
+  actor: { staffId: string },
+  reason?: string | null,
+): Promise<number> {
+  if (reviewIds.length === 0) return 0;
+
+  return withTransaction(async (tx) => {
+    // Only rows still pending are touched, so a stale checkbox from a list
+    // someone else has already worked through cannot silently re-decide one.
+    const updated = await tx.query(
+      `UPDATE review
+          SET status = $2, moderated_at = now(), moderated_by = $3, reject_reason = $4
+        WHERE id = ANY($1) AND status = 'pending' AND deleted_at IS NULL
+      RETURNING id`,
+      [reviewIds, status, actor.staffId, reason ?? null],
+    );
+
+    for (const row of updated.rows as { id: string }[]) {
+      await recordAudit(tx, {
+        actorType: "staff",
+        actorId: actor.staffId,
+        action: `review.${status}`,
+        entityType: "review",
+        entityId: row.id,
+        before: { status: "pending" },
+        after: { status, reason: reason ?? null, viaBulkAction: true },
+      });
+    }
+
+    return updated.rows.length;
+  });
+}

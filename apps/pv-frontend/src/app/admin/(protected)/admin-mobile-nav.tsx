@@ -50,7 +50,7 @@ export function AdminMobileNav({ sections }: { sections: NavSection[] }) {
               />
               <nav
                 aria-label="Admin sections"
-                className="absolute top-0 right-0 flex h-full w-[min(84vw,340px)] flex-col bg-white shadow-2xl"
+                className="absolute top-0 right-0 flex h-full w-[min(84vw,340px)] flex-col bg-(--pv-surface) shadow-2xl"
               >
                 <div className="flex h-16 shrink-0 items-center justify-between border-b border-(--pv-line) px-5">
                   <span className="text-sm font-bold tracking-wide text-(--pv-muted)">Menu</span>

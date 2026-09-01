@@ -1,26 +1,156 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { countOrdersByStatus, listOrders } from "@pv/backend/services/orders";
-import { ORDER_STATUSES, describeStatus, isOrderStatus } from "@pv/backend/domain/order-status";
+import {
+  ORDER_STATUSES,
+  availableTransitions,
+  describeStatus,
+  isOrderStatus,
+} from "@pv/backend/domain/order-status";
 import { formatKobo } from "@pv/backend/domain/money";
 import { formatPhoneLocal } from "@pv/backend/domain/phone";
 import { requirePermission } from "@/server/session";
+import { SavedViews } from "@/components/admin/saved-views";
+import { BulkBar } from "@/components/admin/bulk-bar";
+import { bulkTransitionAction } from "./actions";
 
 export const metadata: Metadata = { title: "Orders" };
 export const dynamic = "force-dynamic";
 
-type Params = { searchParams: Promise<{ status?: string }> };
+type Params = { searchParams: Promise<{ status?: string; done?: string }> };
 
 export default async function OrdersAdminPage({ searchParams }: Params) {
   await requirePermission("order.view");
 
-  const { status } = await searchParams;
+  const { status, done } = await searchParams;
   const filter = status !== undefined && isOrderStatus(status) ? status : undefined;
 
   const [orders, counts] = await Promise.all([
     listOrders(filter === undefined ? {} : { status: filter }),
     countOrdersByStatus(),
   ]);
+
+  /**
+   * Bulk steps are only offered when every order on screen shares one status and
+   * one fulfilment path — which in practice means the list has been filtered to
+   * a single status. Mixing a pickup and a delivery order into one "dispatch"
+   * would refuse half the batch, so the bar simply does not appear until the
+   * selection is unambiguous.
+   */
+  const fulfilments = new Set(orders.map((order) => order.fulfilment));
+  const bulkSteps =
+    filter !== undefined && fulfilments.size === 1
+      ? availableTransitions(filter, [...fulfilments][0] as "delivery" | "pickup").map(
+          (transition) => ({ status: transition.to, label: transition.label }),
+        )
+      : [];
+
+  const list = (
+    <>
+      {/*
+        Card layout below md and a table from md up. The client asked to run the
+        business from a phone, so the small-screen view is the primary one here,
+        not a fallback (§2).
+      */}
+      <ul className="mt-6 grid gap-3 md:hidden">
+        {orders.map((order) => (
+          <li
+            key={order.id}
+            className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4 has-[.bulk-select:checked]:border-(--pv-red)"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="flex items-center gap-2.5">
+                {bulkSteps.length > 0 ? (
+                  <input
+                    type="checkbox"
+                    name="orderIds"
+                    value={order.id}
+                    className="bulk-select h-4 w-4 accent-(--pv-red)"
+                    aria-label={`Select order ${order.reference}`}
+                  />
+                ) : null}
+                <Link href={`/admin/orders/${order.id}`} className="font-mono font-bold underline">
+                  {order.reference}
+                </Link>
+              </span>
+              <span className="status-pill bg-(--pv-wash)">{describeStatus(order.status)}</span>
+            </div>
+            <p className="mt-2 font-semibold">{order.contactName}</p>
+            <p className="text-sm text-(--pv-muted)">
+              {formatPhoneLocal(order.contactPhone)} · {order.fulfilment}
+            </p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-sm text-(--pv-muted)">
+                {order.lineCount} {order.lineCount === 1 ? "item" : "items"}
+                {order.hasPendingProof ? " · proof waiting" : ""}
+              </span>
+              <span className="font-bold tabular-nums">{formatKobo(order.totalKobo)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="table-wrap mt-6 hidden md:block">
+        <table className="data-table">
+          <thead>
+            <tr>
+              {bulkSteps.length > 0 ? (
+                <th scope="col">
+                  <span className="sr-only">Select</span>
+                </th>
+              ) : null}
+              <th scope="col">Reference</th>
+              <th scope="col">Buyer</th>
+              <th scope="col">Items</th>
+              <th scope="col">Total</th>
+              <th scope="col">Status</th>
+              <th scope="col">Placed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id}>
+                {bulkSteps.length > 0 ? (
+                  <td>
+                    <input
+                      type="checkbox"
+                      name="orderIds"
+                      value={order.id}
+                      className="bulk-select h-4 w-4 accent-(--pv-red)"
+                      aria-label={`Select order ${order.reference}`}
+                    />
+                  </td>
+                ) : null}
+                <td>
+                  <Link
+                    href={`/admin/orders/${order.id}`}
+                    className="font-mono font-bold underline"
+                  >
+                    {order.reference}
+                  </Link>
+                </td>
+                <td>
+                  {order.contactName}
+                  <span className="block text-xs text-(--pv-muted)">
+                    {formatPhoneLocal(order.contactPhone)}
+                  </span>
+                </td>
+                <td className="tabular-nums">{order.lineCount}</td>
+                <td className="tabular-nums">{formatKobo(order.totalKobo)}</td>
+                <td>
+                  {describeStatus(order.status)}
+                  {order.hasPendingProof ? (
+                    <span className="block text-xs text-(--pv-warning)">Proof waiting</span>
+                  ) : null}
+                </td>
+                <td className="text-xs text-(--pv-muted)">{formatLagos(order.placedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
 
   return (
     <div>
@@ -42,90 +172,47 @@ export default async function OrdersAdminPage({ searchParams }: Params) {
         </div>
       </div>
 
+      <SavedViews screen="orders" currentQuery={filter === undefined ? "" : `status=${filter}`} />
+
+      {done ? (
+        <p
+          role="status"
+          className="mt-4 rounded-xl border border-(--pv-line) bg-(--pv-wash) px-4 py-3 text-sm font-semibold"
+        >
+          {done}
+        </p>
+      ) : null}
+
       {orders.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-white p-6 text-sm text-(--pv-muted)">
+        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-(--pv-surface) p-6 text-sm text-(--pv-muted)">
           {filter === undefined
             ? "No orders have been placed yet."
             : `No orders are ${describeStatus(filter).toLowerCase()}.`}
         </p>
-      ) : (
-        <>
-          {/*
-            Card layout below md and a table from md up. The client asked to run
-            the business from a phone, so the small-screen view is the primary
-            one here, not a fallback (§2).
-          */}
-          <ul className="mt-6 grid gap-3 md:hidden">
-            {orders.map((order) => (
-              <li key={order.id} className="rounded-2xl border border-(--pv-line) bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="font-mono font-bold underline"
-                  >
-                    {order.reference}
-                  </Link>
-                  <span className="status-pill bg-(--pv-wash)">{describeStatus(order.status)}</span>
-                </div>
-                <p className="mt-2 font-semibold">{order.contactName}</p>
-                <p className="text-sm text-(--pv-muted)">
-                  {formatPhoneLocal(order.contactPhone)} · {order.fulfilment}
-                </p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-(--pv-muted)">
-                    {order.lineCount} {order.lineCount === 1 ? "item" : "items"}
-                    {order.hasPendingProof ? " · proof waiting" : ""}
-                  </span>
-                  <span className="font-bold tabular-nums">{formatKobo(order.totalKobo)}</span>
-                </div>
-              </li>
+      ) : bulkSteps.length > 0 ? (
+        <form action={bulkTransitionAction}>
+          <input type="hidden" name="filter" value={filter ?? ""} />
+          <BulkBar
+            name="orderIds"
+            actions={bulkSteps.map((step) => (
+              <button
+                key={step.status}
+                type="submit"
+                name="status"
+                value={step.status}
+                className={`inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold text-(--pv-on-brand) ${
+                  step.status === "cancelled" ? "bg-(--pv-danger)" : "bg-(--pv-red)"
+                }`}
+              >
+                {step.label}
+              </button>
             ))}
-          </ul>
-
-          <div className="table-wrap mt-6 hidden md:block">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Reference</th>
-                  <th scope="col">Buyer</th>
-                  <th scope="col">Items</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Placed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <td>
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        className="font-mono font-bold underline"
-                      >
-                        {order.reference}
-                      </Link>
-                    </td>
-                    <td>
-                      {order.contactName}
-                      <span className="block text-xs text-(--pv-muted)">
-                        {formatPhoneLocal(order.contactPhone)}
-                      </span>
-                    </td>
-                    <td className="tabular-nums">{order.lineCount}</td>
-                    <td className="tabular-nums">{formatKobo(order.totalKobo)}</td>
-                    <td>
-                      {describeStatus(order.status)}
-                      {order.hasPendingProof ? (
-                        <span className="block text-xs text-(--pv-warning)">Proof waiting</span>
-                      ) : null}
-                    </td>
-                    <td className="text-xs text-(--pv-muted)">{formatLagos(order.placedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+          >
+            {list}
+          </BulkBar>
+        </form>
+      ) : (
+        list
       )}
     </div>
   );
@@ -137,7 +224,9 @@ function FilterChip({ href, active, label }: { href: string; active: boolean; la
       href={href}
       aria-current={active ? "page" : undefined}
       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap ${
-        active ? "border-(--pv-red) bg-(--pv-red) text-white" : "border-(--pv-line) bg-white"
+        active
+          ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
+          : "border-(--pv-line) bg-(--pv-surface)"
       }`}
     >
       {label}

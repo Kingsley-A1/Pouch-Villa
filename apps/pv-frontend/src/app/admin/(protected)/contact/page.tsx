@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CONTACT_STATUSES, listContactRequests } from "@pv/backend/services/contact";
 import { formatPhoneLocal } from "@pv/backend/domain/phone";
 import { requirePermission } from "@/server/session";
+import { SavedViews } from "@/components/admin/saved-views";
 import { EnquiryActions } from "./enquiry-actions";
 
 export const metadata: Metadata = { title: "Contact requests" };
@@ -36,8 +37,8 @@ export default async function ContactAdminPage({ searchParams }: Params) {
             aria-current={filter === candidate ? "page" : undefined}
             className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${
               filter === candidate
-                ? "border-(--pv-red) bg-(--pv-red) text-white"
-                : "border-(--pv-line) bg-white"
+                ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
+                : "border-(--pv-line) bg-(--pv-surface)"
             }`}
           >
             {LABELS[candidate]}
@@ -45,14 +46,19 @@ export default async function ContactAdminPage({ searchParams }: Params) {
         ))}
       </div>
 
+      <SavedViews screen="contact" currentQuery={`status=${filter}`} />
+
       {enquiries.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-white p-6 text-sm text-(--pv-muted)">
+        <p className="mt-8 rounded-2xl border border-dashed border-(--pv-line) bg-(--pv-surface) p-6 text-sm text-(--pv-muted)">
           {filter === "new" ? "No new enquiries." : `Nothing ${LABELS[filter]?.toLowerCase()}.`}
         </p>
       ) : (
         <ul className="mt-6 grid gap-4 lg:grid-cols-2">
           {enquiries.map((enquiry) => (
-            <li key={enquiry.id} className="rounded-2xl border border-(--pv-line) bg-white p-5">
+            <li
+              key={enquiry.id}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-bold">{enquiry.name}</p>

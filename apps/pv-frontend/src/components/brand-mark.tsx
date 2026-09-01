@@ -10,7 +10,10 @@ export function BrandMark({
 }) {
   return (
     <span
-      className={cn("inline-flex items-center gap-2.5", inverse ? "text-white" : "text-(--pv-red)")}
+      className={cn(
+        "inline-flex items-center gap-2.5",
+        inverse ? "text-(--pv-on-brand)" : "text-(--pv-red)",
+      )}
       aria-label="Pouch Villa"
     >
       <span className={cn("shrink-0", compact ? "h-9 w-9" : "h-11 w-11")}>

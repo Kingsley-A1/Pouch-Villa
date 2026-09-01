@@ -27,7 +27,7 @@ export function BankSettingsForm({
   return (
     <form
       action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-white p-5"
+      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
     >
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Bank account for transfers</h2>

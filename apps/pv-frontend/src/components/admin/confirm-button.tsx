@@ -40,7 +40,7 @@ export function ConfirmButton({
             setConfirming(false);
           })
         }
-        className="min-h-11 rounded-lg bg-(--pv-danger) px-3 text-sm font-bold text-white disabled:opacity-60"
+        className="min-h-11 rounded-lg bg-(--pv-danger) px-3 text-sm font-bold text-(--pv-on-brand) disabled:opacity-60"
       >
         {pending ? "Working…" : confirmLabel}
       </button>

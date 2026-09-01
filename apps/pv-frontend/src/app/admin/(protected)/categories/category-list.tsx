@@ -36,7 +36,10 @@ export function CategoryList({ categories }: { categories: AdminCategory[] }) {
       ) : (
         <ul className="grid gap-3">
           {roots.map((parent) => (
-            <li key={parent.id} className="rounded-2xl border border-(--pv-line) bg-white p-4">
+            <li
+              key={parent.id}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
+            >
               <CategoryRow
                 category={parent}
                 categories={categories}
@@ -88,7 +91,7 @@ function CategoryRow({
         <p className="font-bold">
           {category.name}
           {!category.isActive ? (
-            <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-(--pv-muted)">
+            <span className="ml-2 rounded-full bg-(--pv-wash) px-2 py-0.5 text-xs font-semibold text-(--pv-muted)">
               Hidden
             </span>
           ) : null}

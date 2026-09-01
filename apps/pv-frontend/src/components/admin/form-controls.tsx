@@ -27,9 +27,9 @@ export function SubmitButton({
       aria-busy={pending}
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold disabled:opacity-60",
-        variant === "primary" && "bg-(--pv-red) text-white",
+        variant === "primary" && "bg-(--pv-red) text-(--pv-on-brand)",
         variant === "ghost" && "border border-(--pv-line) text-(--pv-ink)",
-        variant === "danger" && "bg-(--pv-danger) text-white",
+        variant === "danger" && "bg-(--pv-danger) text-(--pv-on-brand)",
         className,
       )}
     >
@@ -43,7 +43,7 @@ export function FormError({ message }: { message: string | null | undefined }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-(--pv-danger) bg-red-50 px-4 py-3 text-sm font-semibold text-(--pv-danger)"
+      className="rounded-xl border border-(--pv-danger) bg-[color-mix(in_srgb,var(--pv-danger)_12%,var(--pv-surface))] px-4 py-3 text-sm font-semibold text-(--pv-danger)"
     >
       {message}
     </p>
@@ -55,7 +55,7 @@ export function FormSuccess({ message }: { message: string | null | undefined })
   return (
     <p
       role="status"
-      className="rounded-xl border border-(--pv-success) bg-emerald-50 px-4 py-3 text-sm font-semibold text-(--pv-success)"
+      className="rounded-xl border border-(--pv-success) bg-[color-mix(in_srgb,var(--pv-success)_12%,var(--pv-surface))] px-4 py-3 text-sm font-semibold text-(--pv-success)"
     >
       {message}
     </p>
@@ -85,7 +85,7 @@ export function Field({
 }
 
 const fieldClass =
-  "min-h-11 w-full rounded-xl border border-(--pv-line) bg-white px-3.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)";
+  "min-h-11 w-full rounded-xl border border-(--pv-line) bg-(--pv-surface) px-3.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} id={props.name} className={cn(fieldClass, props.className)} />;

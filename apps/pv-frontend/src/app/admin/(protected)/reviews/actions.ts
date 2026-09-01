@@ -1,8 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { reviewModerationSchema } from "@pv/backend/domain/schemas";
-import { approveReview, rejectReview, softDeleteReview } from "@pv/backend/services/reviews";
+import {
+  approveReview,
+  moderateReviews,
+  rejectReview,
+  softDeleteReview,
+} from "@pv/backend/services/reviews";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { requirePermission } from "@/server/session";
 
@@ -64,4 +70,47 @@ export async function deleteReviewAction(reviewId: string, reason: string): Prom
   const principal = await requirePermission("review.moderate");
   await softDeleteReview(reviewId, reason, { staffId: principal.staffId });
   revalidatePath("/admin/reviews");
+}
+
+/**
+ * Clearing a batch of the queue at once.
+ *
+ * A plain form action rather than a `useActionState` one, because the list it
+ * sits under is server-rendered and holds no client state — the checkboxes are
+ * the selection. Feedback comes back as a redirect parameter the page renders,
+ * so the whole flow works with JavaScript unavailable.
+ *
+ * The service refuses anything no longer pending, so a stale checkbox from a
+ * list a colleague has already worked through cannot silently re-decide a
+ * review. Every review in the batch still gets its own audit record.
+ */
+export async function bulkModerateAction(formData: FormData): Promise<void> {
+  const principal = await requirePermission("review.moderate");
+
+  const reviewIds = formData
+    .getAll("reviewIds")
+    .filter((id): id is string => typeof id === "string");
+  const decision = formData.get("decision");
+  const status = typeof formData.get("status") === "string" ? formData.get("status") : "pending";
+
+  const back = (note: string) =>
+    `/admin/reviews?status=${encodeURIComponent(String(status))}&done=${encodeURIComponent(note)}`;
+
+  if (reviewIds.length === 0) redirect(back("Choose at least one review first."));
+  if (decision !== "approved" && decision !== "rejected") {
+    redirect(back("That decision is not valid."));
+  }
+
+  const count = await moderateReviews(reviewIds, decision, { staffId: principal.staffId });
+  revalidatePath("/admin/reviews");
+
+  redirect(
+    back(
+      count === 0
+        ? "Nothing changed — those were already decided."
+        : `${count} ${count === 1 ? "review" : "reviews"} ${
+            decision === "approved" ? "published" : "rejected"
+          }.`,
+    ),
+  );
 }

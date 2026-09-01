@@ -65,7 +65,7 @@ export function AddToCart({
                   className={`flex min-h-12 cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-2.5 transition-colors ${
                     variant.id === selectedId
                       ? "border-(--pv-red) bg-(--pv-cream)"
-                      : "border-(--pv-line) hover:border-zinc-400"
+                      : "border-(--pv-line) hover:border-(--pv-muted)"
                   } ${unavailable ? "opacity-60" : ""}`}
                 >
                   <span className="flex items-center gap-2.5">

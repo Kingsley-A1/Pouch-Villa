@@ -19,7 +19,7 @@ export default async function ProductsAdminPage() {
         </div>
         <Link
           href="/admin/products/new"
-          className="flex min-h-11 items-center rounded-xl bg-(--pv-red) px-5 text-sm font-bold text-white"
+          className="flex min-h-11 items-center rounded-xl bg-(--pv-red) px-5 text-sm font-bold text-(--pv-on-brand)"
         >
           Add product
         </Link>
@@ -35,12 +35,12 @@ export default async function ProductsAdminPage() {
             <li key={product.id}>
               <Link
                 href={`/admin/products/${product.id}/edit`}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-(--pv-line) bg-white p-4 hover:border-(--pv-red)"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4 hover:border-(--pv-red)"
               >
                 <div>
                   <p className="font-bold">
                     {product.name}
-                    <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-bold tracking-wide text-(--pv-muted) uppercase">
+                    <span className="ml-2 rounded-full bg-(--pv-wash) px-2 py-0.5 text-xs font-bold tracking-wide text-(--pv-muted) uppercase">
                       {product.status}
                     </span>
                   </p>

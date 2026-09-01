@@ -32,7 +32,7 @@ export function ProofReview({ proofId, status }: { proofId: string; status: stri
     <div className="grid gap-3">
       <button
         type="button"
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-(--pv-line) bg-white px-4 text-sm font-bold"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-(--pv-line) bg-(--pv-surface) px-4 text-sm font-bold"
         disabled={viewing}
         onClick={() =>
           startViewing(async () => {

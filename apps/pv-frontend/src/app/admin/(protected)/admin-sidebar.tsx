@@ -85,7 +85,7 @@ export function AdminSidebar({ sections }: { sections: NavSection[] }) {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 border-r border-(--pv-line) bg-white lg:block",
+        "hidden shrink-0 border-r border-(--pv-line) bg-(--pv-surface) lg:block",
         "transition-[width] duration-175 ease-out motion-reduce:transition-none",
         open ? "w-60" : "w-[4.5rem]",
       )}

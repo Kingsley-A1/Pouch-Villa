@@ -21,7 +21,7 @@ export function BrandForm({ editing, onDone }: { editing?: AdminBrand; onDone?: 
         await formAction(formData);
         onDone?.();
       }}
-      className="grid gap-3 rounded-2xl border border-(--pv-line) bg-white p-4"
+      className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
     >
       {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
       <div className="grid gap-3 sm:grid-cols-2">

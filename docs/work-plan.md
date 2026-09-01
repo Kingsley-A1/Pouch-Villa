@@ -5,7 +5,7 @@
 **Repository:** [`github.com/Kingsley-A1/Pouch-Villa`](https://github.com/Kingsley-A1/Pouch-Villa) · `main` · CI green
 **Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md) · **Decisions:** [`decisions/`](decisions/)
 
-**Status at last update:** Phases 0, 1 and 2 complete. Phase 3 (Commerce) is next and is the largest remaining block of work.
+**Status at last update (2026-09-01):** Phases 0–2 complete. **Phase 3 is built and green except for its E2E harness**; Phase 4 has started with the client's Q2/Q7 interface asks. See §4 for what each of those covers and what is still outstanding.
 
 > §1 and §2 below are the original assessment of the inherited prototype, kept as
 > the record of _why_ the rebuild was chosen. They describe PouchHub as it was
@@ -150,11 +150,91 @@ The customer half of the system, none of which exists yet.
 
 **Gate:** browse → filter → variant → cart → sign in → order → transfer → proof → track → review passes E2E on a mobile viewport in about five minutes; a double-submitted order creates exactly one order.
 
+**Status — 2026-09-01. Items 1–11 built and verified; item 12 (E2E) outstanding.**
+
+The double-submission half of the gate is met and tested against a live
+CockroachDB, not a mock:
+
+```
+✓ creates exactly one order when the same request is submitted twice
+✓ creates exactly one order when both submissions race
+✓ does not change a placed order when the product's price later changes
+✓ takes the stock it sold out of the ledger
+✓ authorises by reference plus the registered phone, in any format
+✓ refuses to dispatch a pickup order even from preparing
+✓ returns stock to the ledger when an order is cancelled
+```
+
+The full-flow half is **not** met: there is no browser harness yet, and it needs
+a claimed CEO account and real catalogue data to run against. Both are still
+outstanding — production holds 0 staff and 0 products.
+
+Two defects were found by these tests rather than by review, and both are worth
+recording because neither was visible from reading the code:
+
+- The state machine gated _entry_ to `ready_for_pickup` and `dispatched` by
+  fulfilment, but not their _exits_, so a delivery order that somehow reached
+  `ready_for_pickup` could be completed. Exits are now gated too.
+- CockroachDB's `INT` is 64-bit and node-postgres returns int8 as a **string**.
+  New services passed those straight to `kobo()`, which threw. The established
+  convention — `::STRING` in SQL, `Number()` in TS — now applies throughout.
+  This is precisely what §9's "against a real CockroachDB, not a mock" is for.
+
+**Also delivered under Phase 3, beyond the original twelve items:**
+
+- `app/api/v1` exists at last — twelve route handlers, per
+  [`decisions/0003-api-first-from-phase-3.md`](decisions/0003-api-first-from-phase-3.md).
+- Argon2id with transparent rehash-on-login and a fail-open breach check
+  ([`decisions/0004`](decisions/0004-password-hashing.md)).
+- The route gate now asserts the admin redirect it had only claimed.
+
 ### ⏳ Phase 4 — Admin operations
 
 Dashboard depth, saved views, bulk actions, and the operational polish that only surfaces once real orders exist. Supporting pages — About, Privacy, Terms — are already admin-editable and render an explicit _awaiting confirmation_ notice until Q10 lands.
 
 **About and Return & Warranty content has landed** ([`decisions/About-Policy.md`](decisions/About-Policy.md); [`open-questions.md`](open-questions.md) Q10) and is filed here, not yet built: a new `policy.returns` settings key (Return & Warranty is distinct from Terms & Conditions, per the client's own document), and the `/about` and `/returns` pages themselves — `/about` does not exist as a route yet even as a placeholder. Privacy Policy wording and the NDPR data-retention question remain open, so `/privacy` keeps its _awaiting confirmation_ notice regardless.
+
+**Started 2026-09-01, client-shaped first.** The client's answers to Q2 and Q7
+ask for different things than "dashboard depth", and those come first because
+they are what the delivery will be judged on:
+
+- **Light and dark themes, out of the box** (Q7). Every colour resolves through a
+  semantic token; the choice is stored in a cookie and stamped onto `<html>`
+  **server-side**, so there is no flash of the wrong theme and no inline script
+  for a strict CSP to have to whitelist. Absent cookie means follow the system.
+- **A reusable progressive-disclosure animation** (Q2), used at checkout, in the
+  review modal and on the admin order and payment screens. It is a Server
+  Component using `grid-template-rows: 0fr → 1fr`, so it ships no JavaScript and
+  is `inert` when closed rather than merely invisible.
+- **A review completed in a modal** (Q2) — no separate review page, no sign-in
+  wall, rating first and the rest revealed after.
+- **Fewer fields on product upload** (Q2) — slug derived from the name, summary
+  collapsed into description.
+
+**Ops depth, added 2026-09-01:**
+
+- **Dashboard depth.** Ordered by what someone has to _do_: the queues waiting on
+  a person lead, money next, slow-moving inventory counts last. Revenue counts
+  only from `payment_confirmed` onwards, so the figure never includes money that
+  has not reached the bank. Built as **two queries, not twelve** — at 2–3s per
+  query this screen would otherwise take half a minute to paint.
+- **Saved views.** The filters staff return to daily, stored as a query string
+  rather than a result set, so a view is always current. Personal by default;
+  CEO and Manager can share one with the team. Migration
+  [`0007_saved_views.sql`](../packages/pv-backend/migrations/0007_saved_views.sql),
+  applied to `pouchvilla_test` and `defaultdb`.
+- **Bulk actions** on the reviews and orders queues. Order steps are only offered
+  when the list shares one status and one fulfilment path, so a batch can never
+  mix a pickup and a delivery order into one "dispatch". Every order still goes
+  through the state machine and gets its own audit record; there is no bulk path
+  that bypasses either.
+
+> **Not covered by any automated test.** The admin screens are verified only to
+> the extent that they typecheck, build, and redirect a signed-out request. No
+> test renders them signed in — that needs the E2E harness, which is the last
+> open Phase 3 item. Treat the admin as _implemented_, not _verified in use_.
+
+Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
 
@@ -170,20 +250,20 @@ Security review against §5 with a written report. Load testing. WCAG 2.2 AA aud
 
 `pnpm run verify` runs: `format:check` → `lint` → `typecheck` → `check:facts` → `test` → `build` → `test:routes`.
 
-| Layer                 | Coverage                                                                                                         |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping    |
-| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search       |
-| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                     |
-| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                       |
-| **Routes**            | Six storefront routes return 200 against a booted production build. **Admin routes are not covered** — see below |
-| **E2E**               | ❌ Not yet — Phase 3                                                                                             |
-| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                     |
-| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                           |
+| Layer                 | Coverage                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping                                                                  |
+| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search                                                                     |
+| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                                                                                   |
+| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                                                                                     |
+| **Routes**            | Nine storefront routes return 200; all 13 protected admin routes 307 to `/admin/login`; the API answers its `{ ok }` envelope and refuses a checkout with no `Idempotency-Key` |
+| **E2E**               | ❌ Not yet — Phase 3                                                                                                                                                           |
+| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                                                                                   |
+| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                                                                                         |
 
 **Test databases are separate.** Writing integration tests require `TEST_DATABASE_URL` and refuse to run if it matches `DATABASE_URL`. This exists because an early run left twenty-six live role codes in the production database.
 
-> **Correction, 2026-08-31.** This table previously claimed _"every protected admin route 307s to `/admin/login`"_. It does not, and never did: [`verify-routes.mjs`](../apps/pv-frontend/scripts/verify-routes.mjs) checks `/`, `/shop`, `/categories`, `/search`, `/privacy` and `/terms`, and no admin route at all. The redirect behaviour is real and is exercised by the session adapter, but it is not covered by this gate. Extending the script to assert the admin redirect is folded into Phase 3.
+> **Correction, 2026-08-31, resolved 2026-09-01.** This table previously claimed _"every protected admin route 307s to `/admin/login`"_ when [`verify-routes.mjs`](../apps/pv-frontend/scripts/verify-routes.mjs) checked no admin route at all. The script now genuinely asserts it, for all thirteen, plus two API contract checks. Output pasted in the Phase 3 gate below.
 
 ---
 

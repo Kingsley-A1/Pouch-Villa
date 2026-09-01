@@ -129,7 +129,7 @@ export function CheckoutForm({
                 className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
                   fulfilment === value
                     ? "border-(--pv-red) bg-(--pv-cream)"
-                    : "border-(--pv-line) hover:border-zinc-400"
+                    : "border-(--pv-line) hover:border-(--pv-muted)"
                 }`}
               >
                 <input

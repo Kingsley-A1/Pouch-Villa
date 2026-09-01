@@ -15,7 +15,7 @@ export async function StoreHeader() {
   const cartCount = await getCartCount();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-white/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-[color-mix(in_srgb,var(--pv-page)_92%,transparent)] backdrop-blur-sm">
       <div className="container-shell flex h-[76px] items-center justify-between gap-5">
         <Link href="/" aria-label="Pouch Villa home">
           <BrandMark compact />
@@ -25,7 +25,7 @@ export async function StoreHeader() {
             <Link
               key={href}
               href={href}
-              className="text-sm font-semibold text-zinc-700 transition-colors hover:text-(--pv-red)"
+              className="text-sm font-semibold text-(--pv-ink) transition-colors hover:text-(--pv-red)"
             >
               {label}
             </Link>
@@ -58,7 +58,7 @@ export async function StoreHeader() {
             {cartCount > 0 ? (
               <span
                 aria-hidden="true"
-                className="absolute top-1 right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-(--pv-red) px-1 text-[11px] font-bold text-white tabular-nums"
+                className="absolute top-1 right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-(--pv-red) px-1 text-[11px] font-bold text-(--pv-on-brand) tabular-nums"
               >
                 {cartCount > 99 ? "99+" : cartCount}
               </span>

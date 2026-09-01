@@ -30,7 +30,7 @@ export function StoreSettingsForm({
   return (
     <form
       action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-white p-5"
+      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
     >
       <h2 className="text-lg font-bold">Store details</h2>
       <p className="text-sm text-(--pv-muted)">

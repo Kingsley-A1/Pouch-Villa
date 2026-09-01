@@ -7,30 +7,30 @@ export default function PrivacyPage() {
         <div className="container-shell max-w-3xl">
           <p className="eyebrow">Prototype policy</p>
           <h1 className="section-title mt-3">Privacy</h1>
-          <div className="mt-8 grid gap-7 leading-7 text-zinc-600">
+          <div className="mt-8 grid gap-7 leading-7 text-(--pv-muted)">
             <section>
-              <h2 className="text-xl font-bold text-zinc-900">Demonstration-data rule</h2>
+              <h2 className="text-xl font-bold text-(--pv-ink)">Demonstration-data rule</h2>
               <p className="mt-2">
                 Do not submit real personal information. The prototype forms exist to demonstrate
                 the workflow and store entries in a local development database.
               </p>
             </section>
             <section>
-              <h2 className="text-xl font-bold text-zinc-900">Local device storage</h2>
+              <h2 className="text-xl font-bold text-(--pv-ink)">Local device storage</h2>
               <p className="mt-2">
                 Remember My Phone, saved products and recently viewed products use local browser
                 storage. Clearing site data removes them.
               </p>
             </section>
             <section>
-              <h2 className="text-xl font-bold text-zinc-900">No real messaging or payment</h2>
+              <h2 className="text-xl font-bold text-(--pv-ink)">No real messaging or payment</h2>
               <p className="mt-2">
                 The prototype does not send WhatsApp messages, process cards, verify transfers or
                 create customer accounts.
               </p>
             </section>
             <section>
-              <h2 className="text-xl font-bold text-zinc-900">Production requirement</h2>
+              <h2 className="text-xl font-bold text-(--pv-ink)">Production requirement</h2>
               <p className="mt-2">
                 Pouch Villa must approve a complete privacy notice, retention schedule, lawful basis
                 and operational process before production use.

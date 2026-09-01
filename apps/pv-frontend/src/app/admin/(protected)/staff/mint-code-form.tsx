@@ -17,7 +17,7 @@ export function MintCodeForm() {
   const [state, formAction] = useActionState(mintCodeAction, INITIAL);
 
   return (
-    <div className="grid gap-4 rounded-2xl border border-(--pv-line) bg-white p-5">
+    <div className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
       <h2 className="text-lg font-bold">Issue a role code</h2>
       <p className="text-sm text-(--pv-muted)">
         Three levels and no more. The code is shown once — write it down or share it now.
@@ -51,7 +51,7 @@ export function MintCodeForm() {
         </SubmitButton>
       </form>
       {state.code ? (
-        <div className="rounded-xl border border-(--pv-success) bg-emerald-50 p-4">
+        <div className="rounded-xl border border-(--pv-success) bg-[color-mix(in_srgb,var(--pv-success)_12%,var(--pv-surface))] p-4">
           <p className="text-sm font-semibold text-(--pv-success)">
             Code created — this is shown once:
           </p>

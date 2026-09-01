@@ -136,7 +136,10 @@ export function MediaPicker({
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {files.map((picked, index) => (
-            <li key={picked.id} className="rounded-2xl border border-(--pv-line) bg-white p-2">
+            <li
+              key={picked.id}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-2"
+            >
               <div className="relative aspect-square overflow-hidden rounded-xl bg-(--pv-wash)">
                 {/*
                   A blob: URL of a file the user just chose — next/image would
@@ -149,7 +152,7 @@ export function MediaPicker({
                   className="h-full w-full object-cover"
                 />
                 {index === 0 ? (
-                  <span className="absolute top-1 left-1 rounded-full bg-(--pv-red) px-2 py-0.5 text-[11px] font-bold text-white">
+                  <span className="absolute top-1 left-1 rounded-full bg-(--pv-red) px-2 py-0.5 text-[11px] font-bold text-(--pv-on-brand)">
                     Primary
                   </span>
                 ) : null}

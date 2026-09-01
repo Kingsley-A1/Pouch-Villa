@@ -1,6 +1,26 @@
 @import "tailwindcss";
 
+/*
+ * Light and dark, out of the box — Q7: "Both dark and light theme should be
+ * supported out-of-the-box."
+ *
+ * Every colour in the app resolves through one of these tokens. That is what
+ * makes a second theme a change to this file rather than a sweep through two
+ * hundred components, and it is the same property that will let the real brand
+ * hex values land when Q7's vector assets arrive.
+ *
+ * Three states, deliberately:
+ *   :root                                  the light palette, always defined
+ *   @media (prefers-color-scheme: dark)     the visitor's system preference
+ *   [data-theme="dark" | "light"]           an explicit choice, which wins
+ *
+ * The explicit choice is applied server-side from a cookie in layout.tsx, so
+ * there is no flash of the wrong theme and no inline script — the latter matters
+ * because AGENTS.md §5 requires a strict CSP with no `unsafe-inline`.
+ */
 :root {
+  color-scheme: light;
+
   --pv-red: #e30613;
   --pv-red-dark: #b9020c;
   --pv-ink: #171717;
@@ -11,6 +31,79 @@
   --pv-success: #157347;
   --pv-warning: #a15c00;
   --pv-danger: #b42318;
+
+  /* Surfaces. `--pv-page` is the paper; `--pv-surface` is a card on it. */
+  --pv-page: #ffffff;
+  --pv-surface: #ffffff;
+  --pv-surface-raised: #ffffff;
+  /* Text that sits on a filled brand button, which stays light in both themes. */
+  --pv-on-brand: #ffffff;
+  --pv-shadow: rgba(23, 23, 23, 0.08);
+}
+
+/*
+ * Dark. Not an inversion: the reds lift slightly because a saturated red on a
+ * near-black ground reads darker than it measures, and the greys are warm to
+ * match the brand rather than the blue-grey a default palette would give.
+ *
+ * Guarded with :not([data-theme="light"]) so a visitor who explicitly chose
+ * light keeps it even on a system set to dark.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --pv-red: #ff4d57;
+    --pv-red-dark: #e0323d;
+    --pv-ink: #f4f1ef;
+    --pv-muted: #a9a29e;
+    --pv-line: #33302e;
+    --pv-wash: #1e1b1a;
+    --pv-cream: #211e1d;
+    --pv-success: #4ade80;
+    --pv-warning: #fbbf24;
+    --pv-danger: #f87171;
+
+    --pv-page: #141211;
+    --pv-surface: #1b1817;
+    --pv-surface-raised: #232020;
+    --pv-on-brand: #14100f;
+    --pv-shadow: rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* The explicit choice, which beats the system preference in both directions. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --pv-red: #ff4d57;
+  --pv-red-dark: #e0323d;
+  --pv-ink: #f4f1ef;
+  --pv-muted: #a9a29e;
+  --pv-line: #33302e;
+  --pv-wash: #1e1b1a;
+  --pv-cream: #211e1d;
+  --pv-success: #4ade80;
+  --pv-warning: #fbbf24;
+  --pv-danger: #f87171;
+
+  --pv-page: #141211;
+  --pv-surface: #1b1817;
+  --pv-surface-raised: #232020;
+  --pv-on-brand: #14100f;
+  --pv-shadow: rgba(0, 0, 0, 0.4);
+}
+
+/*
+ * The footer is a deliberately inverted band in BOTH themes, so its colours are
+ * fixed rather than swapped. Without this it inherits the theme and, in dark
+ * mode, paints near-black text on a near-black ground.
+ */
+:root {
+  --pv-footer-bg: #09090b;
+  --pv-footer-ink: #ffffff;
+  --pv-footer-soft: #d4d4d8;
+  --pv-footer-muted: #8b8b93;
 }
 
 * {
@@ -30,7 +123,7 @@ html {
 }
 body {
   margin: 0;
-  background: #fff;
+  background: var(--pv-page);
   color: var(--pv-ink);
   font-family:
     var(--pv-font-sans),
@@ -110,7 +203,7 @@ textarea {
 .card-surface {
   border: 1px solid var(--pv-line);
   border-radius: 1.35rem;
-  background: #fff;
+  background: var(--pv-surface);
 }
 /* Buttons must always render their label on a single line — never wrap into
    stacked rows on narrow screens. The label is clipped with an ellipsis only
@@ -145,7 +238,7 @@ textarea {
 .button-primary {
   border: 1px solid var(--pv-red);
   background: var(--pv-red);
-  color: #fff;
+  color: var(--pv-on-brand);
 }
 .button-primary:hover {
   background: var(--pv-red-dark);
@@ -155,19 +248,19 @@ textarea {
 .button-secondary {
   border: 1px solid var(--pv-ink);
   background: var(--pv-ink);
-  color: #fff;
+  color: var(--pv-on-brand);
 }
 .button-secondary:hover {
-  background: #303030;
+  background: color-mix(in srgb, var(--pv-ink) 82%, var(--pv-page));
   transform: translateY(-1px);
 }
 .button-ghost {
   border: 1px solid var(--pv-line);
-  background: #fff;
+  background: var(--pv-surface);
   color: var(--pv-ink);
 }
 .button-ghost:hover {
-  border-color: #bcb6b1;
+  border-color: color-mix(in srgb, var(--pv-line) 55%, var(--pv-muted));
   background: var(--pv-cream);
 }
 .button-primary:disabled,
@@ -180,9 +273,9 @@ textarea {
 .field {
   min-height: 3.15rem;
   width: 100%;
-  border: 1px solid #cfc9c5;
+  border: 1px solid color-mix(in srgb, var(--pv-line) 70%, var(--pv-muted));
   border-radius: 0.85rem;
-  background: #fff;
+  background: var(--pv-surface);
   padding: 0.75rem 0.9rem;
   color: var(--pv-ink);
   transition:
@@ -224,7 +317,7 @@ textarea {
   overflow-x: auto;
   border: 1px solid var(--pv-line);
   border-radius: 1rem;
-  background: #fff;
+  background: var(--pv-surface);
 }
 .data-table {
   width: 100%;
@@ -245,6 +338,27 @@ textarea {
   vertical-align: middle;
   font-size: 0.88rem;
 }
+/*
+ * Bulk selection, without JavaScript and without state.
+ *
+ * The list sits inside a real <form>; each row carries a plain checkbox that the
+ * form collects natively on submit. The action bar is revealed by `:has()` the
+ * moment anything is ticked, so there is no client component holding a Set of
+ * ids, nothing to pass across the Server Component boundary, and the whole thing
+ * still works if the JavaScript never arrives — which on a mid-range Android on
+ * Nigerian mobile data is a real fraction of sessions.
+ */
+.bulk-bar {
+  display: none;
+}
+form:has(.bulk-select:checked) .bulk-bar {
+  display: block;
+}
+/* The list reserves room for the bar only while the bar can appear. */
+form:has(.bulk-select:checked) .bulk-list {
+  padding-bottom: 7rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -298,7 +412,7 @@ textarea {
   color: var(--pv-ink);
 }
 .breadcrumb-sep {
-  color: #bcb6b1;
+  color: color-mix(in srgb, var(--pv-line) 55%, var(--pv-muted));
 }
 /* A breadcrumb bar already separates the header from the page title, so the
    section it introduces does not need a full section's worth of top padding. */
@@ -369,7 +483,7 @@ nav[aria-label="Breadcrumb"] + .section-space {
   position: relative;
   border: 1px solid var(--pv-line);
   border-radius: 1rem;
-  background: #fff;
+  background: var(--pv-surface);
 }
 
 .panel-bracket::after {

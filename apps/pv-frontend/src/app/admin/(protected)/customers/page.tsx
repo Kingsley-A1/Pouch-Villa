@@ -25,7 +25,10 @@ export default async function CustomersAdminPage() {
       ) : (
         <ul className="grid gap-3">
           {customers.map((customer) => (
-            <li key={customer.id} className="rounded-2xl border border-(--pv-line) bg-white p-4">
+            <li
+              key={customer.id}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
+            >
               <p className="font-bold">{customer.fullName ?? customer.email}</p>
               <p className="text-xs text-(--pv-muted)">
                 {customer.email}

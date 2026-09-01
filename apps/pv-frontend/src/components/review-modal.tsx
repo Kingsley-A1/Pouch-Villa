@@ -116,7 +116,7 @@ export function ReviewModal({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="review-modal-title"
-                className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-lg sm:rounded-3xl"
+                className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-(--pv-surface) p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-w-lg sm:rounded-3xl"
               >
                 <div className="flex items-start justify-between gap-4">
                   <h2 id="review-modal-title" className="text-lg font-bold">
@@ -154,7 +154,7 @@ export function ReviewModal({
                             <Star
                               size={26}
                               weight={value <= rating ? "fill" : "regular"}
-                              className={value <= rating ? "text-(--pv-red)" : "text-zinc-400"}
+                              className={value <= rating ? "text-(--pv-red)" : "text-(--pv-muted)"}
                             />
                           </button>
                         ))}

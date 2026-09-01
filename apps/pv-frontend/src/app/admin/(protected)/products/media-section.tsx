@@ -138,7 +138,10 @@ export function MediaSection({
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {media.map((item, index) => (
-            <li key={item.id} className="rounded-2xl border border-(--pv-line) bg-white p-2">
+            <li
+              key={item.id}
+              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-2"
+            >
               <div className="relative aspect-square overflow-hidden rounded-xl bg-(--pv-wash)">
                 <Image
                   src={item.urls.thumb}
@@ -148,7 +151,7 @@ export function MediaSection({
                   className="object-cover"
                 />
                 {index === 0 ? (
-                  <span className="absolute top-1 left-1 rounded-full bg-(--pv-red) px-2 py-0.5 text-xs font-bold text-white">
+                  <span className="absolute top-1 left-1 rounded-full bg-(--pv-red) px-2 py-0.5 text-xs font-bold text-(--pv-on-brand)">
                     Primary
                   </span>
                 ) : null}
