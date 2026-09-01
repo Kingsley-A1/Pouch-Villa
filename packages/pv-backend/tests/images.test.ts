@@ -5,9 +5,9 @@ import {
   MAX_IMAGE_BYTES,
   ImageTooLargeError,
   UnsupportedImageError,
-  processImage,
   sniffImageFormat,
-} from "../src/storage/images";
+} from "../src/storage/image-formats";
+import { processImage } from "../src/storage/images";
 import { mediaKey } from "../src/storage/media-key";
 
 async function makeJpeg(width = 1600, height = 1200) {

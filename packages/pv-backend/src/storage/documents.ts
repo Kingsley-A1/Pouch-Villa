@@ -1,4 +1,4 @@
-import { sniffImageFormat, type ImageFormat } from "./images";
+import { sniffImageFormat, type ImageFormat } from "./image-formats";
 
 /**
  * Validation for a payment proof.

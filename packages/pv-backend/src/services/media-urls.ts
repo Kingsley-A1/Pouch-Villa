@@ -1,6 +1,6 @@
 import { mediaKey } from "../storage/media-key";
 import { publicUrl } from "../storage/r2";
-import type { DerivativeName } from "../storage/images";
+import type { DerivativeName } from "../storage/image-formats";
 
 /**
  * Resolves a product's stored media into CDN URLs. Split out of media.ts

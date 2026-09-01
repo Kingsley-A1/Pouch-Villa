@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool, query } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import { DERIVATIVES, MAX_IMAGE_BYTES, processImage, type DerivativeName } from "../storage/images";
+import { DERIVATIVES, MAX_IMAGE_BYTES, type DerivativeName } from "../storage/image-formats";
 import { mediaKey } from "../storage/media-key";
 import { deleteObject, getObjectBytes, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
@@ -84,6 +84,10 @@ export async function finaliseUpload(
   let processed;
   try {
     const bytes = await getObjectBytes("public", upload.staging_key);
+    // Loaded here, not at module scope: sharp dlopens libvips on import, and
+    // every other function in this file — listing media, building URLs, sweeping
+    // stale uploads — must stay callable without that binary present.
+    const { processImage } = await import("../storage/images");
     processed = await processImage(bytes);
   } catch (error) {
     // A rejected upload leaves nothing behind: the staged object goes, and the
