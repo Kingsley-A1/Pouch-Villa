@@ -40,7 +40,6 @@ export type CatalogueListItem = {
   id: string;
   slug: string;
   name: string;
-  summary: string | null;
   brandName: string | null;
   fromKobo: Kobo | null;
   inStock: number;
@@ -51,7 +50,6 @@ export type CatalogueProduct = {
   id: string;
   slug: string;
   name: string;
-  summary: string | null;
   description: string | null;
   brandName: string | null;
   brandSlug: string | null;
@@ -83,7 +81,6 @@ type ProductRow = {
   id: string;
   slug: string;
   name: string;
-  summary: string | null;
   description: string | null;
   brand_name: string | null;
   brand_slug: string | null;
@@ -120,7 +117,6 @@ function toListItem(row: ProductRow): CatalogueListItem {
     id: row.id,
     slug: row.slug,
     name: row.name,
-    summary: row.summary,
     brandName: row.brand_name,
     fromKobo: row.from_kobo === null ? null : kobo(Number(row.from_kobo)),
     inStock: Number(row.in_stock ?? 0),
@@ -140,7 +136,6 @@ function toProduct(row: ProductRow): Omit<CatalogueProduct, "images" | "variants
     id: row.id,
     slug: row.slug,
     name: row.name,
-    summary: row.summary,
     description: row.description,
     brandName: row.brand_name,
     brandSlug: row.brand_slug,
@@ -155,7 +150,7 @@ function toProduct(row: ProductRow): Omit<CatalogueProduct, "images" | "variants
  * is always derivable from history and never drifts.
  */
 const PRODUCT_SELECT = `
-  SELECT p.id, p.slug, p.name, p.summary, p.description, p.status,
+  SELECT p.id, p.slug, p.name, p.description, p.status,
          b.name AS brand_name, b.slug AS brand_slug,
          (SELECT min(v.price_kobo)::STRING
             FROM product_variant v

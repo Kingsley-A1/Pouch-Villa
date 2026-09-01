@@ -2,7 +2,9 @@ import Link from "next/link";
 import { requireStaffPrincipal } from "@/server/session";
 import { permissionsForRole } from "@pv/backend/services/roles";
 import { BrandMark } from "@/components/brand-mark";
+import { ConnectionStatus } from "@/components/connection-status";
 import { AdminMobileNav } from "./admin-mobile-nav";
+import { AdminSidebar } from "./admin-sidebar";
 import { LogoutButton } from "./logout-button";
 import { NAV_SECTIONS } from "./nav-sections";
 
@@ -29,6 +31,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
 
+      <ConnectionStatus />
+
       {!principal.emailVerified ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm text-amber-900">
           Your email is not verified.{" "}
@@ -39,20 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ) : null}
 
       <div className="mx-auto flex max-w-6xl gap-6 px-4 py-6">
-        <nav aria-label="Admin sections" className="hidden w-56 shrink-0 lg:block">
-          <ul className="grid gap-1">
-            {sections.map((section) => (
-              <li key={section.href}>
-                <Link
-                  href={section.href}
-                  className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-(--pv-ink) hover:bg-white"
-                >
-                  {section.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <AdminSidebar sections={sections} />
         <main className="min-w-0 flex-1 pb-16">{children}</main>
       </div>
     </div>

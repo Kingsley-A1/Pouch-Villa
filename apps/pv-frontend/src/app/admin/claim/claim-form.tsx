@@ -18,7 +18,7 @@ export function ClaimForm({ googleClientId }: { googleClientId: string | null })
 
   return (
     <div className="grid gap-6">
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} className="panel-bracket grid gap-4 p-5">
         <Field label="Role code" name="code" hint="Given to you by the CEO or a manager">
           <TextInput
             name="code"

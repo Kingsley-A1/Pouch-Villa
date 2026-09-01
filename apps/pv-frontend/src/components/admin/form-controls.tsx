@@ -8,17 +8,20 @@ export function SubmitButton({
   pendingLabel,
   variant = "primary",
   className,
+  disabled = false,
 }: {
   children: React.ReactNode;
   pendingLabel?: string;
   variant?: "primary" | "ghost" | "danger";
   className?: string;
+  /** Blocks submission on top of the pending state, e.g. an unmet requirement. */
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending}
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold disabled:opacity-60",

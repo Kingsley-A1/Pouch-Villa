@@ -1,7 +1,7 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { verifyGoogleIdToken } from "../auth/google";
 import { getPool, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import { verifyPassword } from "../auth/password";
+import { hashPassword, needsRehash, verifyPassword } from "../auth/password";
 import { revokeStaffSession, type StaffPrincipal } from "../auth/staff-session";
 import { recordAudit } from "./audit";
 
@@ -91,10 +91,15 @@ export async function loginWithPassword(
     [normalised],
   );
 
-  const valid =
-    staff !== null && staff.password_hash !== null && verifyPassword(password, staff.password_hash);
+  /**
+   * An account that only ever signs in with Google has no password hash, so a
+   * password attempt against it fails exactly as a wrong password does — the
+   * caller must not be able to tell the two apart, or the response becomes an
+   * oracle for which accounts exist and how they authenticate.
+   */
+  const storedHash = staff?.password_hash ?? null;
 
-  if (!valid) {
+  if (staff === null || storedHash === null || !(await verifyPassword(password, storedHash))) {
     await recordAudit(getPool(), {
       actorType: "system",
       action: "staff.login_failed",
@@ -107,6 +112,16 @@ export async function loginWithPassword(
   }
   if (staff.status !== "active") throw new AccountSuspendedError();
 
+  /**
+   * ADR 0004: a hash left over from bcrypt is upgraded to Argon2id the next time
+   * its owner signs in successfully — no forced reset, and nobody notices.
+   *
+   * Computed here rather than inside the transaction below, because hashing
+   * costs ~190ms of CPU and the transaction body is re-executed from the start
+   * on a CockroachDB retry. Short transactions, no wasted work.
+   */
+  const upgradedHash = needsRehash(storedHash) ? await hashPassword(password) : null;
+
   return withTransaction(async (transaction) => {
     await recordAudit(transaction, {
       actorType: "staff",
@@ -118,33 +133,14 @@ export async function loginWithPassword(
       ip: context.ip,
     });
     await transaction.query("UPDATE staff SET last_login_at = now() WHERE id = $1", [staff.id]);
+    if (upgradedHash !== null) {
+      await transaction.query("UPDATE staff SET password_hash = $2 WHERE id = $1", [
+        staff.id,
+        upgradedHash,
+      ]);
+    }
     return { staffId: staff.id, role: staff.role_code };
   });
-}
-
-let googleJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-function jwks() {
-  googleJwks ??= createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
-  return googleJwks;
-}
-
-/**
- * Verifies a Google Identity Services credential (an ID token JWT) against
- * Google's own published keys — no server-side redirect flow is needed for the
- * "Sign in with Google" button, which hands the browser a signed token directly.
- */
-export async function verifyGoogleIdToken(idToken: string) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error("GOOGLE_CLIENT_ID is not configured.");
-  const { payload } = await jwtVerify(idToken, jwks(), {
-    issuer: ["https://accounts.google.com", "accounts.google.com"],
-    audience: clientId,
-  });
-  const subject = payload.sub;
-  const email = typeof payload.email === "string" ? payload.email.toLowerCase() : null;
-  const emailVerified = payload.email_verified === true;
-  if (!subject || !email) throw new Error("Google did not return an email address.");
-  return { subject, email, emailVerified };
 }
 
 export async function loginWithGoogle(

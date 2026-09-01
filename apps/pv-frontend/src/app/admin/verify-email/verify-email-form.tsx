@@ -18,7 +18,7 @@ export function VerifyEmailForm() {
 
   return (
     <div className="grid gap-6">
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} className="panel-bracket grid gap-4 p-5">
         <Field label="6-digit code" name="code">
           <TextInput
             name="code"

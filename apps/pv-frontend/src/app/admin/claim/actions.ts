@@ -8,7 +8,7 @@ import {
   RoleCodeRejectedError,
 } from "@pv/backend/services/staff-access";
 import { sendVerificationCode } from "@pv/backend/services/staff-email-verification";
-import { verifyGoogleIdToken } from "@pv/backend/services/staff-login";
+import { verifyGoogleIdToken } from "@pv/backend/auth/google";
 import { createStaffSession, currentRequestContext } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
 

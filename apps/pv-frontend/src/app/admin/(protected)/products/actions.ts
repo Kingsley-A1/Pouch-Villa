@@ -11,8 +11,6 @@ import { toActionError, type ActionState } from "@/lib/action-state";
 function parseProductInput(formData: FormData) {
   return productSchema.safeParse({
     name: formData.get("name"),
-    slug: formData.get("slug"),
-    summary: formData.get("summary") || null,
     description: formData.get("description") || null,
     brandId: formData.get("brandId") || null,
     categoryIds: formData.getAll("categoryIds"),
@@ -20,10 +18,19 @@ function parseProductInput(formData: FormData) {
   });
 }
 
+export type CreateProductState = ActionState & { productId?: string };
+
+/**
+ * Returns the new id rather than redirecting.
+ *
+ * The images chosen on the create screen can only be uploaded once the product
+ * exists, so the client needs the id to carry on with. Redirecting here would
+ * end the request before a single picture had been sent.
+ */
 export async function createProductAction(
   _prev: ActionState,
   formData: FormData,
-): Promise<ActionState> {
+): Promise<CreateProductState> {
   const principal = await requirePermission("product.manage");
   const parsed = parseProductInput(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
@@ -34,7 +41,8 @@ export async function createProductAction(
   } catch (error) {
     return toActionError(error, "The product could not be created.");
   }
-  redirect(`/admin/products/${id}/edit`);
+  revalidatePath("/admin/products");
+  return { error: null, productId: id };
 }
 
 export async function updateProductAction(

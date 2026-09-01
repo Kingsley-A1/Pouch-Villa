@@ -17,7 +17,7 @@ export function LoginForm({ googleClientId }: { googleClientId: string | null })
 
   return (
     <div className="grid gap-6">
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} className="panel-bracket grid gap-4 p-5">
         <Field label="Email" name="email">
           <TextInput name="email" type="email" required autoComplete="email" />
         </Field>

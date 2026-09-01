@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { PouchMark } from "./pouch-mark";
 
 export function BrandMark({
   inverse = false,
@@ -9,18 +10,11 @@ export function BrandMark({
 }) {
   return (
     <span
-      className={cn("inline-flex items-center gap-2.5", inverse ? "text-white" : "text-[#e30613]")}
+      className={cn("inline-flex items-center gap-2.5", inverse ? "text-white" : "text-(--pv-red)")}
       aria-label="Pouch Villa"
     >
-      <span
-        className={cn(
-          "grid place-items-center rounded-xl font-serif leading-none font-black tracking-[-.06em]",
-          compact ? "h-9 w-9 text-base" : "h-11 w-11 text-lg",
-          inverse ? "bg-white text-[#e30613]" : "bg-[#e30613] text-white",
-        )}
-        aria-hidden="true"
-      >
-        PV
+      <span className={cn("shrink-0", compact ? "h-9 w-9" : "h-11 w-11")}>
+        <PouchMark />
       </span>
       <span
         className={cn(

@@ -102,7 +102,7 @@ if (process.argv.includes("--selftest")) {
   const samples = [
     ["nigerian-phone", "const number = '08088071657';"],
     ["whatsapp-link", "const link = 'https://wa.me/2348088071657';"],
-    ["email-literal", "const address = 'orders@pouchvilla.ng';"],
+    ["email-literal", "const address = 'orders@pouchvilla.com.ng';"],
     ["naira-amount", "const price = '₦15,000';"],
     ["account-number", "const account = '0123456789';"],
   ];

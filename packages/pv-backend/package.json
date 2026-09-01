@@ -8,7 +8,8 @@
     "./domain/*": "./src/domain/*.ts",
     "./auth/*": "./src/auth/*.ts",
     "./db/*": "./src/db/*.ts",
-    "./services/*": "./src/services/*.ts"
+    "./services/*": "./src/services/*.ts",
+    "./storage/*": "./src/storage/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -21,6 +22,7 @@
     "@aws-sdk/client-s3": "^3.1121.0",
     "@aws-sdk/s3-request-presigner": "^3.1121.0",
     "bcryptjs": "^3.0.3",
+    "hash-wasm": "^4.12.0",
     "jose": "^6.2.3",
     "pg": "^8.23.0",
     "sharp": "^0.35.3",

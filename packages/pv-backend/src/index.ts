@@ -5,6 +5,9 @@
  * "@pv/backend/services/*".
  */
 export * from "./domain/money";
+export * from "./domain/order-status";
+export * from "./domain/phone";
+export * from "./domain/reference";
 export * from "./auth/permission-codes";
 export * from "./auth/role-codes";
 export * from "./domain/schemas";

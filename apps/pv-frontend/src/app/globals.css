@@ -330,3 +330,75 @@ nav[aria-label="Breadcrumb"] + .section-space {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The branded indeterminate loading sweep (components/loading-line.tsx).
+   Kept here rather than as a Tailwind arbitrary value because it needs
+   keyframes and a reduced-motion fallback that actually stops it: the global
+   rule below caps animation-duration at 0.01ms, which on an infinite loop is a
+   strobe rather than a stop. */
+@keyframes pv-loading-sweep {
+  0% {
+    transform: translateX(-105%);
+  }
+  100% {
+    transform: translateX(355%);
+  }
+}
+
+.pv-loading-sweep {
+  animation: pv-loading-sweep 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-loading-sweep {
+    /* A still, full-width bar: the element still says "busy" via its
+       role="progressbar" parent, without any movement at all. */
+    animation: none !important;
+    width: 100%;
+    opacity: 0.55;
+  }
+}
+
+/* Corner-bracket panel.
+   A thin full border reads as a plain box; drawing only the four corners gives
+   a form the "drafted" look the client asked for while staying quiet enough to
+   sit behind the content. The brackets are one element painted with four
+   corner-anchored gradients, so there is no extra DOM and nothing to keep in
+   sync when the panel resizes. */
+.panel-bracket {
+  position: relative;
+  border: 1px solid var(--pv-line);
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.panel-bracket::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  --bracket: var(--pv-red);
+  --len: 18px;
+  --weight: 2px;
+  background:
+    /* top-left */
+    linear-gradient(var(--bracket), var(--bracket)) top left / var(--len) var(--weight) no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) top left / var(--weight) var(--len) no-repeat,
+    /* top-right */ linear-gradient(var(--bracket), var(--bracket)) top right / var(--len)
+      var(--weight) no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) top right / var(--weight) var(--len) no-repeat,
+    /* bottom-left */ linear-gradient(var(--bracket), var(--bracket)) bottom left / var(--len)
+      var(--weight) no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom left / var(--weight) var(--len) no-repeat,
+    /* bottom-right */ linear-gradient(var(--bracket), var(--bracket)) bottom right / var(--len)
+      var(--weight) no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) bottom right / var(--weight) var(--len)
+      no-repeat;
+}
+
+/* Inside a focused form the brackets would compete with the focus ring, so they
+   step back to the line colour until the panel is interacted with. */
+.panel-bracket:not(:focus-within)::after {
+  --bracket: color-mix(in srgb, var(--pv-red) 45%, transparent);
+}

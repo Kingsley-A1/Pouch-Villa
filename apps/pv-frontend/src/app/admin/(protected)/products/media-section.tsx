@@ -5,6 +5,8 @@ import Image from "next/image";
 import type { AdminMedia } from "@pv/backend/services/media";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { FormError, FormSuccess } from "@/components/admin/form-controls";
+import { cn } from "@/lib/utils";
+import { ACCEPTED_MEDIA, MAX_MEDIA } from "./media-picker";
 import {
   beginUploadAction,
   deleteMediaAction,
@@ -91,15 +93,27 @@ export function MediaSection({
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-bold">Images</h2>
-        <label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-(--pv-line) px-4 text-sm font-bold">
+        <h2 className="text-lg font-bold">
+          Images{" "}
+          <span className="text-sm font-normal text-(--pv-muted)">
+            {media.length} of {MAX_MEDIA}
+          </span>
+        </h2>
+        {/* The same cap the create screen applies, so the limit does not depend
+            on which route the product was added through. */}
+        <label
+          className={cn(
+            "inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-(--pv-line) px-4 text-sm font-bold",
+            (busy || media.length >= MAX_MEDIA) && "pointer-events-none opacity-50",
+          )}
+        >
           {busy ? "Uploading…" : "Add image"}
           <input
             ref={fileInput}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif"
+            accept={ACCEPTED_MEDIA}
             className="sr-only"
-            disabled={busy}
+            disabled={busy || media.length >= MAX_MEDIA}
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void upload(file);
@@ -107,6 +121,12 @@ export function MediaSection({
           />
         </label>
       </div>
+
+      {media.length >= MAX_MEDIA ? (
+        <p className="text-sm text-(--pv-muted)">
+          Remove one before adding another — {MAX_MEDIA} is the limit.
+        </p>
+      ) : null}
 
       <FormError message={status.error} />
       <FormSuccess message={status.message} />

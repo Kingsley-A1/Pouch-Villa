@@ -1,6 +1,7 @@
-import { getPool, query, queryOne } from "../db/client";
+import { getPool, query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { kobo, type Kobo } from "../domain/money";
+import { firstFreeSlug, slugify } from "../domain/slug";
 import { recordAudit } from "./audit";
 
 /**
@@ -77,7 +78,6 @@ export type AdminProduct = {
   id: string;
   slug: string;
   name: string;
-  summary: string | null;
   description: string | null;
   brandId: string | null;
   status: ProductStatus;
@@ -91,12 +91,11 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
     id: string;
     slug: string;
     name: string;
-    summary: string | null;
     description: string | null;
     brand_id: string | null;
     status: ProductStatus;
   }>(
-    `SELECT id, slug, name, summary, description, brand_id, status
+    `SELECT id, slug, name, description, brand_id, status
        FROM product WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
@@ -135,7 +134,6 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
     id: product.id,
     slug: product.slug,
     name: product.name,
-    summary: product.summary,
     description: product.description,
     brandId: product.brand_id,
     status: product.status,
@@ -154,35 +152,43 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
   };
 }
 
-export class SlugTakenError extends Error {
-  constructor(slug: string) {
-    super(`The slug "${slug}" is already in use.`);
-    this.name = "SlugTakenError";
-  }
-}
-
 export type ProductInput = {
   name: string;
-  slug: string;
-  summary: string | null;
   description: string | null;
   brandId: string | null;
   categoryIds: string[];
   deviceIds: string[];
 };
 
+/**
+ * Derives a free slug from the product name, inside the caller's transaction.
+ *
+ * Only slugs sharing the derived stem are read, so this never scans the table.
+ * Soft-deleted rows keep their slug — reusing one would silently repoint an old
+ * URL at a different product — so they count as taken.
+ */
+async function deriveSlug(tx: Queryable, name: string, excludeId?: string): Promise<string> {
+  const base = slugify(name);
+  const stem = base === "" ? "item" : base;
+  const values: unknown[] = [`${stem}%`];
+  let sql = "SELECT slug FROM product WHERE slug LIKE $1";
+  if (excludeId !== undefined) {
+    values.push(excludeId);
+    sql += ` AND id <> $${values.length}`;
+  }
+  const existing = await tx.query(sql, values);
+  return firstFreeSlug(base, new Set((existing.rows as { slug: string }[]).map((row) => row.slug)));
+}
+
 export async function createProduct(input: ProductInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
-    const clash = await tx.query("SELECT id FROM product WHERE slug = $1 AND deleted_at IS NULL", [
-      input.slug,
-    ]);
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
+    const slug = await deriveSlug(tx, input.name);
 
     const result = await tx.query(
-      `INSERT INTO product (name, slug, summary, description, brand_id, status, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, 'draft', $6, $6)
+      `INSERT INTO product (name, slug, description, brand_id, status, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, 'draft', $5, $5)
          RETURNING id`,
-      [input.name, input.slug, input.summary, input.description, input.brandId, actor.staffId],
+      [input.name, slug, input.description, input.brandId, actor.staffId],
     );
     const id = (result.rows[0] as { id: string }).id;
 
@@ -214,23 +220,24 @@ export async function createProduct(input: ProductInput, actor: { staffId: strin
 export async function updateProduct(id: string, input: ProductInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
     const before = await tx.query(
-      "SELECT name, slug, summary, description, brand_id FROM product WHERE id = $1 AND deleted_at IS NULL",
+      "SELECT name, slug, description, brand_id, status FROM product WHERE id = $1 AND deleted_at IS NULL",
       [id],
     );
-    if (before.rows.length === 0) return false;
+    const current = before.rows[0] as { slug: string; status: ProductStatus } | undefined;
+    if (current === undefined) return false;
 
-    const clash = await tx.query(
-      "SELECT id FROM product WHERE slug = $1 AND id <> $2 AND deleted_at IS NULL",
-      [input.slug, id],
-    );
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
+    // A published product's slug is its public URL, so renaming must not move
+    // it — an existing link, a shared page or an indexed result would 404.
+    // While it is still a draft nothing points at it yet, so the slug tracks
+    // the name and stays meaningful once it does go live.
+    const slug = current.status === "draft" ? await deriveSlug(tx, input.name, id) : current.slug;
 
     await tx.query(
       `UPDATE product
-          SET name = $2, slug = $3, summary = $4, description = $5, brand_id = $6,
-              updated_at = now(), updated_by = $7
+          SET name = $2, slug = $3, description = $4, brand_id = $5,
+              updated_at = now(), updated_by = $6
         WHERE id = $1`,
-      [id, input.name, input.slug, input.summary, input.description, input.brandId, actor.staffId],
+      [id, input.name, slug, input.description, input.brandId, actor.staffId],
     );
 
     await tx.query("DELETE FROM product_category WHERE product_id = $1", [id]);
