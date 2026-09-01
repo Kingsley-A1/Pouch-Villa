@@ -17,6 +17,11 @@ const slug = z
 
 const koboAmount = z.coerce.number().int().min(0).max(1_000_000_000);
 
+export const adminSearchQuerySchema = z.object({
+  q: z.string().trim().max(120),
+  limit: z.coerce.number().int().min(1).max(20).default(12),
+});
+
 export const passwordSchema = z
   .string()
   .min(MINIMUM_PASSWORD_LENGTH, `At least ${MINIMUM_PASSWORD_LENGTH} characters`);
