@@ -5,12 +5,15 @@ import { requireStaffPrincipal } from "@/server/session";
 import { permissionsForRole } from "@pv/backend/services/roles";
 import { countAllProducts } from "@pv/backend/services/catalogue";
 import { countCustomers } from "@pv/backend/services/customers";
+import { countCategories } from "@pv/backend/services/categories";
+import { countBrands } from "@pv/backend/services/brands";
+import { countStaff } from "@pv/backend/services/staff-access";
 import {
   readAttentionQueues,
   readDashboardTotals,
   readLowStock,
 } from "@pv/backend/services/dashboard";
-import { formatKobo } from "@pv/backend/domain/money";
+import { buildDashboardCards } from "./dashboard-view-model";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Dashboard" };
@@ -31,62 +34,35 @@ export default async function DashboardPage() {
 
   const canSeeOrders = granted.has("order.view");
 
-  const [totals, queues, lowStock, products, customers] = await Promise.all([
-    canSeeOrders ? readDashboardTotals() : null,
-    readAttentionQueues(),
-    granted.has("product.view") ? readLowStock() : null,
-    granted.has("product.view") ? countAllProducts() : null,
-    granted.has("customer.view") ? countCustomers() : null,
-  ]);
+  const [totals, queues, lowStock, products, categories, brands, activeStaff, customers] =
+    await Promise.all([
+      canSeeOrders ? readDashboardTotals() : null,
+      readAttentionQueues(),
+      granted.has("product.view") ? readLowStock() : null,
+      granted.has("product.view") ? countAllProducts() : null,
+      granted.has("category.manage") ? countCategories() : null,
+      granted.has("category.manage") ? countBrands() : null,
+      granted.has("staff.view") ? countStaff() : null,
+      granted.has("customer.view") ? countCustomers() : null,
+    ]);
 
   const attention = queues
     .filter((entry) => granted.has(entry.permission))
     .map((entry) => entry.item)
     .filter((item) => item.count > 0);
 
-  const money = [
-    totals && {
-      label: "Taken today",
-      value: formatKobo(totals.revenueTodayKobo),
-      hint: `${totals.ordersToday} ${totals.ordersToday === 1 ? "order" : "orders"}`,
-      href: "/admin/orders",
-    },
-    totals && {
-      label: "Taken this week",
-      value: formatKobo(totals.revenueThisWeekKobo),
-      hint: `${totals.ordersThisWeek} ${totals.ordersThisWeek === 1 ? "order" : "orders"}`,
-      href: "/admin/orders",
-    },
-    totals && {
-      label: "Open orders",
-      value: String(totals.openOrders),
-      hint: "paid, not yet handed over",
-      href: "/admin/orders?status=payment_confirmed",
-    },
-    totals && {
-      label: "Awaiting payment",
-      value: String(totals.awaitingPayment),
-      hint: "placed, not yet paid",
-      href: "/admin/orders?status=awaiting_payment",
-    },
-    products && {
-      label: "Products",
-      value: `${products.published} / ${products.total}`,
-      hint: "published / total",
-      href: "/admin/products",
-    },
-    customers !== null && {
-      label: "Customers",
-      value: String(customers),
-      hint: null,
-      href: "/admin/customers",
-    },
-  ].filter((card): card is Exclude<typeof card, false | null> => Boolean(card));
+  const { sales, overview } = buildDashboardCards({
+    totals,
+    products,
+    categories,
+    brands,
+    activeStaff,
+    customers,
+  });
 
   return (
     <div>
       <h1 className="text-2xl font-bold">Welcome, {principal.fullName.split(" ")[0]}</h1>
-      <p className="mt-1 text-sm text-(--pv-muted)">{principal.role} · Pouch Villa admin</p>
 
       {/* What is waiting on a person, first. */}
       {attention.length > 0 ? (
@@ -126,13 +102,34 @@ export default async function DashboardPage() {
         </p>
       )}
 
-      {money.length > 0 ? (
-        <section className="mt-8" aria-labelledby="figures">
-          <h2 id="figures" className="text-sm font-bold tracking-wide uppercase">
-            Figures
+      {sales.length > 0 ? (
+        <section className="mt-8" aria-labelledby="sales-orders">
+          <h2 id="sales-orders" className="text-sm font-bold tracking-wide uppercase">
+            Sales &amp; orders
           </h2>
           <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
-            {money.map((card) => (
+            {sales.map((card) => (
+              <Link
+                key={card.label}
+                href={card.href}
+                className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4 hover:border-(--pv-red)"
+              >
+                <p className="text-2xl font-extrabold tabular-nums">{card.value}</p>
+                <p className="mt-1 text-sm font-semibold text-(--pv-ink)">{card.label}</p>
+                {card.hint ? <p className="text-xs text-(--pv-muted)">{card.hint}</p> : null}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {overview.length > 0 ? (
+        <section className="mt-8" aria-labelledby="overview">
+          <h2 id="overview" className="text-sm font-bold tracking-wide uppercase">
+            Overview
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {overview.map((card) => (
               <Link
                 key={card.label}
                 href={card.href}
@@ -181,7 +178,7 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {money.length === 0 && attention.length === 0 ? (
+      {sales.length === 0 && overview.length === 0 && attention.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
           Your role does not yet have visibility into any dashboard figures.
         </p>
