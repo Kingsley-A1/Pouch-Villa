@@ -6,18 +6,18 @@ Decisions only Pouch Villa can make. Each one states what we do **in the meantim
 
 **Status key:** 🔴 blocking a foundational decision · 🟡 blocks a feature · 🟢 blocks content only
 
-| #   | Question                                           | Impact                  | Status |
-| --- | -------------------------------------------------- | ----------------------- | ------ |
-| Q1  | Devices or accessories?                            | 🔴 Catalogue schema     | Open   |
-| Q2  | Two-tier category mapping sign-off                 | 🟡 Navigation, filters  | Open   |
-| Q3  | Is this platform or bizblock the system of record? | 🔴 Inventory, migration | Open   |
-| Q4  | Bank account for transfer payment                  | 🟡 Checkout             | Open   |
-| Q5  | Who is CEO / Manager / Employee?                   | 🟡 RBAC seeding         | Open   |
-| Q6  | Order status vocabulary                            | 🟡 Order state machine  | Open   |
-| Q7  | Vector logo + exact brand values                   | 🟡 Design sign-off      | Open   |
-| Q8  | Delivery zones, fees, timeframes                   | 🟡 Order totals         | Open   |
-| Q9  | Reviews: verified purchase only?                   | 🟢 Reviews              | Open   |
-| Q10 | Policy wording — returns, privacy, terms           | 🟢 Supporting pages     | Open   |
+| #   | Question                                           | Impact                  | Status             |
+| --- | -------------------------------------------------- | ----------------------- | ------------------ |
+| Q1  | Devices or accessories?                            | 🔴 Catalogue schema     | Open               |
+| Q2  | Two-tier category mapping sign-off                 | 🟡 Navigation, filters  | Open               |
+| Q3  | Is this platform or bizblock the system of record? | 🔴 Inventory, migration | Open               |
+| Q4  | Bank account for transfer payment                  | 🟡 Checkout             | Open               |
+| Q5  | Who is CEO / Manager / Employee?                   | 🟡 RBAC seeding         | Open               |
+| Q6  | Order status vocabulary                            | 🟡 Order state machine  | Open               |
+| Q7  | Vector logo + exact brand values                   | 🟡 Design sign-off      | Open               |
+| Q8  | Delivery zones, fees, timeframes                   | 🟡 Order totals         | Open               |
+| Q9  | Reviews: verified purchase only?                   | 🟢 Reviews              | Open               |
+| Q10 | Policy wording — returns, privacy, terms           | 🟢 Supporting pages     | Partially answered |
 
 ---
 
@@ -109,7 +109,9 @@ Scope says _"Review Product — approve and manage feedback"_, so moderation is 
 
 **Ask:** may anyone with an account review, or only a verified purchaser? Are reviews held for approval before publication, or published then moderated? Anyone can review. Reviews held for approval before publication
 
-**Meanwhile:** reviews require an authenticated account, are linked to an order line where one exists, and default to **held for approval** — the conservative choice, and a setting rather than a rewrite.
+**Answered, and built.** See [`decisions/0005-order-lifecycle-and-reviews.md`](decisions/0005-order-lifecycle-and-reviews.md) §3. Anyone may review — no account, no sign-in wall — and every review is held for approval before publication. Spam control is that moderation plus per-IP and per-product rate limiting.
+
+> The previous "meanwhile" text here said reviews _"require an authenticated account"_. That contradicted the client's own answer above and was never built; it is corrected rather than left standing.
 
 ---
 
@@ -119,4 +121,8 @@ About, Privacy Policy and Terms & Conditions are committed deliverables. We will
 
 **Ask:** returns and warranty terms, refund window, data retention period, and who owns data-protection responsibility under NDPR. This should be done with the bets infomation available, searching what is teh current standrd today, and admins should be able to edit/add to the the pages content when they need to change something.
 
-**Meanwhile:** the pages exist, are admin-editable, and render an explicit _awaiting confirmation_ notice rather than plausible-sounding invented policy.
+**Partially answered.** See [`decisions/About-Policy.md`](decisions/About-Policy.md): the About Us copy and the full Return & Warranty policy — 7-day return window for faulty goods, no change-of-mind refunds, 3-day manufacturing-defect-only warranty with named exclusions, replacement rather than cash refund — have landed from the client and are ready to build. That document is explicit that it covers About and Return & Warranty only, and does not extend to privacy, delivery, payments or general legal terms — so the Privacy Policy wording and the NDPR data-retention/responsibility question are still open.
+
+**Still to ask:** Privacy Policy wording, data retention period, and who owns data-protection responsibility under NDPR.
+
+**Meanwhile:** the received content is filed here for **Phase 4** ([`work-plan.md`](work-plan.md) §4), where the supporting pages are built. It is not yet wired into the settings store or rendered — see the work-plan for what that involves, including a new `policy.returns` settings key and new `/about` and `/returns` routes, since Return & Warranty is content distinct from Terms & Conditions and was never given its own key. Privacy still renders its _awaiting confirmation_ notice, unaffected by this answer.

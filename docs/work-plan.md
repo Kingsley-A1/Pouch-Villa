@@ -154,6 +154,8 @@ The customer half of the system, none of which exists yet.
 
 Dashboard depth, saved views, bulk actions, and the operational polish that only surfaces once real orders exist. Supporting pages — About, Privacy, Terms — are already admin-editable and render an explicit _awaiting confirmation_ notice until Q10 lands.
 
+**About and Return & Warranty content has landed** ([`decisions/About-Policy.md`](decisions/About-Policy.md); [`open-questions.md`](open-questions.md) Q10) and is filed here, not yet built: a new `policy.returns` settings key (Return & Warranty is distinct from Terms & Conditions, per the client's own document), and the `/about` and `/returns` pages themselves — `/about` does not exist as a route yet even as a placeholder. Privacy Policy wording and the NDPR data-retention question remain open, so `/privacy` keeps its _awaiting confirmation_ notice regardless.
+
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
 
 ### ⏳ Phase 5 — Hardening & launch
@@ -168,18 +170,20 @@ Security review against §5 with a written report. Load testing. WCAG 2.2 AA aud
 
 `pnpm run verify` runs: `format:check` → `lint` → `typecheck` → `check:facts` → `test` → `build` → `test:routes`.
 
-| Layer                 | Coverage                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping |
-| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search    |
-| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                  |
-| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                    |
-| **Routes**            | Every storefront route returns 200; every protected admin route 307s to `/admin/login`                        |
-| **E2E**               | ❌ Not yet — Phase 3                                                                                          |
-| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                  |
-| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                        |
+| Layer                 | Coverage                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping    |
+| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search       |
+| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                     |
+| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                       |
+| **Routes**            | Six storefront routes return 200 against a booted production build. **Admin routes are not covered** — see below |
+| **E2E**               | ❌ Not yet — Phase 3                                                                                             |
+| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                     |
+| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                           |
 
 **Test databases are separate.** Writing integration tests require `TEST_DATABASE_URL` and refuse to run if it matches `DATABASE_URL`. This exists because an early run left twenty-six live role codes in the production database.
+
+> **Correction, 2026-08-31.** This table previously claimed _"every protected admin route 307s to `/admin/login`"_. It does not, and never did: [`verify-routes.mjs`](../apps/pv-frontend/scripts/verify-routes.mjs) checks `/`, `/shop`, `/categories`, `/search`, `/privacy` and `/terms`, and no admin route at all. The redirect behaviour is real and is exercised by the session adapter, but it is not covered by this gate. Extending the script to assert the admin redirect is folded into Phase 3.
 
 ---
 
