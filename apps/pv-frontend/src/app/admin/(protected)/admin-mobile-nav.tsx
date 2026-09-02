@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, List, Storefront, X } from "@phosphor-icons/react";
 import type { NavSection } from "./nav-sections";
 
 export function AdminMobileNav({ sections }: { sections: NavSection[] }) {
@@ -78,6 +78,28 @@ export function AdminMobileNav({ sections }: { sections: NavSection[] }) {
                       </Link>
                     );
                   })}
+
+                  {/*
+                    The same way back to the shop as the desktop sidebar. The
+                    client runs this business from a phone, so leaving it out
+                    here would make it a desktop-only convenience.
+                  */}
+                  <div className="mt-3 border-t border-(--pv-line) pt-3">
+                    <Link
+                      href="/"
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={close}
+                      aria-label="View store (opens in a new tab)"
+                      className="flex min-h-11 items-center gap-2 truncate rounded-xl px-4 py-3 text-sm font-semibold text-(--pv-muted) hover:bg-(--pv-wash)"
+                    >
+                      <Storefront aria-hidden="true" size={19} />
+                      <span aria-hidden="true" className="flex items-center gap-1.5">
+                        View store
+                        <ArrowSquareOut size={13} />
+                      </span>
+                    </Link>
+                  </div>
                 </div>
               </nav>
             </div>,

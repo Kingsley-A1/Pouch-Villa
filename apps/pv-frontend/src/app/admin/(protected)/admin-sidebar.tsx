@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowSquareOut,
   ChatCircleDots,
   CreditCard,
   DeviceMobile,
@@ -16,6 +17,7 @@ import {
   SidebarSimple,
   SquaresFour,
   Star,
+  Storefront,
   Tag,
   Users,
 } from "@phosphor-icons/react";
@@ -154,6 +156,45 @@ export function AdminSidebar({ sections }: { sections: NavSection[] }) {
             );
           })}
         </ul>
+
+        {/*
+          The way back to the shop.
+
+          Separated from the section list because it leaves the admin entirely,
+          and opened in a new tab so a staff member checking how a change looks
+          to a customer does not lose the screen they were working on. It is not
+          permission-gated: the storefront is public, so anyone who can see this
+          sidebar can already visit it.
+        */}
+        <div className="mt-3 border-t border-(--pv-line) pt-3">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noreferrer"
+            // The accessible name lives here, as it does on every section link
+            // above, so it survives the collapsed rail clipping the label. It
+            // states the new tab outright rather than leaving that to the icon.
+            aria-label="View store (opens in a new tab)"
+            title={open ? undefined : "View store"}
+            className={cn(
+              "flex min-h-11 items-center gap-3 rounded-xl text-sm font-semibold text-(--pv-muted)",
+              "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+              open ? "px-3" : "justify-center px-0",
+            )}
+          >
+            <Storefront aria-hidden="true" size={21} />
+            <span
+              aria-hidden="true"
+              className={cn(
+                "flex items-center gap-1.5 whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none",
+                open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+              )}
+            >
+              View store
+              <ArrowSquareOut size={13} />
+            </span>
+          </Link>
+        </div>
       </nav>
     </aside>
   );

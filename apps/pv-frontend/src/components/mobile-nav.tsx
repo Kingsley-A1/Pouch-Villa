@@ -6,7 +6,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { List, X } from "@phosphor-icons/react";
 
-export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, string]> }) {
+type NavLinks = ReadonlyArray<readonly [string, string]>;
+
+export function MobileNav({ links, infoLinks }: { links: NavLinks; infoLinks: NavLinks }) {
   const pathname = usePathname();
   // The header sets backdrop-filter, which makes it the containing block for any
   // fixed-position descendant. Rendered inline, the overlay was therefore sized to
@@ -39,7 +41,7 @@ export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, st
       <button
         type="button"
         onClick={() => setOpenedOn(pathname)}
-        className="grid h-11 w-11 place-items-center rounded-xl hover:bg-[#f6f3f1]"
+        className="grid h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash)"
         aria-label="Open menu"
         aria-expanded={open}
       >
@@ -59,12 +61,12 @@ export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, st
                 aria-label="Mobile navigation"
                 className="absolute top-0 right-0 flex h-full w-[min(84vw,340px)] flex-col bg-(--pv-surface) shadow-2xl"
               >
-                <div className="flex h-[76px] shrink-0 items-center justify-between border-b border-[#e8e3df] px-5">
+                <div className="flex h-[76px] shrink-0 items-center justify-between border-b border-(--pv-line) px-5">
                   <span className="text-sm font-bold tracking-wide text-(--pv-muted)">Menu</span>
                   <button
                     type="button"
                     onClick={close}
-                    className="grid h-11 w-11 place-items-center rounded-xl hover:bg-[#f6f3f1]"
+                    className="grid h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash)"
                     aria-label="Close menu"
                   >
                     <X size={23} />
@@ -80,12 +82,43 @@ export function MobileNav({ links }: { links: ReadonlyArray<readonly [string, st
                         // Tapping the current page does not change the route, so close explicitly.
                         onClick={close}
                         aria-current={active ? "page" : undefined}
-                        className={`block truncate rounded-xl px-4 py-3.5 font-bold ${active ? "bg-[#f6f3f1] text-[#e30613]" : "hover:bg-[#f6f3f1]"}`}
+                        className={`block truncate rounded-xl px-4 py-3.5 font-bold ${active ? "bg-(--pv-wash) text-(--pv-red)" : "hover:bg-(--pv-wash)"}`}
                       >
                         {label}
                       </Link>
                     );
                   })}
+
+                  {/*
+                    A separate, quieter group. The supporting pages belong in the
+                    drawer — on a phone the footer is a long scroll away — but
+                    they must not compete visually with the links that lead to a
+                    sale, so they are lighter and set apart rather than appended
+                    to the list above.
+                  */}
+                  <p
+                    id="mobile-nav-info"
+                    className="mt-4 border-t border-(--pv-line) px-4 pt-5 pb-1 text-xs font-bold tracking-[.14em] text-(--pv-muted) uppercase"
+                  >
+                    Information
+                  </p>
+                  <ul aria-labelledby="mobile-nav-info">
+                    {infoLinks.map(([label, href]) => {
+                      const active = pathname === href;
+                      return (
+                        <li key={href}>
+                          <Link
+                            href={href}
+                            onClick={close}
+                            aria-current={active ? "page" : undefined}
+                            className={`block truncate rounded-xl px-4 py-3 text-sm font-semibold ${active ? "bg-(--pv-wash) text-(--pv-red)" : "text-(--pv-muted) hover:bg-(--pv-wash)"}`}
+                          >
+                            {label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               </nav>
             </div>,

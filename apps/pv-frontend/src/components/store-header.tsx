@@ -4,11 +4,27 @@ import { BrandMark } from "@/components/brand-mark";
 import { MobileNav } from "@/components/mobile-nav";
 import { getCartCount } from "@/server/cart-count";
 
+/** The shopping path. Few enough to sit across the desktop header. */
 const links = [
   ["Shop", "/shop"],
   ["Categories", "/categories"],
   ["Track order", "/track"],
   ["Contact", "/contact"],
+] as const;
+
+/**
+ * The supporting pages, reachable from the drawer as well as the footer.
+ *
+ * Deliberately not added to the desktop header: eight top-level links would
+ * bury the four that lead to a sale. On a phone the footer is a long scroll
+ * away, so someone looking for the returns policy mid-purchase — exactly when
+ * they are deciding whether to buy — would otherwise have to hunt for it.
+ */
+const infoLinks = [
+  ["About us", "/about"],
+  ["Returns & warranty", "/returns"],
+  ["Privacy", "/privacy"],
+  ["Terms", "/terms"],
 ] as const;
 
 export async function StoreHeader() {
@@ -65,7 +81,7 @@ export async function StoreHeader() {
             ) : null}
           </Link>
 
-          <MobileNav links={links} />
+          <MobileNav links={links} infoLinks={infoLinks} />
         </div>
       </div>
     </header>
