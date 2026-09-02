@@ -4,6 +4,7 @@ import { ProductGrid } from "@/components/product-grid";
 import { likeSummaryFor } from "@/server/product-likes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { toSingle } from "@/lib/utils";
+import { SearchField } from "./search-field";
 
 /**
  * Catalogue and settings come from the database, so this renders per request.
@@ -35,14 +36,7 @@ export default async function SearchPage({
             <label htmlFor="q" className="sr-only">
               Search products
             </label>
-            <input
-              id="q"
-              name="q"
-              type="search"
-              defaultValue={term}
-              placeholder="What are you looking for?"
-              className="field min-h-11 flex-1"
-            />
+            <SearchField term={term} />
             <button className="button-primary min-h-11">Search</button>
           </form>
 

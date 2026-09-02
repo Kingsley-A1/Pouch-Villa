@@ -4,18 +4,24 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, X } from "@phosphor-icons/react";
+import { CaretRight, List, User, X } from "@phosphor-icons/react";
 
 type NavLinks = ReadonlyArray<readonly [string, string]>;
+
+/**
+ * The signed-in customer, or `null` for a visitor. Resolved on the server so the
+ * drawer never has to fetch a session itself.
+ */
+export type DrawerAccount = { name: string | null; monogram: string | null; email: string };
 
 export function MobileNav({
   links,
   infoLinks,
-  signedIn,
+  account,
 }: {
   links: NavLinks;
   infoLinks: NavLinks;
-  signedIn: boolean;
+  account: DrawerAccount | null;
 }) {
   const pathname = usePathname();
   // The header sets backdrop-filter, which makes it the containing block for any
@@ -81,6 +87,44 @@ export function MobileNav({
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3">
+                  {/*
+                    The account, at the top and named.
+                    
+                    Below `lg` the header no longer shows a user icon for someone
+                    who is signed in, so this is where the account lives. A row
+                    with their initials and first name on it also answers the
+                    question a shared phone raises — whose session is this —
+                    which an anonymous icon in a header never could.
+                  */}
+                  {account !== null ? (
+                    <Link
+                      href="/account"
+                      onClick={close}
+                      aria-current={pathname.startsWith("/account") ? "page" : undefined}
+                      className={`mb-2 flex items-center gap-3 rounded-2xl border p-3 ${
+                        pathname.startsWith("/account")
+                          ? "border-(--pv-red) bg-[color-mix(in_srgb,var(--pv-red)_7%,var(--pv-surface))]"
+                          : "border-(--pv-line) hover:bg-(--pv-wash)"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-(--pv-red) font-extrabold text-(--pv-on-brand)"
+                      >
+                        {account.monogram ?? <User size={20} weight="fill" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold">
+                          {account.name === null ? "Your account" : `Hi, ${account.name}`}
+                        </span>
+                        <span className="block truncate text-xs text-(--pv-muted)">
+                          {account.email}
+                        </span>
+                      </span>
+                      <CaretRight size={16} aria-hidden="true" className="shrink-0" />
+                    </Link>
+                  ) : null}
+
                   {links.map(([label, href]) => {
                     const active = pathname === href;
                     return (
@@ -99,20 +143,23 @@ export function MobileNav({
 
                   {/*
                     Sits with the shopping links rather than under Information:
-                    signing in is a thing you do, not a page you read.
+                    signing in is a thing you do, not a page you read. Someone
+                    already signed in has the card above instead.
                   */}
-                  <Link
-                    href="/account"
-                    onClick={close}
-                    aria-current={pathname.startsWith("/account") ? "page" : undefined}
-                    className={`block truncate rounded-xl px-4 py-3.5 font-bold ${
-                      pathname.startsWith("/account")
-                        ? "bg-(--pv-wash) text-(--pv-red)"
-                        : "hover:bg-(--pv-wash)"
-                    }`}
-                  >
-                    {signedIn ? "Your account" : "Sign in"}
-                  </Link>
+                  {account === null ? (
+                    <Link
+                      href="/account"
+                      onClick={close}
+                      aria-current={pathname.startsWith("/account") ? "page" : undefined}
+                      className={`block truncate rounded-xl px-4 py-3.5 font-bold ${
+                        pathname.startsWith("/account")
+                          ? "bg-(--pv-wash) text-(--pv-red)"
+                          : "hover:bg-(--pv-wash)"
+                      }`}
+                    >
+                      Sign in
+                    </Link>
+                  ) : null}
 
                   {/*
                     A separate, quieter group. The supporting pages belong in the

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MagnifyingGlass, ShoppingBag, User } from "@phosphor-icons/react/dist/ssr";
+import { greetingName, initials } from "@pv/backend/domain/person-name";
 import { BrandMark } from "@/components/brand-mark";
 import { MobileNav } from "@/components/mobile-nav";
 import { getCartCount } from "@/server/cart-count";
@@ -30,7 +31,14 @@ const infoLinks = [
 
 export async function StoreHeader() {
   const [cartCount, customer] = await Promise.all([getCartCount(), getCustomerPrincipal()]);
-  const signedIn = customer !== null;
+  const account =
+    customer === null
+      ? null
+      : {
+          name: greetingName(customer.fullName, customer.email),
+          monogram: initials(customer.fullName, customer.email),
+          email: customer.email,
+        };
 
   return (
     <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-[color-mix(in_srgb,var(--pv-page)_92%,transparent)] backdrop-blur-sm">
@@ -84,20 +92,26 @@ export async function StoreHeader() {
           </Link>
 
           {/*
-            One destination whether or not they are signed in — the account area
-            redirects to sign-in itself. Two different icons in the same place
-            would make the header shift as the session state resolves, and the
-            accessible name carries the difference that matters.
+            Signed out, the icon is an invitation and earns its place in the bar.
+            Signed in, it is a fifth control competing with search, cart and menu
+            on a 360 px screen while pointing at something the drawer already
+            carries — so below `lg` it steps aside and the drawer holds the
+            account, with a name on it. The desktop bar has the room, and keeps
+            it either way.
           */}
           <Link
             href="/account"
-            className="grid h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash)"
-            aria-label={signedIn ? "Your account" : "Sign in to your account"}
+            className={
+              account === null
+                ? "grid h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash)"
+                : "hidden h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash) lg:grid"
+            }
+            aria-label={account === null ? "Sign in to your account" : "Your account"}
           >
-            <User size={23} weight={signedIn ? "fill" : "regular"} />
+            <User size={23} weight={account === null ? "regular" : "fill"} />
           </Link>
 
-          <MobileNav links={links} infoLinks={infoLinks} signedIn={signedIn} />
+          <MobileNav links={links} infoLinks={infoLinks} account={account} />
         </div>
       </div>
     </header>
