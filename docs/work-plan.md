@@ -5,7 +5,7 @@
 **Repository:** [`github.com/Kingsley-A1/Pouch-Villa`](https://github.com/Kingsley-A1/Pouch-Villa) · `main` · CI green
 **Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md) · **Decisions:** [`decisions/`](decisions/)
 
-**Status at last update (2026-09-01):** Phases 0–2 complete. **Phase 3 is built and green except for its E2E harness**; Phase 4 has started with the client's Q2/Q7 interface asks. See §4 for what each of those covers and what is still outstanding.
+**Status at last update (2026-09-02):** Phases 0–2 complete. **Phase 3 is built and green except for its E2E harness**; Phase 4 has started with the client's Q2/Q7 interface asks. The storefront half has now caught up with the admin — home-page composition, likes and the customer account all shipped on 2026-09-02, closing three signed-scope rows that §1 still listed as absent. See §4.
 
 > §1 and §2 below are the original assessment of the inherited prototype, kept as
 > the record of _why_ the rebuild was chosen. They describe PouchHub as it was
@@ -229,6 +229,50 @@ they are what the delivery will be judged on:
   through the state machine and gets its own audit record; there is no bulk path
   that bypasses either.
 
+**Storefront parity, added 2026-09-02.** Three signed-scope rows that §1 lists as
+absent are now built, recorded in
+[`decisions/0006-storefront-composition-and-likes.md`](decisions/0006-storefront-composition-and-likes.md).
+Migration
+[`0009_storefront.sql`](../packages/pv-backend/migrations/0009_storefront.sql),
+applied to `pouchvilla_test` and `defaultdb`.
+
+- **Home page composition.** The home page rendered one hardcoded grid of the
+  eight newest products — the only arrangement the business could ever have,
+  changeable only by a deployment. It is now composed at runtime from sections
+  the CEO manages at `/admin/storefront`, in the three shapes a shop actually
+  merchandises in: a category rule, a brand rule, or a hand-picked collection.
+  Where a product lands is set on the product's own form, next to its categories.
+  A section that would resolve to nothing is dropped rather than rendered as an
+  empty heading, and "Latest" remains the fallback until the first section
+  exists.
+- **Like & share (the like half).** Signed-in customers and signed-out visitors
+  can both like a product; a visitor's likes follow them into their account on
+  sign-in. Counts show in the storefront and on the admin product list, and are
+  **hidden at zero** rather than shown as "0". Uniqueness is a partial unique
+  index, not a read-then-write, so a double-tapped button on a slow connection
+  cannot double-count. Sharing is still outstanding.
+- **The customer account.** Customer identity has existed at the service layer
+  and behind `api/v1/auth/customer/*` since Phase 3, but **no page reached it** —
+  the scope's "Register / sign in (Email or Google)" was built and unreachable.
+  There is now register, sign in, password recovery, and a profile carrying
+  purchase history, saved products and editable details. Email is deliberately
+  not editable and a password change ends every session; both are argued in ADR 0006.
+- **Hero copy** moved to `store.hero_headline` / `store.hero_subtitle`, editable
+  in Settings, with wording in source as the fallback.
+- **`src/proxy.ts`** — Next 16's renamed middleware, added so a signed-out
+  request to `/account` gets a real 307 rather than a streamed 200 and a
+  JavaScript redirect. It is an optimistic cookie-presence check only; the
+  layout still verifies the session server-side. See ADR 0006 §7.
+
+> **A defect found on the way, worth recording.** `savePolicySettingsAction`
+> never read `policy.returns`, though the schema required it and the form
+> submitted it. Zod rejected every submission for the missing key, so **no policy
+> page could be saved from the admin at all** — the form answered "Check the
+> form." with nothing visibly wrong. Each settings schema now has an exported
+> field list the action builds its submission from, with a test holding the two
+> in step, so adding a field can no longer silently break saving it. This was
+> live, and it was invisible to typecheck, lint and build alike.
+
 > **Not covered by any automated test.** The admin screens are verified only to
 > the extent that they typecheck, build, and redirect a signed-out request. No
 > test renders them signed in — that needs the E2E harness, which is the last
@@ -250,16 +294,16 @@ Security review against §5 with a written report. Load testing. WCAG 2.2 AA aud
 
 `pnpm run verify` runs: `format:check` → `lint` → `typecheck` → `check:facts` → `test` → `build` → `test:routes`.
 
-| Layer                 | Coverage                                                                                                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping                                                                  |
-| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search                                                                     |
-| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                                                                                   |
-| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                                                                                     |
-| **Routes**            | Nine storefront routes return 200; all 13 protected admin routes 307 to `/admin/login`; the API answers its `{ ok }` envelope and refuses a checkout with no `Idempotency-Key` |
-| **E2E**               | ❌ Not yet — Phase 3                                                                                                                                                           |
-| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                                                                                   |
-| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                                                                                         |
+| Layer                 | Coverage                                                                                                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**              | Money, role codes, retry classification and backoff, migration checksums, image validation and EXIF stripping                                                                                                                                                  |
+| **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search                                                                                                                                                     |
+| **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                                                                                                                                                                   |
+| **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                                                                                                                                                                     |
+| **Routes**            | Storefront routes return 200; all 14 protected admin routes 307 to `/admin/login`, and the four `/account` routes 307 to `/account/sign-in` — never to the staff login; the API answers its `{ ok }` envelope and refuses a checkout with no `Idempotency-Key` |
+| **E2E**               | ❌ Not yet — Phase 3                                                                                                                                                                                                                                           |
+| **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                                                                                                                                                                   |
+| **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                                                                                                                                                                         |
 
 **Test databases are separate.** Writing integration tests require `TEST_DATABASE_URL` and refuse to run if it matches `DATABASE_URL`. This exists because an early run left twenty-six live role codes in the production database.
 

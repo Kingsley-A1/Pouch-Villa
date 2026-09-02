@@ -19,11 +19,15 @@ export function StoreSettingsForm({
   hours,
   whatsapp,
   contactEmail,
+  heroHeadline,
+  heroSubtitle,
 }: {
   address: SettingValue;
   hours: SettingValue;
   whatsapp: SettingValue;
   contactEmail: SettingValue;
+  heroHeadline: SettingValue;
+  heroSubtitle: SettingValue;
 }) {
   const [state, formAction] = useActionState(saveStoreSettingsAction, INITIAL_ACTION_STATE);
 
@@ -67,6 +71,33 @@ export function StoreSettingsForm({
           <OriginBadge value={contactEmail} />
         </Field>
       </div>
+
+      {/*
+        Marketing copy, not a business fact — so unlike the fields above, leaving
+        these blank is safe: the home page falls back to its own wording rather
+        than rendering "awaiting confirmation" where a headline should be.
+      */}
+      <fieldset className="grid gap-4 border-t border-(--pv-line) pt-4">
+        <legend className="text-sm font-bold">Home page headline</legend>
+        <Field
+          label="Headline"
+          name="store.hero_headline"
+          hint="Leave blank to use the built-in wording."
+        >
+          <TextArea
+            name="store.hero_headline"
+            defaultValue={heroHeadline.present ? heroHeadline.value : ""}
+          />
+          <OriginBadge value={heroHeadline} />
+        </Field>
+        <Field label="Sub-heading" name="store.hero_subtitle">
+          <TextArea
+            name="store.hero_subtitle"
+            defaultValue={heroSubtitle.present ? heroSubtitle.value : ""}
+          />
+          <OriginBadge value={heroSubtitle} />
+        </Field>
+      </fieldset>
 
       <FormError message={state.error} />
       <FormSuccess message={state.message} />

@@ -18,6 +18,8 @@ export default async function SettingsAdminPage() {
     "store.opening_hours",
     "store.whatsapp_number",
     "store.contact_email",
+    "store.hero_headline",
+    "store.hero_subtitle",
     "policy.about",
     "policy.returns",
     "policy.privacy",
@@ -44,6 +46,8 @@ export default async function SettingsAdminPage() {
         hours={pick(settings, "store.opening_hours")}
         whatsapp={pick(settings, "store.whatsapp_number")}
         contactEmail={pick(settings, "store.contact_email")}
+        heroHeadline={pick(settings, "store.hero_headline")}
+        heroSubtitle={pick(settings, "store.hero_subtitle")}
       />
       <PolicySettingsForm
         about={pick(settings, "policy.about")}

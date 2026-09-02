@@ -1,4 +1,5 @@
 import type { CatalogueListItem } from "@pv/backend/services/catalogue";
+import type { LikeSummary } from "@/server/product-likes";
 import { ProductCard } from "@/components/product-card";
 import { PouchMark } from "@/components/pouch-mark";
 
@@ -10,9 +11,16 @@ import { PouchMark } from "@/components/pouch-mark";
 export function ProductGrid({
   products,
   emptyMessage = "No products have been published yet.",
+  likes,
 }: {
   products: CatalogueListItem[];
   emptyMessage?: string;
+  /**
+   * Supplied by the page, never fetched here — this component is presentational
+   * (AGENTS.md §7). Omitted, the grid renders without hearts and ships no
+   * client JavaScript at all.
+   */
+  likes?: LikeSummary;
 }) {
   if (products.length === 0) {
     return (
@@ -27,9 +35,10 @@ export function ProductGrid({
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
-      ))}
+      {products.map((product) => {
+        const like = likes?.get(product.id);
+        return <ProductCard key={product.id} product={product} {...(like ? { like } : {})} />;
+      })}
     </div>
   );
 }

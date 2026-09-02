@@ -423,6 +423,147 @@ export async function completePasswordReset(
   });
 }
 
+// ---------------------------------------------------------------------------
+// The customer's own profile. Every function here is scoped to one customer id
+// taken from the session, never from a request parameter, so there is no shape
+// of input that reaches another person's account.
+// ---------------------------------------------------------------------------
+
+export type CustomerProfile = {
+  id: string;
+  email: string;
+  fullName: string | null;
+  phone: string | null;
+  /** Whether a password is set at all. A Google-only account has none. */
+  hasPassword: boolean;
+  hasGoogle: boolean;
+  memberSince: Date;
+};
+
+export async function getCustomerProfile(customerId: string): Promise<CustomerProfile | null> {
+  const row = await queryOne<{
+    id: string;
+    email: string;
+    full_name: string | null;
+    phone: string | null;
+    password_hash: string | null;
+    google_subject: string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, email, full_name, phone, password_hash, google_subject, created_at
+       FROM customer WHERE id = $1 AND deleted_at IS NULL`,
+    [customerId],
+  );
+  if (row === null) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    fullName: row.full_name,
+    phone: row.phone,
+    // The hash itself never leaves this function — only whether one exists.
+    hasPassword: row.password_hash !== null,
+    hasGoogle: row.google_subject !== null,
+    memberSince: row.created_at,
+  };
+}
+
+export type ProfileUpdate = { fullName: string | null; phone: string | null };
+
+/**
+ * Name and phone only.
+ *
+ * Email is deliberately not editable here. It is the account's identity, the
+ * address a password reset goes to, and one half of how an order is looked up —
+ * changing it is an account-takeover step, not a profile edit, and it needs a
+ * flow that proves control of the new address first.
+ */
+export async function updateCustomerProfile(
+  customerId: string,
+  update: ProfileUpdate,
+  context: RequestContext = {},
+): Promise<void> {
+  const phone = update.phone ? normalisePhone(update.phone) : null;
+  await withTransaction(async (tx) => {
+    const before = await tx.query(
+      "SELECT full_name, phone FROM customer WHERE id = $1 AND deleted_at IS NULL",
+      [customerId],
+    );
+    if (before.rows.length === 0) return;
+
+    await tx.query(
+      `UPDATE customer
+          SET full_name = $2, phone = $3, phone_normalised = $3, updated_at = now()
+        WHERE id = $1`,
+      [customerId, update.fullName, phone],
+    );
+    await recordAudit(tx, {
+      actorType: "customer",
+      actorId: customerId,
+      action: "customer.profile_updated",
+      entityType: "customer",
+      entityId: customerId,
+      before: before.rows[0],
+      after: { full_name: update.fullName, phone },
+      requestId: context.requestId,
+      ip: context.ip,
+    });
+    await syncAdminSearchDocument(tx, "customer", customerId);
+  });
+}
+
+/**
+ * Changes a password from inside the account.
+ *
+ * The current password is required even though the session already proves who
+ * this is: a session left open on a shared phone should not be enough to lock
+ * its owner out of their own account. An account created through Google has no
+ * current password, so it sets one instead — which is what lets someone who
+ * signed up with Google add an email/password way in.
+ */
+export async function changeCustomerPassword(
+  customerId: string,
+  currentPassword: string | null,
+  newPassword: string,
+  context: RequestContext = {},
+): Promise<void> {
+  const row = await queryOne<{ password_hash: string | null }>(
+    "SELECT password_hash FROM customer WHERE id = $1 AND deleted_at IS NULL",
+    [customerId],
+  );
+  if (row === null) throw new InvalidCustomerCredentialsError();
+
+  if (row.password_hash !== null) {
+    const matches =
+      currentPassword !== null && (await verifyPassword(currentPassword, row.password_hash));
+    if (!matches) throw new InvalidCustomerCredentialsError();
+  }
+
+  // Slow, and neither touches the database, so both happen before the
+  // transaction opens rather than inside a body the server may retry.
+  await assertPasswordNotBreached(newPassword);
+  const passwordHash = await hashPassword(newPassword);
+
+  await withTransaction(async (tx) => {
+    await tx.query("UPDATE customer SET password_hash = $2, updated_at = now() WHERE id = $1", [
+      customerId,
+      passwordHash,
+    ]);
+    // Every other session is ended. A password change is what someone does when
+    // they think an account is compromised, and leaving the intruder's session
+    // alive would make the act pointless.
+    await revokeAllCustomerSessions(tx, customerId);
+    await recordAudit(tx, {
+      actorType: "customer",
+      actorId: customerId,
+      action: "customer.password_changed",
+      entityType: "customer",
+      entityId: customerId,
+      requestId: context.requestId,
+      ip: context.ip,
+    });
+  });
+}
+
 export async function suspendCustomer(
   customerId: string,
   reason: string,

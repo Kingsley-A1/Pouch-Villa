@@ -8,7 +8,15 @@ import { List, X } from "@phosphor-icons/react";
 
 type NavLinks = ReadonlyArray<readonly [string, string]>;
 
-export function MobileNav({ links, infoLinks }: { links: NavLinks; infoLinks: NavLinks }) {
+export function MobileNav({
+  links,
+  infoLinks,
+  signedIn,
+}: {
+  links: NavLinks;
+  infoLinks: NavLinks;
+  signedIn: boolean;
+}) {
   const pathname = usePathname();
   // The header sets backdrop-filter, which makes it the containing block for any
   // fixed-position descendant. Rendered inline, the overlay was therefore sized to
@@ -88,6 +96,23 @@ export function MobileNav({ links, infoLinks }: { links: NavLinks; infoLinks: Na
                       </Link>
                     );
                   })}
+
+                  {/*
+                    Sits with the shopping links rather than under Information:
+                    signing in is a thing you do, not a page you read.
+                  */}
+                  <Link
+                    href="/account"
+                    onClick={close}
+                    aria-current={pathname.startsWith("/account") ? "page" : undefined}
+                    className={`block truncate rounded-xl px-4 py-3.5 font-bold ${
+                      pathname.startsWith("/account")
+                        ? "bg-(--pv-wash) text-(--pv-red)"
+                        : "hover:bg-(--pv-wash)"
+                    }`}
+                  >
+                    {signedIn ? "Your account" : "Sign in"}
+                  </Link>
 
                   {/*
                     A separate, quieter group. The supporting pages belong in the

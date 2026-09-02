@@ -5,6 +5,7 @@ import {
   listDevices,
 } from "@pv/backend/services/catalogue";
 import { ProductGrid } from "@/components/product-grid";
+import { likeSummaryFor } from "@/server/product-likes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CategoryFilter } from "@/components/category-filter";
 import { DeviceFilter } from "@/components/device-filter";
@@ -40,6 +41,7 @@ export default async function ShopPage({
   ]);
 
   const filtered = Boolean(categorySlug || brandSlug || deviceSlug);
+  const likes = await likeSummaryFor(products);
 
   return (
     <>
@@ -52,6 +54,7 @@ export default async function ShopPage({
           <div className="mt-8">
             <ProductGrid
               products={products}
+              likes={likes}
               emptyMessage={
                 filtered
                   ? "Nothing published matches those filters yet."

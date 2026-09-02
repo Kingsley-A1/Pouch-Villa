@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { MagnifyingGlass, ShoppingBag } from "@phosphor-icons/react/dist/ssr";
+import { MagnifyingGlass, ShoppingBag, User } from "@phosphor-icons/react/dist/ssr";
 import { BrandMark } from "@/components/brand-mark";
 import { MobileNav } from "@/components/mobile-nav";
 import { getCartCount } from "@/server/cart-count";
+import { getCustomerPrincipal } from "@/server/customer-session";
 
 /** The shopping path. Few enough to sit across the desktop header. */
 const links = [
@@ -28,7 +29,8 @@ const infoLinks = [
 ] as const;
 
 export async function StoreHeader() {
-  const cartCount = await getCartCount();
+  const [cartCount, customer] = await Promise.all([getCartCount(), getCustomerPrincipal()]);
+  const signedIn = customer !== null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-[color-mix(in_srgb,var(--pv-page)_92%,transparent)] backdrop-blur-sm">
@@ -81,7 +83,21 @@ export async function StoreHeader() {
             ) : null}
           </Link>
 
-          <MobileNav links={links} infoLinks={infoLinks} />
+          {/*
+            One destination whether or not they are signed in — the account area
+            redirects to sign-in itself. Two different icons in the same place
+            would make the header shift as the session state resolves, and the
+            accessible name carries the difference that matters.
+          */}
+          <Link
+            href="/account"
+            className="grid h-11 w-11 place-items-center rounded-xl hover:bg-(--pv-wash)"
+            aria-label={signedIn ? "Your account" : "Sign in to your account"}
+          >
+            <User size={23} weight={signedIn ? "fill" : "regular"} />
+          </Link>
+
+          <MobileNav links={links} infoLinks={infoLinks} signedIn={signedIn} />
         </div>
       </div>
     </header>

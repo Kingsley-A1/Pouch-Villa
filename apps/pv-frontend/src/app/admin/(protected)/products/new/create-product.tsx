@@ -32,11 +32,13 @@ export function CreateProduct({
   brands,
   categories,
   devices,
+  collections,
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<CreateResult>;
   brands: AdminBrand[];
   categories: AdminCategory[];
   devices: AdminDevice[];
+  collections: { id: string; title: string }[];
 }) {
   const router = useRouter();
   const [files, setFiles] = useState<PickedFile[]>([]);
@@ -153,6 +155,7 @@ export function CreateProduct({
         brands={brands}
         categories={categories}
         devices={devices}
+        collections={collections}
         submitLabel="Create product"
         pickedFiles={files}
         onPickedFilesChange={setFiles}

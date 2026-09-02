@@ -58,6 +58,9 @@ export async function saveStoreSettingsAction(
     return toActionError(error, "Store details could not be saved.");
   }
   revalidatePath("/admin/settings");
+  // The headline and hours render on the home page, which is otherwise cached
+  // per request only for the visitor who triggered this.
+  revalidatePath("/");
   return { error: null, message: "Store details saved." };
 }
 

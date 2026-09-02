@@ -71,6 +71,30 @@ export const brandSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
+/**
+ * A home-page section. The kind decides which reference is required, so the
+ * refinement lives here rather than only in the service — the form and any
+ * future API client get the same message, from the same schema.
+ */
+export const homeSectionSchema = z
+  .object({
+    kind: z.enum(["category", "brand", "collection"]),
+    title: z.string().trim().min(1).max(80),
+    subtitle: z.string().trim().max(160).nullable(),
+    categoryId: z.string().uuid().nullable(),
+    brandId: z.string().uuid().nullable(),
+    maxItems: z.coerce.number().int().min(1).max(24).default(8),
+    sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+  })
+  .refine((value) => value.kind !== "category" || value.categoryId !== null, {
+    message: "Choose the category this section shows.",
+    path: ["categoryId"],
+  })
+  .refine((value) => value.kind !== "brand" || value.brandId !== null, {
+    message: "Choose the brand this section shows.",
+    path: ["brandId"],
+  });
+
 export const deliveryZoneSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
@@ -167,6 +191,8 @@ export const STORE_SETTING_FIELDS = [
   "store.opening_hours",
   "store.whatsapp_number",
   "store.contact_email",
+  "store.hero_headline",
+  "store.hero_subtitle",
 ] as const;
 
 export const POLICY_SETTING_FIELDS = [
@@ -187,6 +213,8 @@ export const storeSettingsFormSchema = z.object({
   "store.opening_hours": z.string().trim().max(500),
   "store.whatsapp_number": z.string().trim().max(20),
   "store.contact_email": z.string().trim().email().max(320).or(z.literal("")),
+  "store.hero_headline": z.string().trim().max(200),
+  "store.hero_subtitle": z.string().trim().max(300),
 });
 
 export const policySettingsFormSchema = z.object({

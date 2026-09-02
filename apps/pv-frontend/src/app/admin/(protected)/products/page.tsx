@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePermission } from "@/server/session";
 import { listAllProducts } from "@pv/backend/services/products";
+import { likeCountsFor } from "@pv/backend/services/likes";
+import { Heart } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Products" };
@@ -9,6 +11,8 @@ export const metadata: Metadata = { title: "Products" };
 export default async function ProductsAdminPage() {
   await requirePermission("product.view");
   const products = await listAllProducts();
+  // One query for the whole list, not one per row.
+  const likes = await likeCountsFor(products.map((product) => product.id));
 
   return (
     <div className="grid gap-6">
@@ -49,6 +53,21 @@ export default async function ProductsAdminPage() {
                     {product.variantCount === 1 ? "" : "s"} · stock {product.inStock}
                   </p>
                 </div>
+
+                {/*
+                  Hidden at zero rather than shown as "0". A column of zeroes
+                  tells staff nothing they can act on, and reads as a broken
+                  feature on a shop that has just opened.
+                */}
+                {(likes.get(product.id) ?? 0) > 0 ? (
+                  <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-(--pv-muted)">
+                    <Heart aria-hidden="true" size={16} weight="fill" />
+                    <span className="tabular-nums">{likes.get(product.id)}</span>
+                    <span className="sr-only">
+                      {likes.get(product.id) === 1 ? "like" : "likes"}
+                    </span>
+                  </span>
+                ) : null}
               </Link>
             </li>
           ))}

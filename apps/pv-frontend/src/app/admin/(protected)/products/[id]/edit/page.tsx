@@ -6,6 +6,7 @@ import { listAllBrands } from "@pv/backend/services/brands";
 import { listAllCategories } from "@pv/backend/services/categories";
 import { listAllDevices } from "@pv/backend/services/devices";
 import { listProductMedia } from "@pv/backend/services/media";
+import { listCollectionIdsForProduct, listCollections } from "@pv/backend/services/home-sections";
 import { isStorageConfigured } from "@pv/backend/storage/r2";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ProductForm } from "../../product-form";
@@ -29,12 +30,14 @@ export default async function EditProductPage({ params }: Params) {
   await requirePermission("product.manage");
   const { id } = await params;
   const storageConfigured = isStorageConfigured();
-  const [product, brands, categories, devices, media] = await Promise.all([
+  const [product, brands, categories, devices, media, collections, memberOf] = await Promise.all([
     getProductForEdit(id),
     listAllBrands(),
     listAllCategories(),
     listAllDevices(),
     storageConfigured ? listProductMedia(id) : Promise.resolve([]),
+    listCollections(),
+    listCollectionIdsForProduct(id),
   ]);
   if (product === null) notFound();
 
@@ -58,6 +61,8 @@ export default async function EditProductPage({ params }: Params) {
         brands={brands}
         categories={categories}
         devices={devices}
+        collections={collections}
+        memberOfCollectionIds={memberOf}
         editing={product}
         submitLabel="Save changes"
       />

@@ -28,6 +28,12 @@ export type SettingKey =
   | "store.opening_hours"
   | "store.whatsapp_number"
   | "store.contact_email"
+  // Marketing copy, not a business fact — the rule in §4 is about facts a wrong
+  // value would make a lie (a phone number, a price, a policy sentence). A
+  // headline is here so the CEO can reword the shop's own pitch without a
+  // deployment, which is the same reason the rest of this registry exists.
+  | "store.hero_headline"
+  | "store.hero_subtitle"
   | "delivery.free_threshold_kobo"
   | "policy.about"
   | "policy.returns"

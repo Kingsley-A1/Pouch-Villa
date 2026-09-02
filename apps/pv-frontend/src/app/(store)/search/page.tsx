@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { listPublishedProducts } from "@pv/backend/services/catalogue";
 import { ProductGrid } from "@/components/product-grid";
+import { likeSummaryFor } from "@/server/product-likes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { toSingle } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export default async function SearchPage({
   const params = await searchParams;
   const term = toSingle(params.q).trim();
   const { products } = term ? await listPublishedProducts({ search: term }) : { products: [] };
+  const likes = await likeSummaryFor(products);
 
   return (
     <>
@@ -46,7 +48,11 @@ export default async function SearchPage({
 
           <div className="mt-8">
             {term ? (
-              <ProductGrid products={products} emptyMessage={`Nothing matched “${term}”.`} />
+              <ProductGrid
+                products={products}
+                likes={likes}
+                emptyMessage={`Nothing matched “${term}”.`}
+              />
             ) : (
               <p className="text-sm text-(--pv-muted)">Enter a search term above.</p>
             )}

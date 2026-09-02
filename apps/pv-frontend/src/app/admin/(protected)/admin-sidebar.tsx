@@ -10,6 +10,7 @@ import {
   DeviceMobile,
   GearSix,
   IdentificationCard,
+  Layout,
   MapPin,
   Package,
   Receipt,
@@ -30,6 +31,7 @@ const listeners = new Set<() => void>();
 const SECTION_ICONS: Record<string, typeof SquaresFour> = {
   "/admin": SquaresFour,
   "/admin/products": Package,
+  "/admin/storefront": Layout,
   "/admin/categories": Tag,
   "/admin/devices": DeviceMobile,
   "/admin/delivery": MapPin,

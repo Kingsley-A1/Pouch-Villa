@@ -28,6 +28,9 @@ export const RATE_LIMITS = {
   "contact.submit": { limit: 5, windowMinutes: 60 },
   "order.track": { limit: 20, windowMinutes: 15 },
   "order.place": { limit: 10, windowMinutes: 60 },
+  // Generous, because liking several products while browsing is normal use. It
+  // is here to stop a script inflating a count, not to police a shopper.
+  "product.like": { limit: 60, windowMinutes: 10 },
   "admin.search": { limit: 120, windowMinutes: 1 },
 } as const;
 

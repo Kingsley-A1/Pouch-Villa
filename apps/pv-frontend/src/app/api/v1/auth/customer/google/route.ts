@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { loginCustomerWithGoogle } from "@pv/backend/services/customer-account";
-import { mergeGuestCart } from "@pv/backend/services/cart";
 import { ok, parseJson, requestContext, toApiError } from "@/server/api";
-import { createCustomerSession } from "@/server/customer-session";
-import { readCartToken } from "@/server/cart-session";
+import { establishCustomerSession } from "@/server/customer-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +28,7 @@ export async function POST(request: Request) {
       requestId: context.requestId,
     });
 
-    const token = await readCartToken();
-    if (token !== null) await mergeGuestCart(token, customerId).catch(() => {});
-
-    await createCustomerSession(customerId);
+    await establishCustomerSession(customerId);
     return ok({ customerId });
   } catch (error) {
     return toApiError(error);

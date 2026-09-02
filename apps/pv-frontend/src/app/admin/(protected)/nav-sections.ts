@@ -11,6 +11,7 @@ export type NavSection = { label: string; href: string; permission: PermissionCo
 export const NAV_SECTIONS: NavSection[] = [
   { label: "Dashboard", href: "/admin", permission: "dashboard.view" },
   { label: "Products", href: "/admin/products", permission: "product.view" },
+  { label: "Storefront", href: "/admin/storefront", permission: "product.manage" },
   { label: "Brands & Categories", href: "/admin/categories", permission: "category.manage" },
   { label: "Devices", href: "/admin/devices", permission: "category.manage" },
   { label: "Delivery Zones", href: "/admin/delivery", permission: "delivery.manage" },

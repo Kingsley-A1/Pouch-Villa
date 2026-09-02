@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { query, queryOne, type Queryable } from "../db/client";
+import { CUSTOMER_SESSION_COOKIE } from "./cookie-names";
 
 /**
  * Customer sessions. A separate table, a separate cookie and a separate code
@@ -13,7 +14,10 @@ import { query, queryOne, type Queryable } from "../db/client";
  * Nigerian mobile data is a lost order rather than a security win.
  */
 
-export const CUSTOMER_SESSION_COOKIE = "pv_customer_session";
+// Re-exported so existing callers are unchanged; the name itself lives in
+// `cookie-names.ts`, which the Next proxy can import without pulling in the
+// database driver.
+export { CUSTOMER_SESSION_COOKIE };
 
 /** Thirty days absolute, with no idle timeout. A shopper is not a threat model. */
 export const CUSTOMER_ABSOLUTE_TTL_MS = 30 * 24 * 60 * 60 * 1000;

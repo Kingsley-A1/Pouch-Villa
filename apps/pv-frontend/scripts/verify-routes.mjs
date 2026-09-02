@@ -35,6 +35,23 @@ const databaseRoutes = [
   "/returns",
   "/privacy",
   "/terms",
+  "/account/sign-in",
+  "/account/register",
+  "/account/forgot-password",
+];
+
+/**
+ * The customer account is the only gated part of the storefront, and it must
+ * send a signed-out visitor to the customer sign-in page — never to the staff
+ * one. The two identity stacks share no session and no code path (AGENTS.md §5),
+ * and a redirect that crossed them would be the first visible sign that they had
+ * started to merge.
+ */
+const protectedAccountRoutes = [
+  "/account",
+  "/account/orders",
+  "/account/saved",
+  "/account/details",
 ];
 
 /**
@@ -47,6 +64,7 @@ const databaseRoutes = [
 const protectedAdminRoutes = [
   "/admin",
   "/admin/products",
+  "/admin/storefront",
   "/admin/categories",
   "/admin/devices",
   "/admin/delivery",
@@ -130,6 +148,23 @@ try {
   }
 
   if (process.env.DATABASE_URL?.trim()) {
+    for (const route of protectedAccountRoutes) {
+      const response = await fetch(`${origin}${route}`, { redirect: "manual" });
+      if (response.status !== 307 && response.status !== 302) {
+        throw new Error(
+          `${route} returned HTTP ${response.status}; a signed-out request must be redirected to the customer sign-in`,
+        );
+      }
+      const location = response.headers.get("location") ?? "";
+      if (!location.includes("/account/sign-in")) {
+        throw new Error(`${route} redirected to ${location} rather than /account/sign-in`);
+      }
+      if (location.includes("/admin")) {
+        throw new Error(`${route} redirected a customer into the staff login at ${location}`);
+      }
+      results.push(`${response.status} ${route} -> /account/sign-in`);
+    }
+
     for (const route of apiRoutes) {
       const response = await fetch(`${origin}${route.path}`, {
         method: route.method,

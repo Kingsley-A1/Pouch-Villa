@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { productSchema, variantSchema, stockAdjustmentSchema } from "@pv/backend/domain/schemas";
 import { kobo } from "@pv/backend/domain/money";
 import * as products from "@pv/backend/services/products";
+import { setProductCollections } from "@pv/backend/services/home-sections";
 import { requirePermission } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
 
@@ -16,6 +17,21 @@ function parseProductInput(formData: FormData) {
     categoryIds: formData.getAll("categoryIds"),
     deviceIds: formData.getAll("deviceIds"),
   });
+}
+
+/**
+ * Collection membership is stored separately from the product, because it is a
+ * merchandising decision rather than a fact about the product — the same product
+ * can leave a collection without any edit to what it *is*. Reading the ticked
+ * boxes here keeps the product schema about the product.
+ *
+ * The service ignores ids that are not live collections, so a stale checkbox
+ * from a section deleted in another tab cannot resurrect it.
+ */
+function collectionIdsFrom(formData: FormData): string[] {
+  return formData
+    .getAll("collectionIds")
+    .filter((value): value is string => typeof value === "string");
 }
 
 export type CreateProductState = ActionState & { productId?: string };
@@ -38,10 +54,12 @@ export async function createProductAction(
   let id: string;
   try {
     id = await products.createProduct(parsed.data, { staffId: principal.staffId });
+    await setProductCollections(id, collectionIdsFrom(formData), { staffId: principal.staffId });
   } catch (error) {
     return toActionError(error, "The product could not be created.");
   }
   revalidatePath("/admin/products");
+  revalidatePath("/");
   return { error: null, productId: id };
 }
 
@@ -56,10 +74,12 @@ export async function updateProductAction(
 
   try {
     await products.updateProduct(id, parsed.data, { staffId: principal.staffId });
+    await setProductCollections(id, collectionIdsFrom(formData), { staffId: principal.staffId });
   } catch (error) {
     return toActionError(error, "The product could not be saved.");
   }
   revalidatePath(`/admin/products/${id}/edit`);
+  revalidatePath("/");
   return { error: null, message: "Product saved." };
 }
 

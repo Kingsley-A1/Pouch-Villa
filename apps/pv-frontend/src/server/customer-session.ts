@@ -8,6 +8,10 @@ import {
   verifyCustomerSession,
   type CustomerPrincipal,
 } from "@pv/backend/auth/customer-session";
+import { mergeGuestCart } from "@pv/backend/services/cart";
+import { mergeVisitorLikes } from "@pv/backend/services/likes";
+import { readCartToken } from "./cart-session";
+import { clearVisitorToken, readVisitorToken } from "./visitor-cookie";
 
 export type { CustomerPrincipal };
 
@@ -47,6 +51,46 @@ export const getCustomerPrincipal = cache(async (): Promise<CustomerPrincipal | 
   if (!token) return null;
   return verifyCustomerSession(token);
 });
+
+/**
+ * Everything that must happen when someone becomes signed in, in one place.
+ *
+ * Registering, signing in with a password and signing in with Google all have to
+ * do the same three things, and every route and action that forgets one of them
+ * is a bug a customer notices: a cart that empties, a shortlist that vanishes.
+ * Keeping it here means there is one answer to "what does signing in do", rather
+ * than four call sites that agree until one of them is edited.
+ *
+ * Both merges are best-effort. Neither is worth failing a sign-in over — being
+ * unable to sign in is far worse than arriving with an empty basket — but a
+ * failure is logged rather than swallowed silently.
+ */
+export async function establishCustomerSession(customerId: string): Promise<void> {
+  const cartToken = await readCartToken();
+  if (cartToken !== null) {
+    await mergeGuestCart(cartToken, customerId).catch((error: unknown) => {
+      console.error("Guest cart merge failed", {
+        name: error instanceof Error ? error.name : typeof error,
+      });
+    });
+  }
+
+  const visitorToken = await readVisitorToken();
+  if (visitorToken !== null) {
+    await mergeVisitorLikes(visitorToken, customerId)
+      .then(clearVisitorToken)
+      .catch((error: unknown) => {
+        console.error("Visitor like merge failed", {
+          name: error instanceof Error ? error.name : typeof error,
+        });
+      });
+  }
+
+  // §5: the session id rotates on sign-in — a fresh session row is issued rather
+  // than an existing one reused. This is last, so a merge that throws cannot
+  // leave someone signed in with half their state carried over.
+  await createCustomerSession(customerId);
+}
 
 /**
  * There is deliberately no `requireCustomerPrincipal` that redirects.

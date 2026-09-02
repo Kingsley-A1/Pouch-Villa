@@ -312,6 +312,36 @@ export async function listImages(productId: string): Promise<CatalogueImage[]> {
     .filter((image): image is CatalogueImage => image !== null);
 }
 
+/**
+ * The same cards, for an explicit list of products in an order chosen elsewhere.
+ *
+ * A hand-picked home section knows *which* products it shows and in what order,
+ * but nothing about how a card is built. Rather than let it assemble its own
+ * rows — which is how a curated grid ends up rendering a different price or a
+ * different image from the rest of the shop — it passes ids here and gets the
+ * catalogue's own card back.
+ *
+ * Unpublished and deleted ids are dropped rather than rejected: a section that
+ * outlives one of its products should quietly show the rest, not 500.
+ */
+export async function listPublishedProductsByIds(ids: string[]): Promise<CatalogueListItem[]> {
+  if (ids.length === 0) return [];
+  const capped = ids.slice(0, MAX_PAGE_SIZE);
+
+  const rows = await query<ProductRow>(
+    `${PRODUCT_SELECT}
+      WHERE p.deleted_at IS NULL AND p.status = 'published' AND p.id = ANY($1::UUID[])`,
+    [capped],
+  );
+
+  // Restore the caller's order. The database returns whatever the scan gives,
+  // and for a curated section the order *is* the editorial decision.
+  const byId = new Map(rows.map((row) => [row.id, toListItem(row)]));
+  return capped
+    .map((id) => byId.get(id))
+    .filter((product): product is CatalogueListItem => product !== undefined);
+}
+
 export type CategoryNode = {
   id: string;
   slug: string;

@@ -6,6 +6,9 @@ import { formatKobo } from "@pv/backend/domain/money";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getRatingSummary, listApprovedReviews } from "@pv/backend/services/reviews";
 import { ReviewModal } from "@/components/review-modal";
+import { LikeButton } from "@/components/like-button";
+import { countLikes, hasLiked } from "@pv/backend/services/likes";
+import { resolveExistingLikeActor } from "@/server/like-session";
 import { truncateAtWord } from "@/lib/utils";
 import { AddToCart } from "./add-to-cart";
 
@@ -37,9 +40,12 @@ export default async function ProductPage({ params }: Params) {
 
   // Fetched together: latency on this cluster is per-statement, so two
   // sequential awaits would cost a visible second on a product page.
-  const [reviews, summary] = await Promise.all([
+  const likeActor = await resolveExistingLikeActor();
+  const [reviews, summary, likeCount, liked] = await Promise.all([
     listApprovedReviews(product.id),
     getRatingSummary(product.id),
+    countLikes(product.id),
+    likeActor === null ? Promise.resolve(false) : hasLiked(product.id, likeActor),
   ]);
 
   const hero = product.images[0];
@@ -68,9 +74,18 @@ export default async function ProductPage({ params }: Params) {
 
           <div>
             <h1 className="section-title">{product.name}</h1>
-            <p className="mt-4 text-2xl font-extrabold text-(--pv-red)">
-              {product.fromKobo === null ? "Price on request" : formatKobo(product.fromKobo)}
-            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-2xl font-extrabold text-(--pv-red)">
+                {product.fromKobo === null ? "Price on request" : formatKobo(product.fromKobo)}
+              </p>
+              <LikeButton
+                productId={product.id}
+                productName={product.name}
+                initialLiked={liked}
+                initialCount={likeCount}
+                size="detail"
+              />
+            </div>
 
             {/*
               Money is formatted on the server, so a `Kobo` never crosses the

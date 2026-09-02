@@ -41,6 +41,8 @@ export function ProductForm({
   brands,
   categories,
   devices,
+  collections,
+  memberOfCollectionIds,
   editing,
   submitLabel,
   pickedFiles,
@@ -50,6 +52,9 @@ export function ProductForm({
   brands: AdminBrand[];
   categories: AdminCategory[];
   devices: AdminDevice[];
+  /** Hand-picked home-page sections this product can be placed into. */
+  collections: { id: string; title: string }[];
+  memberOfCollectionIds?: string[];
   editing?: AdminProduct;
   submitLabel: string;
   /** Present only on create, where images are collected before the product exists. */
@@ -61,6 +66,7 @@ export function ProductForm({
 
   const editingCategoryIds = new Set(editing?.categoryIds ?? []);
   const editingDeviceIds = new Set(editing?.deviceIds ?? []);
+  const editingCollectionIds = new Set(memberOfCollectionIds ?? []);
 
   const [values, setValues] = useState<Draft>({
     name: editing?.name ?? "",
@@ -209,6 +215,42 @@ export function ProductForm({
           ))}
         </div>
       </fieldset>
+
+      {/*
+        Where it lands on the public site.
+
+        Categories above decide what the product *is*, and rule-driven home
+        sections follow from them automatically. This is the other half: the
+        hand-picked collections, which are a merchandising choice and have to be
+        made per product. Shown only when the CEO has created a collection to
+        put things in, so an unused feature does not add a field to every upload.
+      */}
+      {collections.length > 0 ? (
+        <fieldset>
+          <legend className="text-sm font-bold text-(--pv-ink)">Where it appears</legend>
+          <p className="mt-1 text-xs text-(--pv-muted)">
+            Hand-picked home page sections. Category sections fill themselves from the categories
+            above.
+          </p>
+          <div className="mt-2 grid gap-1.5">
+            {collections.map((collection) => (
+              <label
+                key={collection.id}
+                className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
+              >
+                <input
+                  type="checkbox"
+                  name="collectionIds"
+                  value={collection.id}
+                  defaultChecked={editingCollectionIds.has(collection.id)}
+                  className="h-5 w-5 accent-(--pv-red)"
+                />
+                <span className="text-sm">{collection.title}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
 
       {devices.length > 0 ? (
         <fieldset>
