@@ -2,6 +2,7 @@
 
 import { contactRequestSchema } from "@pv/backend/domain/schemas";
 import { submitContactRequest } from "@pv/backend/services/contact";
+import { notifyEnquiry } from "@/server/enquiry-notifications";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { currentRequestContext } from "@/server/session";
 
@@ -23,11 +24,17 @@ export async function submitContactAction(
   }
 
   const context = await currentRequestContext();
+  let enquiryId: string;
   try {
-    await submitContactRequest(parsed.data, { ip: context.ip });
+    ({ enquiryId } = await submitContactRequest(parsed.data, { ip: context.ip }));
   } catch (error) {
     return toActionError(error, "Your message could not be sent. Please try again.");
   }
+
+  // Outside the try, and never awaited: the enquiry is recorded, and a mail
+  // provider being unreachable must not turn that into an error on the
+  // customer's screen.
+  notifyEnquiry(enquiryId);
 
   return { error: null, message: "Thank you. We will get back to you." };
 }

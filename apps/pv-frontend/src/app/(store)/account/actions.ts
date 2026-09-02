@@ -12,13 +12,18 @@ import {
 import { passwordSchema } from "@pv/backend/domain/schemas";
 import * as account from "@pv/backend/services/customer-account";
 import { loginCustomerWithGoogle } from "@pv/backend/services/customer-account";
-import { sendPasswordResetEmail } from "@pv/backend/services/order-email";
+import {
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+} from "@pv/backend/services/account-email";
 import { requestContext } from "@/server/api";
 import {
   clearCustomerSession,
   establishCustomerSession,
   getCustomerPrincipal,
 } from "@/server/customer-session";
+import { dispatchEmail } from "@/server/notify";
 import { toActionError, type ActionState } from "@/lib/action-state";
 
 /**
@@ -78,6 +83,10 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
   } catch (error) {
     return toActionError(error, "That account could not be created.");
   }
+  // Not a verification step — ADR 0002 removed the inbox round-trip and this
+  // does not reinstate it. The account already works; this only gives a mistyped
+  // address somewhere to fail visibly.
+  dispatchEmail("Welcome", sendWelcomeEmail(parsed.data.email, parsed.data.fullName ?? null));
   redirect(welcomeRedirect(safeRedirect(formData.get("next"))));
 }
 
@@ -144,11 +153,7 @@ export async function requestResetAction(
     // Sending is an external effect and best-effort; the uniform answer below
     // does not depend on it.
     if (issued !== null) {
-      void sendPasswordResetEmail(parsed.data.email, issued.code).catch((error: unknown) => {
-        console.error("Password reset email failed", {
-          name: error instanceof Error ? error.name : typeof error,
-        });
-      });
+      dispatchEmail("Password reset", sendPasswordResetEmail(parsed.data.email, issued.code));
     }
   } catch (error) {
     return toActionError(error, "That request could not be sent.");
@@ -176,6 +181,9 @@ export async function completeResetAction(
   } catch (error) {
     return toActionError(error, "That code could not be used. Ask for a new one.");
   }
+  // Sent on both routes to a new password, because its job is to reach the
+  // account's owner when the person who changed it was not them.
+  dispatchEmail("Password changed", sendPasswordChangedEmail(parsed.data.email));
   // Not signed in automatically. Whoever redeems the code has proved control of
   // the mailbox, not that they are at a device the owner wants left signed in.
   redirect("/account/sign-in?reset=1");
@@ -241,6 +249,11 @@ export async function changePasswordAction(
   } catch (error) {
     return toActionError(error, "Your password could not be changed.");
   }
+
+  // Read from the session rather than the form: the address is not a field on
+  // this form, and it must be the one on the account rather than one a caller
+  // could supply.
+  dispatchEmail("Password changed", sendPasswordChangedEmail(principal.email, principal.fullName));
 
   // Changing a password ends every session, including this one. Sending them
   // back to sign in is the honest outcome rather than a page that silently

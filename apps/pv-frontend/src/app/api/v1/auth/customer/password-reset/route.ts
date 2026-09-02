@@ -3,8 +3,12 @@ import {
   passwordResetRequestSchema,
 } from "@pv/backend/domain/schemas";
 import { completePasswordReset, requestPasswordReset } from "@pv/backend/services/customer-account";
-import { sendPasswordResetEmail } from "@pv/backend/services/order-email";
+import {
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+} from "@pv/backend/services/account-email";
 import { ok, parseJson, requestContext, toApiError } from "@/server/api";
+import { dispatchEmail } from "@/server/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,11 +35,7 @@ export async function POST(request: Request) {
     // Sending is an external effect, outside the transaction and best-effort.
     // The uniform response below does not depend on it.
     if (issued !== null) {
-      void sendPasswordResetEmail(parsed.data.email, issued.code).catch((error: unknown) => {
-        console.error("Password reset email failed", {
-          name: error instanceof Error ? error.name : typeof error,
-        });
-      });
+      dispatchEmail("Password reset", sendPasswordResetEmail(parsed.data.email, issued.code));
     }
 
     return ok({ sent: true });
@@ -55,6 +55,9 @@ export async function PUT(request: Request) {
       ip: context.ip,
       requestId: context.requestId,
     });
+    // Sent on both routes to a new password, because its job is to reach the
+    // account's owner when the person who changed it was not them.
+    dispatchEmail("Password changed", sendPasswordChangedEmail(parsed.data.email));
     return ok({ reset: true });
   } catch (error) {
     return toApiError(error);

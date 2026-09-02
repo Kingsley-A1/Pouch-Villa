@@ -20,6 +20,34 @@ export type SendEmailInput = {
   content: Omit<TransactionalEmailInput, "brandName">;
 };
 
+/**
+ * Where operational alerts go — a new enquiry, a payment proof waiting to be
+ * checked — when there is no customer to address.
+ *
+ * Infrastructure, not a business fact: it is the shop's own operations inbox and
+ * it sits with the sending identity in `.env`, alongside the from-address whose
+ * domain Resend has to verify. The customer-facing contact address is a separate,
+ * admin-managed setting and this is not it (AGENTS.md §4).
+ *
+ * `null` when unset, so a shop that has not configured one simply gets no
+ * alerts. Failing an enquiry submission because nobody set an env var would
+ * punish the customer for the deployment's omission.
+ */
+export function operationsInbox(): string | null {
+  const address = process.env.RESEND_EMAIL_SEND_TO?.trim();
+  return address ? address : null;
+}
+
+/**
+ * An alert to the shop's own inbox. Silently does nothing when no inbox is
+ * configured — see `operationsInbox`.
+ */
+export async function sendOperationsEmail(input: Omit<SendEmailInput, "to">): Promise<void> {
+  const to = operationsInbox();
+  if (to === null) return;
+  await sendEmail({ ...input, to });
+}
+
 export async function sendEmail(input: SendEmailInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.RESEND_EMAIL_SEND_FROM;

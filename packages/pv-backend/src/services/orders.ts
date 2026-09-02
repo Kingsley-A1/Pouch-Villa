@@ -760,6 +760,15 @@ export async function countOrdersByStatus(): Promise<Record<string, number>> {
 
 export type BulkTransitionResult = {
   moved: number;
+  /**
+   * The orders that really advanced.
+   *
+   * `moved` is a count for the staff member; this is the list the caller needs
+   * to notify exactly those buyers whose order changed — a batch is not atomic,
+   * so "all of them" is the wrong answer and would email people about a move the
+   * machine refused.
+   */
+  movedIds: string[];
   /** References the machine refused, with why — shown rather than swallowed. */
   refused: { reference: string; reason: string }[];
 };
@@ -784,12 +793,12 @@ export async function transitionOrders(
   options: { reason?: string | null } = {},
 ): Promise<BulkTransitionResult> {
   const refused: { reference: string; reason: string }[] = [];
-  let moved = 0;
+  const movedIds: string[] = [];
 
   for (const orderId of orderIds) {
     try {
       await transitionOrder(orderId, to, actor, options);
-      moved += 1;
+      movedIds.push(orderId);
     } catch (error) {
       const order = await getOrderById(orderId).catch(() => null);
       refused.push({
@@ -802,5 +811,5 @@ export async function transitionOrders(
     }
   }
 
-  return { moved, refused };
+  return { moved: movedIds.length, movedIds, refused };
 }

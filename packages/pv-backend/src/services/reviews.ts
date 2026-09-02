@@ -345,13 +345,21 @@ export async function softDeleteReview(
  * still gets its own audit record, because "who approved this one" must stay
  * answerable per review, not per click.
  */
+/**
+ * Returns the ids that really changed, not just how many.
+ *
+ * Only rows still pending are touched, so the batch a staff member ticked and
+ * the batch that moved are different sets. The caller needs the second one to
+ * tell exactly those authors what happened — telling the rest would be a message
+ * about a decision that was made days ago by somebody else.
+ */
 export async function moderateReviews(
   reviewIds: readonly string[],
   status: "approved" | "rejected",
   actor: { staffId: string },
   reason?: string | null,
-): Promise<number> {
-  if (reviewIds.length === 0) return 0;
+): Promise<string[]> {
+  if (reviewIds.length === 0) return [];
 
   return withTransaction(async (tx) => {
     // Only rows still pending are touched, so a stale checkbox from a list
@@ -377,6 +385,6 @@ export async function moderateReviews(
       await syncAdminSearchDocument(tx, "review", row.id);
     }
 
-    return updated.rows.length;
+    return (updated.rows as { id: string }[]).map((row) => row.id);
   });
 }

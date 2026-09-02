@@ -1,7 +1,9 @@
 import { customerSignUpSchema } from "@pv/backend/domain/schemas";
 import { signUp } from "@pv/backend/services/customer-account";
+import { sendWelcomeEmail } from "@pv/backend/services/account-email";
 import { created, parseJson, requestContext, toApiError } from "@/server/api";
 import { establishCustomerSession } from "@/server/customer-session";
+import { dispatchEmail } from "@/server/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
 
     // Cart, likes and a fresh session — see `establishCustomerSession`.
     await establishCustomerSession(customerId);
+    dispatchEmail("Welcome", sendWelcomeEmail(parsed.data.email, parsed.data.fullName ?? null));
     return created({ customerId });
   } catch (error) {
     return toApiError(error);

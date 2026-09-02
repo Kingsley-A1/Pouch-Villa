@@ -9,7 +9,9 @@ import {
   rejectReview,
   softDeleteReview,
 } from "@pv/backend/services/reviews";
+import { sendReviewDecisionEmail } from "@pv/backend/services/review-email";
 import { toActionError, type ActionState } from "@/lib/action-state";
+import { dispatchEmail } from "@/server/notify";
 import { requirePermission } from "@/server/session";
 
 /**
@@ -41,8 +43,10 @@ export async function approveReviewAction(
     return toActionError(error, "That review could not be approved.");
   }
 
+  dispatchEmail("Review decision", sendReviewDecisionEmail(parsed.data.reviewId, "approved"));
+
   revalidatePath("/admin/reviews");
-  return { error: null, message: "Published." };
+  return { error: null, message: "Published, and the author has been told." };
 }
 
 export async function rejectReviewAction(
@@ -60,6 +64,13 @@ export async function rejectReviewAction(
   } catch (error) {
     return toActionError(error, "That review could not be rejected.");
   }
+
+  /**
+   * The author is told it was not published, and deliberately not why: the
+   * reason field is staff wording written for staff — "spam", "abusive" — and
+   * forwarding it turns a quiet moderation decision into an argument.
+   */
+  dispatchEmail("Review decision", sendReviewDecisionEmail(parsed.data.reviewId, "rejected"));
 
   revalidatePath("/admin/reviews");
   return { error: null, message: "Rejected. It will not appear on the storefront." };
@@ -101,7 +112,13 @@ export async function bulkModerateAction(formData: FormData): Promise<void> {
     redirect(back("That decision is not valid."));
   }
 
-  const count = await moderateReviews(reviewIds, decision, { staffId: principal.staffId });
+  const moderated = await moderateReviews(reviewIds, decision, { staffId: principal.staffId });
+  // Only the reviews that really moved. A ticked box for one a colleague already
+  // decided must not produce a second message about it.
+  for (const reviewId of moderated) {
+    dispatchEmail("Review decision", sendReviewDecisionEmail(reviewId, decision));
+  }
+  const count = moderated.length;
   revalidatePath("/admin/reviews");
 
   redirect(

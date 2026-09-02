@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { orderStatusChangeSchema } from "@pv/backend/domain/schemas";
 import { getOrderById, transitionOrder, transitionOrders } from "@pv/backend/services/orders";
 import { sendOrderStatusEmail, sendPaymentConfirmedEmail } from "@pv/backend/services/order-email";
-import { checkTransition, isOrderStatus } from "@pv/backend/domain/order-status";
+import { checkTransition, isOrderStatus, type OrderStatus } from "@pv/backend/domain/order-status";
+import { dispatchEmail } from "@/server/notify";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { requirePermission } from "@/server/session";
 
@@ -61,16 +62,7 @@ export async function transitionOrderAction(
    * warning on `withTransaction`. Best-effort: an order advances whether or not
    * Resend is reachable, and a failed send must never roll the change back.
    */
-  const notify =
-    parsed.data.status === "payment_confirmed"
-      ? sendPaymentConfirmedEmail(parsed.data.orderId)
-      : sendOrderStatusEmail(parsed.data.orderId, parsed.data.status);
-
-  void notify.catch((error: unknown) => {
-    console.error("Order status email failed", {
-      name: error instanceof Error ? error.name : typeof error,
-    });
-  });
+  dispatchEmail("Order status", notifyStatusChange(parsed.data.orderId, parsed.data.status));
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
@@ -131,6 +123,20 @@ export async function bulkTransitionAction(formData: FormData): Promise<void> {
     id: principal.staffId,
   });
 
+  /**
+   * The same email a single transition sends, for every order that actually
+   * moved.
+   *
+   * Without this, whether a customer hears that their order was packed depended
+   * on how a staff member clicked — one order at a time, or six at once. Only
+   * `result.moved` orders changed, and `transitionOrders` reports the ones it
+   * refused separately, so this notifies exactly the buyers whose order really
+   * advanced.
+   */
+  for (const orderId of result.movedIds) {
+    dispatchEmail("Order status", notifyStatusChange(orderId, status));
+  }
+
   revalidatePath("/admin/orders");
 
   if (result.moved === 0) {
@@ -146,4 +152,18 @@ export async function bulkTransitionAction(formData: FormData): Promise<void> {
             .join(", ")}.`,
     ),
   );
+}
+
+/**
+ * Which message a status change earns.
+ *
+ * `payment_confirmed` is the one the client asked for by name in Q6 and reads
+ * differently from a fulfilment step, so it has its own wording. Keeping the
+ * choice here means the single and bulk paths cannot drift into sending
+ * different things for the same transition.
+ */
+function notifyStatusChange(orderId: string, status: OrderStatus): Promise<void> {
+  return status === "payment_confirmed"
+    ? sendPaymentConfirmedEmail(orderId)
+    : sendOrderStatusEmail(orderId, status);
 }

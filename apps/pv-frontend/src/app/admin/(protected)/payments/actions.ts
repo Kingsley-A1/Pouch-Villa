@@ -3,8 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { proofDecisionSchema, proofRejectionSchema } from "@pv/backend/domain/schemas";
 import { acceptProof, getProofViewUrl, rejectProof } from "@pv/backend/services/payments";
-import { sendPaymentConfirmedEmail } from "@pv/backend/services/order-email";
+import {
+  sendPaymentConfirmedEmail,
+  sendProofRejectedEmail,
+} from "@pv/backend/services/order-email";
 import { toActionError, type ActionState } from "@/lib/action-state";
+import { dispatchEmail } from "@/server/notify";
 import { requirePermission } from "@/server/session";
 
 /**
@@ -63,11 +67,7 @@ export async function acceptProofAction(
 
   // Q6, in the client's own words: "user gets Email notification that payment is
   // received". Outside the transaction and best-effort.
-  void sendPaymentConfirmedEmail(orderId).catch((error: unknown) => {
-    console.error("Payment confirmation email failed", {
-      name: error instanceof Error ? error.name : typeof error,
-    });
-  });
+  dispatchEmail("Payment confirmation", sendPaymentConfirmedEmail(orderId));
 
   revalidatePath("/admin/payments");
   revalidatePath("/admin/orders");
@@ -88,13 +88,25 @@ export async function rejectProofAction(
     return { error: parsed.error.issues[0]?.message ?? "Say why, so the buyer can fix it." };
   }
 
+  let orderId: string;
   try {
-    await rejectProof(parsed.data.proofId, parsed.data.reason, { staffId: principal.staffId });
+    const rejected = await rejectProof(parsed.data.proofId, parsed.data.reason, {
+      staffId: principal.staffId,
+    });
+    orderId = rejected.orderId;
   } catch (error) {
     return toActionError(error, "That proof could not be rejected.");
   }
 
+  /**
+   * The reason is collected so it can be given to the buyer, and until now it
+   * never left the database. Someone who believes they have paid was returned to
+   * awaiting-payment in silence and found out only by reopening the tracking
+   * page — or by transferring a second time.
+   */
+  dispatchEmail("Proof rejection", sendProofRejectedEmail(orderId, parsed.data.reason));
+
   revalidatePath("/admin/payments");
   revalidatePath("/admin/orders");
-  return { error: null, message: "Returned to the buyer for another attempt." };
+  return { error: null, message: "Returned to the buyer, with your reason, for another attempt." };
 }

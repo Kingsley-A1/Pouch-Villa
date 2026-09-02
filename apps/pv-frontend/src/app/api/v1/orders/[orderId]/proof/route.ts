@@ -2,9 +2,14 @@ import { proofUploadFinaliseSchema } from "@pv/backend/domain/schemas";
 import { normalisePhone } from "@pv/backend/domain/phone";
 import { beginProofUpload, finaliseProofUpload } from "@pv/backend/services/payments";
 import { getOrderById } from "@pv/backend/services/orders";
+import {
+  sendProofAwaitingReviewAlert,
+  sendProofReceivedEmail,
+} from "@pv/backend/services/order-email";
 import { created, fail, ok, parseJson, requestContext, toApiError } from "@/server/api";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { hasOrderAccess } from "@/server/order-access";
+import { dispatchEmail } from "@/server/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +89,18 @@ export async function PUT(request: Request, context: { params: Promise<{ orderId
       ip: requestInfo.ip,
       requestId: requestInfo.requestId,
     });
+
+    /**
+     * Both sides of "we have your receipt". The buyer has paid and is now
+     * waiting on a stranger to agree that they did, which is the most expensive
+     * silence in the shop; staff previously learned about a proof only by
+     * opening the admin and looking.
+     *
+     * Neither send carries the proof key or a URL to it — §5's closing rule.
+     */
+    dispatchEmail("Proof received", sendProofReceivedEmail(orderId));
+    dispatchEmail("Proof awaiting review", sendProofAwaitingReviewAlert(orderId));
+
     // Deliberately no key and no URL in the response — §5's closing rule.
     return ok({ proofId: finalised.proofId, status: "pending" });
   } catch (error) {

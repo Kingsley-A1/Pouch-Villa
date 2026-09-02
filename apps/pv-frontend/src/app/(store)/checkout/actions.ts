@@ -7,6 +7,7 @@ import { sendOrderPlacedEmail } from "@pv/backend/services/order-email";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { clearCartCookie, resolveExistingCartId } from "@/server/cart-session";
 import { getCustomerPrincipal } from "@/server/customer-session";
+import { dispatchEmail } from "@/server/notify";
 import { grantOrderAccess } from "@/server/order-access";
 import { currentRequestContext } from "@/server/session";
 
@@ -68,11 +69,7 @@ export async function placeOrderAction(
     // not Resend is reachable, and a failed send must never undo one.
     if (!placed.replayed) {
       await clearCartCookie().catch(() => {});
-      void sendOrderPlacedEmail(placed.orderId).catch((error: unknown) => {
-        console.error("Order confirmation email failed", {
-          name: error instanceof Error ? error.name : typeof error,
-        });
-      });
+      dispatchEmail("Order confirmation", sendOrderPlacedEmail(placed.orderId));
     }
   } catch (error) {
     return toActionError(error, "Your order could not be placed. Please try again.");

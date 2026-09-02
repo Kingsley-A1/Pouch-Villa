@@ -1,6 +1,7 @@
 import { contactRequestSchema } from "@pv/backend/domain/schemas";
 import { submitContactRequest } from "@pv/backend/services/contact";
 import { created, parseJson, requestContext, toApiError } from "@/server/api";
+import { notifyEnquiry } from "@/server/enquiry-notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
       ip: context.ip,
       requestId: context.requestId,
     });
+    notifyEnquiry(enquiryId);
     return created({ enquiryId, message: "Thank you. We will get back to you." });
   } catch (error) {
     return toApiError(error);

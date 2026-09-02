@@ -10,6 +10,7 @@ import { sendOrderPlacedEmail } from "@pv/backend/services/order-email";
 import { created, fail, idempotencyKey, parseJson, requestContext, toApiError } from "@/server/api";
 import { clearCartCookie, resolveExistingCartId } from "@/server/cart-session";
 import { getCustomerPrincipal } from "@/server/customer-session";
+import { dispatchEmail } from "@/server/notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,11 +75,7 @@ export async function POST(request: Request) {
 
   // A confirmation email is a courtesy, not part of placing the order. If Resend
   // is unconfigured or down, the customer still has their reference on screen.
-  void sendOrderPlacedEmail(placed.orderId).catch((error: unknown) => {
-    console.error("Order confirmation email failed", {
-      name: error instanceof Error ? error.name : typeof error,
-    });
-  });
+  dispatchEmail("Order confirmation", sendOrderPlacedEmail(placed.orderId));
 
   return created({
     orderId: placed.orderId,
