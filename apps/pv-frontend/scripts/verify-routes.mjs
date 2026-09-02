@@ -52,6 +52,11 @@ const protectedAccountRoutes = [
   "/account/orders",
   "/account/saved",
   "/account/details",
+  // The post-sign-up welcome. It is reached only with a session in hand, so a
+  // signed-out request must be turned away like any other account route —
+  // otherwise it becomes a page that congratulates a stranger on an account
+  // that does not exist.
+  "/account/welcome",
 ];
 
 /**

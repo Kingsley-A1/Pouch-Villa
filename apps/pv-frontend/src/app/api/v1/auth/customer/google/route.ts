@@ -23,13 +23,16 @@ export async function POST(request: Request) {
 
   const context = await requestContext();
   try {
-    const { customerId } = await loginCustomerWithGoogle(parsed.data.credential, {
+    const { customerId, created } = await loginCustomerWithGoogle(parsed.data.credential, {
       ip: context.ip,
       requestId: context.requestId,
     });
 
     await establishCustomerSession(customerId);
-    return ok({ customerId });
+    // `created` distinguishes a first sign-in from a returning one, so any
+    // client — not only this web app — can welcome a new member rather than
+    // dropping them into an account area with no explanation.
+    return ok({ customerId, created });
   } catch (error) {
     return toApiError(error);
   }

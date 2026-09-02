@@ -42,6 +42,23 @@ function safeRedirect(value: FormDataEntryValue | null): string {
   return value;
 }
 
+/**
+ * Where a brand-new member goes: the welcome screen, carrying the destination
+ * they were originally heading for.
+ *
+ * Registering is the one moment worth confirming out loud. Someone who signs up
+ * mid-checkout and is dropped straight back onto a form has no way to tell
+ * whether the account was created, and the next thing they do is sign up again.
+ * The destination is put through `safeRedirect` here rather than trusted on the
+ * welcome page, so an open-redirect cannot be smuggled in through `next`.
+ */
+function welcomeRedirect(next: string): string {
+  const destination = safeRedirect(next);
+  return destination === "/account"
+    ? "/account/welcome"
+    : `/account/welcome?next=${encodeURIComponent(destination)}`;
+}
+
 export async function registerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = customerSignUpSchema.safeParse({
     email: formData.get("email"),
@@ -61,7 +78,7 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
   } catch (error) {
     return toActionError(error, "That account could not be created.");
   }
-  redirect(safeRedirect(formData.get("next")));
+  redirect(welcomeRedirect(safeRedirect(formData.get("next"))));
 }
 
 export async function signInAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -91,12 +108,15 @@ export async function signInAction(_prev: ActionState, formData: FormData): Prom
 /** Google, for a customer. It may create the account — see the route handler. */
 export async function googleSignInAction(credential: string, next: string): Promise<void> {
   const context = await requestContext();
-  const { customerId } = await loginCustomerWithGoogle(credential, {
+  const { customerId, created } = await loginCustomerWithGoogle(credential, {
     ip: context.ip,
     requestId: context.requestId,
   });
   await establishCustomerSession(customerId);
-  redirect(safeRedirect(next));
+  // Signing in with Google is one tap, so nothing on screen otherwise
+  // distinguishes "you now have an account" from "you were already a member".
+  // A returning customer is sent straight on; only a new one is welcomed.
+  redirect(created ? welcomeRedirect(safeRedirect(next)) : safeRedirect(next));
 }
 
 export async function signOutAction(): Promise<void> {

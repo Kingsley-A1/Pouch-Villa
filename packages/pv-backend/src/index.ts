@@ -6,6 +6,7 @@
  */
 export * from "./domain/money";
 export * from "./domain/order-status";
+export * from "./domain/person-name";
 export * from "./domain/phone";
 export * from "./domain/reference";
 export * from "./auth/permission-codes";

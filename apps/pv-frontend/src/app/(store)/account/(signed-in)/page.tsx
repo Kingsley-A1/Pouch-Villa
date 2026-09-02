@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCustomerProfile } from "@pv/backend/services/customer-account";
 import { listOrdersForCustomer } from "@pv/backend/services/orders";
 import { listLikedProducts } from "@pv/backend/services/likes";
 import { formatKobo } from "@pv/backend/domain/money";
 import { describeStatus } from "@pv/backend/domain/order-status";
+import { getCustomerProfile } from "@pv/backend/services/customer-account";
 import { getCustomerPrincipal } from "@/server/customer-session";
-import { SignOutButton } from "../sign-out-button";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your account" };
@@ -37,18 +36,20 @@ export default async function AccountOverviewPage() {
 
   return (
     <div className="grid gap-8">
-      <div className="card-surface p-5">
-        <p className="text-sm text-(--pv-muted)">Signed in as</p>
-        <p className="mt-1 text-lg font-bold break-words">{profile.fullName ?? profile.email}</p>
-        {profile.fullName ? (
-          <p className="text-sm break-words text-(--pv-muted)">{profile.email}</p>
-        ) : null}
-        <p className="mt-2 text-sm text-(--pv-muted)">
-          Member since {DATE.format(profile.memberSince)}
+      {/*
+        The layout above carries the name, the email and the sign-out button, so
+        this page adds the one fact it does not: how long they have been a
+        customer. Repeating the identity block here made the top of the page two
+        near-identical cards.
+      */}
+      <div className="card-surface flex flex-wrap items-center justify-between gap-x-6 gap-y-2 p-5">
+        <p className="text-sm text-(--pv-muted)">
+          Member since{" "}
+          <span className="font-bold text-(--pv-ink)">{DATE.format(profile.memberSince)}</span>
         </p>
-        <div className="mt-4">
-          <SignOutButton />
-        </div>
+        <p className="text-sm text-(--pv-muted)">
+          {orders.length === 0 ? "No orders yet" : "Your recent activity is below"}
+        </p>
       </div>
 
       <section>

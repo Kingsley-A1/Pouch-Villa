@@ -29,6 +29,12 @@ import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
 
 export type AuthenticatedCustomer = { customerId: string };
 
+/**
+ * An authenticated customer, plus whether this call is what brought the account
+ * into existence. Only the paths that can register someone return it.
+ */
+export type RegisteredCustomer = AuthenticatedCustomer & { created: boolean };
+
 export class InvalidCustomerCredentialsError extends Error {
   constructor() {
     super("That email or password is incorrect.");
@@ -170,14 +176,21 @@ export async function loginCustomerWithPassword(
  * a customer account carries no authority, so proving control of a mailbox is
  * enough to have one. A staff account still requires a redeemed role code, and
  * this lookup never touches the `staff` table.
+ *
+ * `created` says whether this call registered the account rather than signing an
+ * existing one in. The storefront needs that to tell a first-time visitor they
+ * are now a member instead of dropping them onto an account page with no
+ * explanation; `withTransaction` may retry the body, so it is derived inside it
+ * and never carried over from an abandoned attempt.
  */
 export async function loginCustomerWithGoogle(
   idToken: string,
   context: RequestContext = {},
-): Promise<AuthenticatedCustomer> {
+): Promise<RegisteredCustomer> {
   const { subject, email, emailVerified, fullName } = await verifyGoogleIdToken(idToken);
 
   return withTransaction(async (tx) => {
+    let created = false;
     const byGoogle = await tx.query(
       "SELECT id, status FROM customer WHERE google_subject = $1 AND deleted_at IS NULL",
       [subject],
@@ -197,13 +210,14 @@ export async function loginCustomerWithGoogle(
     }
 
     if (row === undefined) {
-      const created = await tx.query(
+      const inserted = await tx.query(
         `INSERT INTO customer (email, full_name, google_subject, account_source, consented_at)
               VALUES ($1, $2, $3, 'self_signup', now())
            RETURNING id, status`,
         [email, fullName, subject],
       );
-      row = created.rows[0] as { id: string; status: string };
+      row = inserted.rows[0] as { id: string; status: string };
+      created = true;
       await recordAudit(tx, {
         actorType: "customer",
         actorId: row.id,
@@ -218,7 +232,7 @@ export async function loginCustomerWithGoogle(
 
     if (row.status !== "active") throw new CustomerSuspendedError();
     await syncAdminSearchDocument(tx, "customer", row.id);
-    return { customerId: row.id };
+    return { customerId: row.id, created };
   });
 }
 
