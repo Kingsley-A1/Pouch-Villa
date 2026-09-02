@@ -120,6 +120,16 @@ html {
 :root {
   --pv-font-sans: "Inter Variable", "Inter";
   --pv-font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans";
+  /*
+   * The brand voice. Playfair's letterforms are tall and narrow with long
+   * ascenders, which is what gives the wordmark and the hero line their height
+   * where Plus Jakarta — a good, plain UI face — reads as a wide grey block at
+   * display sizes. Used only for the wordmark and the hero, never for body copy
+   * or UI labels: a high-contrast serif at 14 px on a mid-range Android is worse
+   * than the sans it replaced.
+   */
+  --pv-font-hero: "Playfair Display Variable", "Playfair Display";
+  --pv-font-hero-stack: var(--pv-font-hero), "Iowan Old Style", Georgia, "Times New Roman", serif;
 }
 body {
   margin: 0;
@@ -192,6 +202,23 @@ textarea {
   line-height: 1.04;
   letter-spacing: -0.035em;
   font-weight: 800;
+}
+/*
+ * The home page's opening line.
+ *
+ * `.section-title` was doing this job and doing it badly: 800-weight Plus Jakarta
+ * at -0.028em tracking and 1.12 leading is correct for a section heading and
+ * cramped for a sentence someone is meant to read as a promise. This is the same
+ * scale with room to breathe — a taller face, near-neutral tracking, and leading
+ * that lets the descenders clear the line below.
+ */
+.hero-title {
+  font-family: var(--pv-font-hero-stack);
+  font-size: clamp(2.4rem, 7.6vw, 4.6rem);
+  line-height: 1.14;
+  letter-spacing: -0.012em;
+  font-weight: 700;
+  text-wrap: balance;
 }
 .section-title {
   font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;

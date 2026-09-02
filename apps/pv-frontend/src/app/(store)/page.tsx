@@ -56,15 +56,30 @@ export default async function HomePage() {
 
   return (
     <>
+      {/*
+        The opening line, set in the brand serif at display scale.
+        
+        The staggered entrance is applied to the text only, and the delays are
+        utility classes rather than inline `style` attributes — a `style` attr
+        needs `style-src-attr 'unsafe-inline'`, which §5 rules out.
+      */}
       <section className="section-space">
         <div className="container-shell">
-          <h1 className="section-title">{headline.present ? headline.value : DEFAULT_HEADLINE}</h1>
-          <p className="mt-4 max-w-xl leading-7 text-(--pv-muted)">
+          <p className="eyebrow rise-in">Welcome to Pouch Villa</p>
+          <h1 className="hero-title rise-in mt-4 max-w-[16ch] [animation-delay:90ms] sm:max-w-[20ch]">
+            {headline.present ? headline.value : DEFAULT_HEADLINE}
+          </h1>
+          <p className="rise-in mt-6 max-w-2xl text-lg leading-8 text-(--pv-muted) [animation-delay:180ms]">
             {subtitle.present ? subtitle.value : DEFAULT_SUBTITLE}
           </p>
-          <Link href="/shop" className="button-primary mt-8 inline-flex">
-            Shop the range
-          </Link>
+          <div className="rise-in mt-9 flex flex-wrap gap-3 [animation-delay:270ms]">
+            <Link href="/shop" className="button-primary">
+              Shop the range
+            </Link>
+            <Link href="/categories" className="button-ghost">
+              Browse categories
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -278,6 +278,34 @@ applied to `pouchvilla_test` and `defaultdb`.
 > test renders them signed in — that needs the E2E harness, which is the last
 > open Phase 3 item. Treat the admin as _implemented_, not _verified in use_.
 
+**Account entry and storefront identity, added 2026-09-02.** Follow-on to the
+work above, recorded in
+[`decisions/0007-account-entry-and-storefront-identity.md`](decisions/0007-account-entry-and-storefront-identity.md).
+No migration.
+
+- **A sign-up now gets a confirmation screen** at `/account/welcome`, carrying
+  the `next` destination through, before landing on the account. Google sign-in
+  reaches it only for an account it actually created — `loginCustomerWithGoogle`
+  and its `api/v1` route now report `created`.
+- **The account greets the person using it** by name, from the session row, on
+  every screen beneath `/account`. The four destinations became cards; they were
+  a rail that scrolled sideways below `sm`, which put "Your details" off the
+  right edge of a 360 px screen.
+- **The header's user icon moves into the drawer** below `lg` once signed in,
+  where it appears as a named row with initials and email. Desktop keeps the icon.
+- **The search field takes focus on arrival**, but only when it is empty.
+- **A third self-hosted face, Playfair Display**, for the wordmark, the home
+  hero, and the footer's oversized `POUCH VILLA`. Never for body copy.
+- **The footer carries the delivery attribution** — Bespoke Technologies, its
+  mark and website. Deliberately in source, not the settings store: §4 protects
+  facts that are the shop's to change, and this is not one of them.
+
+> **A §2 violation found on the way, and fixed.** The storefront scrolled
+> horizontally at 320 px, and had done since the header took its fourth control:
+> the wordmark plus four 44 px targets do not fit. The wordmark now steps aside
+> below 360 px. Measured before and after with a headless browser — 19 px of
+> overflow, then none, at 320, 360 and 1280.
+
 Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
@@ -300,7 +328,7 @@ Security review against §5 with a written report. Load testing. WCAG 2.2 AA aud
 | **Integration**       | Against a **live CockroachDB** — role-code redemption, sessions, login lockout, email verification, search                                                                                                                                                     |
 | **Permission matrix** | Every role × every permission, asserted allowed _and_ denied                                                                                                                                                                                                   |
 | **Business facts**    | A grep gate that self-tests against known-bad samples before it is trusted                                                                                                                                                                                     |
-| **Routes**            | Storefront routes return 200; all 14 protected admin routes 307 to `/admin/login`, and the four `/account` routes 307 to `/account/sign-in` — never to the staff login; the API answers its `{ ok }` envelope and refuses a checkout with no `Idempotency-Key` |
+| **Routes**            | Storefront routes return 200; all 14 protected admin routes 307 to `/admin/login`, and the five `/account` routes 307 to `/account/sign-in` — never to the staff login; the API answers its `{ ok }` envelope and refuses a checkout with no `Idempotency-Key` |
 | **E2E**               | ❌ Not yet — Phase 3                                                                                                                                                                                                                                           |
 | **Accessibility**     | ⚠️ Automated axe on components only; per-route and manual passes are Phase 5                                                                                                                                                                                   |
 | **Performance**       | ❌ Lighthouse budgets not yet enforced in CI — Phase 5                                                                                                                                                                                                         |

@@ -12,10 +12,16 @@ import { readThemePreference } from "@/server/theme";
  * request to Google either. Q7 confirmed the client accepts the current
  * typeface, so this is a delivery change, not a design one.
  *
+ * Three faces, each with a job: Inter sets body copy, Plus Jakarta Sans sets
+ * headings and controls, and Playfair Display carries the brand wordmark and the
+ * home page's opening line — the two places that have to look like something
+ * rather than merely read clearly.
+ *
  * The CSS custom properties these expose are declared in globals.css.
  */
 import "@fontsource-variable/inter";
 import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/playfair-display";
 import "./globals.css";
 
 const title = "Pouch Villa";
