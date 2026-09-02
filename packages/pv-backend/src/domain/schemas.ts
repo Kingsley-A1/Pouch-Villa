@@ -26,6 +26,26 @@ export const passwordSchema = z
   .string()
   .min(MINIMUM_PASSWORD_LENGTH, `At least ${MINIMUM_PASSWORD_LENGTH} characters`);
 
+/**
+ * A staff access change, with the note the CEO writes to go with it (Q11).
+ *
+ * The message is optional because cutting off access must never be blocked by a
+ * blank field — but when one is written it has to be substantial enough to be
+ * worth sending, so a stray space does not produce an email containing nothing.
+ */
+export const staffStatusChangeSchema = z.object({
+  status: z.enum(["active", "suspended"]),
+  message: z
+    .string()
+    .trim()
+    .max(2000)
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .refine((value) => value === null || value.length >= 10, {
+      message: "Write at least a sentence, or send it without a message.",
+    }),
+});
+
 export const roleCodeMintSchema = z.object({
   role: z.enum(STAFF_ROLES),
   label: z.string().trim().max(200).optional(),

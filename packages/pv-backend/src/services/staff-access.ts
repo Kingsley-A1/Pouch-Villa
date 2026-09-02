@@ -209,20 +209,37 @@ export async function redeemRoleCode(
   });
 }
 
+/**
+ * Who the access change happened to, so the caller can write to them.
+ *
+ * The service reports what happened and the adapter decides what to send (ADR
+ * 0008 §5) — the email must not fire from in here, because this body runs inside
+ * a transaction CockroachDB may retry, and a retried body would send twice.
+ */
+export type StaffStatusChange =
+  { changed: false } | { changed: true; email: string; fullName: string };
+
 export async function setStaffStatus(
   staffId: string,
   status: "active" | "suspended",
   actor: { staffId: string; requestId?: string },
-) {
+  /**
+   * The CEO's own words, to be emailed to the staff member (Q11). Recorded in
+   * the audit trail as well as sent, so what was said is part of the permanent
+   * record of the access change rather than only in one person's mailbox.
+   */
+  message?: string | null,
+): Promise<StaffStatusChange> {
   return withTransaction(async (tx) => {
     if (status === "suspended") await assertNotLastCeo(tx, staffId);
     const result = await tx.query(
       `UPDATE staff SET status = $2, updated_at = now()
         WHERE id = $1 AND deleted_at IS NULL
-    RETURNING status`,
+    RETURNING status, email, full_name`,
       [staffId, status],
     );
-    if (result.rows.length === 0) return false;
+    if (result.rows.length === 0) return { changed: false };
+    const changed = result.rows[0] as { email: string; full_name: string };
 
     // Suspension must end access now, not when a token happens to expire.
     if (status === "suspended") {
@@ -235,11 +252,11 @@ export async function setStaffStatus(
       action: "staff.status_changed",
       entityType: "staff",
       entityId: staffId,
-      after: { status },
+      after: { status, message: message ?? null },
       requestId: actor.requestId,
     });
     await syncAdminSearchDocument(tx, "staff", staffId);
-    return true;
+    return { changed: true, email: changed.email, fullName: changed.full_name };
   });
 }
 
