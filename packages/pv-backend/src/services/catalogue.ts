@@ -390,12 +390,55 @@ export async function listBrands() {
   );
 }
 
-export async function listDevices() {
-  return query<{ id: string; slug: string; name: string; brand_name: string }>(
+/**
+ * Every device the catalogue knows about, brand-first and already ordered.
+ *
+ * Shaped to `DeviceLike` so the matching rules in `domain/device-match` apply to
+ * it unchanged, in the browser and on the server alike. The list is small — one
+ * row per model the shop stocks for — so the storefront loads it whole and
+ * filters it in memory rather than querying on every keystroke.
+ */
+export type StorefrontDevice = { id: string; slug: string; name: string; brandName: string };
+
+export async function listDevices(): Promise<StorefrontDevice[]> {
+  const rows = await query<{ id: string; slug: string; name: string; brand_name: string }>(
     `SELECT d.id, d.slug, d.name, b.name AS brand_name
        FROM device d JOIN brand b ON b.id = d.brand_id
+      WHERE b.deleted_at IS NULL
       ORDER BY b.sort_order, d.sort_order, d.name`,
   );
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    brandName: row.brand_name,
+  }));
+}
+
+/**
+ * What a product fits, for the product page.
+ *
+ * "Will this fit my phone" is asked on the product page and, until now, could
+ * only be answered by going back to the shop and re-filtering. An empty list is
+ * a real answer — a universal pouch fits no named device — so the caller decides
+ * what to render rather than being handed a fabricated "fits everything".
+ */
+export async function listCompatibleDevices(productId: string): Promise<StorefrontDevice[]> {
+  const rows = await query<{ id: string; slug: string; name: string; brand_name: string }>(
+    `SELECT d.id, d.slug, d.name, b.name AS brand_name
+       FROM product_compatibility pc
+       JOIN device d ON d.id = pc.device_id
+       JOIN brand b ON b.id = d.brand_id
+      WHERE pc.product_id = $1 AND b.deleted_at IS NULL
+      ORDER BY b.sort_order, d.sort_order, d.name`,
+    [productId],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    brandName: row.brand_name,
+  }));
 }
 
 /** Whether the catalogue has anything published, so the UI can say so honestly. */

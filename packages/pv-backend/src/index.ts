@@ -4,6 +4,7 @@
  * transitive import. Server code reaches it explicitly via "@pv/backend/db/*" and
  * "@pv/backend/services/*".
  */
+export * from "./domain/device-match";
 export * from "./domain/money";
 export * from "./domain/order-status";
 export * from "./domain/person-name";

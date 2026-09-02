@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { listPublishedProducts, listCategoryTree } from "@pv/backend/services/catalogue";
+import {
+  listPublishedProducts,
+  listCategoryTree,
+  listDevices,
+} from "@pv/backend/services/catalogue";
 import { listHomeSections, type HomeSection } from "@pv/backend/services/home-sections";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { ProductGrid } from "@/components/product-grid";
+import { DeviceFinder } from "@/components/device-finder";
 import { AwaitingConfirmation } from "@/components/awaiting-confirmation";
 import { likeSummaryFor, type LikeSummary } from "@/server/product-likes";
 
@@ -25,9 +30,10 @@ const DEFAULT_HEADLINE = "Great pouches and gadget accessories, exactly when you
 const DEFAULT_SUBTITLE = "Browse the range, pick your options, and order with payment by transfer.";
 
 export default async function HomePage() {
-  const [{ products: latest }, categories, sections, settings] = await Promise.all([
+  const [{ products: latest }, categories, devices, sections, settings] = await Promise.all([
     listPublishedProducts({ limit: 8 }),
     listCategoryTree(),
+    listDevices(),
     listHomeSections(),
     readSettings([
       "store.address",
@@ -79,6 +85,16 @@ export default async function HomePage() {
             <Link href="/categories" className="button-ghost">
               Browse categories
             </Link>
+          </div>
+
+          {/*
+            The finder sits in the hero because it is the shortest path from
+            "I need a case" to a page of cases that actually fit. It renders
+            nothing until staff have entered a device, so a shop that has not
+            been set up yet shows a promise it cannot keep.
+          */}
+          <div className="rise-in mt-10 max-w-md [animation-delay:340ms]">
+            <DeviceFinder devices={devices} />
           </div>
         </div>
       </section>

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getPublishedProductBySlug } from "@pv/backend/services/catalogue";
+import { getPublishedProductBySlug, listCompatibleDevices } from "@pv/backend/services/catalogue";
 import { formatKobo } from "@pv/backend/domain/money";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { DeviceFit } from "@/components/device-fit";
 import { getRatingSummary, listApprovedReviews } from "@pv/backend/services/reviews";
 import { ReviewModal } from "@/components/review-modal";
 import { LikeButton } from "@/components/like-button";
@@ -41,11 +42,12 @@ export default async function ProductPage({ params }: Params) {
   // Fetched together: latency on this cluster is per-statement, so two
   // sequential awaits would cost a visible second on a product page.
   const likeActor = await resolveExistingLikeActor();
-  const [reviews, summary, likeCount, liked] = await Promise.all([
+  const [reviews, summary, likeCount, liked, fits] = await Promise.all([
     listApprovedReviews(product.id),
     getRatingSummary(product.id),
     countLikes(product.id),
     likeActor === null ? Promise.resolve(false) : hasLiked(product.id, likeActor),
+    listCompatibleDevices(product.id),
   ]);
 
   const hero = product.images[0];
@@ -100,6 +102,13 @@ export default async function ProductPage({ params }: Params) {
                 inStock: variant.inStock,
               }))}
             />
+
+            {/*
+              "Will this fit my phone" is asked here, on the page where someone
+              is deciding, and until now could only be answered by going back to
+              the shop and filtering again.
+            */}
+            <DeviceFit devices={fits} />
 
             {product.description ? (
               <>
