@@ -126,3 +126,30 @@ About, Privacy Policy and Terms & Conditions are committed deliverables. We will
 **Still to ask:** Privacy Policy wording, data retention period, and who owns data-protection responsibility under NDPR.
 
 **Meanwhile:** the received content is filed here for **Phase 4** ([`work-plan.md`](work-plan.md) §4), where the supporting pages are built. It is not yet wired into the settings store or rendered — see the work-plan for what that involves, including a new `policy.returns` settings key and new `/about` and `/returns` routes, since Return & Warranty is content distinct from Terms & Conditions and was never given its own key. Privacy still renders its _awaiting confirmation_ notice, unaffected by this answer.
+
+---
+
+### 🟠 Q11 — Should staff be emailed when their access changes?
+
+Raised by us on 2026-09-02 while closing the notification gaps in
+[`decisions/0008-device-finder-and-notifications.md`](decisions/0008-device-finder-and-notifications.md),
+and deliberately not answered by a default.
+
+Every other silent state change in the system now sends a message. Two on the
+staff side are still silent, and both are the client's call rather than ours:
+
+- **A suspended account.** Suspension ends every session immediately, which is
+  correct, and the person learns of it by being signed out. Whether they should
+  also get an email is a decision about how Pouch Villa wants to part with
+  someone, not an engineering gap.
+- **A minted role code.** This one we recommend leaving alone. `BOOTSTRAP_CEO_EMAIL`
+  pins who may redeem a CEO code precisely so that a code seen in a mailbox or a
+  log is not by itself enough to create an account. Emailing the code hands that
+  guarantee away. Carrying it out of band — read aloud, or typed into the phone
+  in front of you — is the stronger process and costs the CEO nothing.
+
+**Ask:** should a suspended or reactivated staff member be emailed, and in whose
+words?
+
+**Meanwhile:** neither sends anything. Suspension still revokes sessions at once,
+and every access change is still in the audit trail.

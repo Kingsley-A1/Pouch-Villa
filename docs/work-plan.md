@@ -306,6 +306,40 @@ No migration.
 > below 360 px. Measured before and after with a headless browser — 19 px of
 > overflow, then none, at 320, 360 and 1280.
 
+**Device finder and the missing notifications, added 2026-09-02.** Two audits,
+one change, recorded in
+[`decisions/0008-device-finder-and-notifications.md`](decisions/0008-device-finder-and-notifications.md).
+No migration.
+
+- **Compatibility became reachable.** The `device` table, the join, the indexes
+  and the catalogue filter had existed since migration 0003; the only storefront
+  surface was a rail of pills that scrolled sideways, hiding every model past the
+  right edge of a 360 px screen. There is now a typed device finder in the home
+  hero and above the shop grid, a "fits these phones" block on the product page,
+  and a search that recognises a model inside a query like "clear case for
+  iphone 13" and offers the filtered shop. One pure matching rule in
+  `domain/device-match.ts` serves all three.
+- **Eight silent triggers now send.** Payment proof received and rejected, a
+  staff alert for a proof waiting, enquiry acknowledgement and staff alert,
+  welcome, password changed (both routes to a new password), and review
+  moderation outcomes. Bulk order transitions and bulk review moderation notify
+  exactly the rows that moved — both services now return the ids rather than a
+  count, because neither batch is atomic.
+- **`RESEND_EMAIL_SEND_TO` is now read.** It was documented in `.env.example` as
+  the operational alert inbox and used by nothing; there was no staff-facing
+  email in the system at all. Unset, alerts are skipped silently rather than
+  failing the customer action that triggered them.
+- **Email is grouped by subject and fired once.** `order-email.ts` had begun
+  accumulating account mail; account, enquiry and review messages now have their
+  own modules, and the `void send.catch(log)` copied at each call site moved into
+  `server/notify.ts`, which logs the error name only — §5 forbids a recipient or
+  a proof URL reaching a log.
+
+> **Left undone deliberately.** Staff lifecycle email is now
+> [Q11](open-questions.md): a suspension notice is the client's call, and
+> emailing a role code would weaken the guarantee `BOOTSTRAP_CEO_EMAIL` exists
+> to provide.
+
 Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
