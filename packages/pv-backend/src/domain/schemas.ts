@@ -145,6 +145,37 @@ export const stockAdjustmentSchema = z.object({
   note: z.string().trim().max(500).nullable(),
 });
 
+/**
+ * Settings forms.
+ *
+ * Each schema is paired with the list of keys the form submits, and the action
+ * reads *that list* rather than a hand-written set of `formData.get` calls. The
+ * two drifting apart is not hypothetical: `policy.returns` was added to the
+ * schema and the form but never to the action's reads, so every attempt to save
+ * a policy page failed validation with "Check the form" and no policy content
+ * could be edited from the admin at all. Deriving both from one list is what
+ * makes that impossible rather than merely fixed.
+ */
+export const BANK_SETTING_FIELDS = [
+  "bank.account_name",
+  "bank.account_number",
+  "bank.bank_name",
+] as const;
+
+export const STORE_SETTING_FIELDS = [
+  "store.address",
+  "store.opening_hours",
+  "store.whatsapp_number",
+  "store.contact_email",
+] as const;
+
+export const POLICY_SETTING_FIELDS = [
+  "policy.about",
+  "policy.returns",
+  "policy.privacy",
+  "policy.terms",
+] as const;
+
 export const settingsFormSchema = z.object({
   "bank.account_name": z.string().trim().max(200),
   "bank.account_number": z.string().trim().max(20),

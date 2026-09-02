@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  BANK_SETTING_FIELDS,
+  POLICY_SETTING_FIELDS,
+  STORE_SETTING_FIELDS,
   settingsFormSchema,
   storeSettingsFormSchema,
   policySettingsFormSchema,
@@ -10,16 +13,26 @@ import { writeSettings } from "@pv/backend/services/settings";
 import { requirePermission } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
 
+/**
+ * Builds the submission from the field list the schema is written against,
+ * rather than from a hand-written set of reads.
+ *
+ * Those two drifted once already: `policy.returns` reached the schema and the
+ * form but not the action, so every policy save failed validation and no policy
+ * page could be edited from the admin. Reading the list makes that impossible
+ * instead of merely fixed. Absent fields become "" so clearing a setting stays
+ * expressible — the settings store treats blank as unset.
+ */
+function submissionFrom(formData: FormData, fields: readonly string[]) {
+  return Object.fromEntries(fields.map((field) => [field, formData.get(field) ?? ""]));
+}
+
 export async function saveBankSettingsAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const principal = await requirePermission("settings.manage");
-  const parsed = settingsFormSchema.safeParse({
-    "bank.account_name": formData.get("bank.account_name") ?? "",
-    "bank.account_number": formData.get("bank.account_number") ?? "",
-    "bank.bank_name": formData.get("bank.bank_name") ?? "",
-  });
+  const parsed = settingsFormSchema.safeParse(submissionFrom(formData, BANK_SETTING_FIELDS));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   try {
@@ -36,12 +49,7 @@ export async function saveStoreSettingsAction(
   formData: FormData,
 ): Promise<ActionState> {
   const principal = await requirePermission("settings.manage");
-  const parsed = storeSettingsFormSchema.safeParse({
-    "store.address": formData.get("store.address") ?? "",
-    "store.opening_hours": formData.get("store.opening_hours") ?? "",
-    "store.whatsapp_number": formData.get("store.whatsapp_number") ?? "",
-    "store.contact_email": formData.get("store.contact_email") ?? "",
-  });
+  const parsed = storeSettingsFormSchema.safeParse(submissionFrom(formData, STORE_SETTING_FIELDS));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   try {
@@ -58,11 +66,9 @@ export async function savePolicySettingsAction(
   formData: FormData,
 ): Promise<ActionState> {
   const principal = await requirePermission("settings.manage");
-  const parsed = policySettingsFormSchema.safeParse({
-    "policy.about": formData.get("policy.about") ?? "",
-    "policy.privacy": formData.get("policy.privacy") ?? "",
-    "policy.terms": formData.get("policy.terms") ?? "",
-  });
+  const parsed = policySettingsFormSchema.safeParse(
+    submissionFrom(formData, POLICY_SETTING_FIELDS),
+  );
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   try {
@@ -71,5 +77,6 @@ export async function savePolicySettingsAction(
     return toActionError(error, "Policy pages could not be saved.");
   }
   revalidatePath("/admin/settings");
+  for (const path of ["/about", "/returns", "/privacy", "/terms"]) revalidatePath(path);
   return { error: null, message: "Policy pages saved." };
 }
