@@ -121,7 +121,8 @@ advertising.
 **Our database is hosted in Germany.** If you are in Nigeria, your information
 is therefore transferred outside Nigeria to be stored and processed. We rely on
 our providers' contractual data-protection commitments for that transfer. You
-can ask us for more detail about those safeguards via this (contact page link) 
+can ask us for more detail about those safeguards via our
+[Contact page](/contact).
 
 ### How long we keep it
 
@@ -141,7 +142,7 @@ required to keep it, and we will tell you plainly what we must retain and why.
 
 ### Your rights
 
-Under the Nigeria.... (NDPA) you may ask us to:
+Under the NDPA you may ask us to:
 
 - give you a copy of the information we hold about you;
 - correct anything that is wrong;
@@ -274,4 +275,4 @@ disputes are subject to the jurisdiction of the Nigerian courts.
 
 ### Contact
 
-The details for reaching us are on our (link) Contact page.
+The details for reaching us are on our [Contact page](/contact).
