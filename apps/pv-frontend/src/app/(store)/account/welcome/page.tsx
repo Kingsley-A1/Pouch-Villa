@@ -55,7 +55,7 @@ export default async function WelcomePage({
           </span>
 
           <h1 className="section-title mt-6">
-            {name === null ? "You're in." : `You're in, ${name}.`}
+            {name === null ? "Welcome aboard!" : `Welcome aboard, ${name}!`}
           </h1>
           <p className="mt-4 leading-7 text-(--pv-muted)">
             Your Pouch Villa account is ready. Your orders, saved products and delivery details all
