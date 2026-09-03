@@ -38,9 +38,6 @@ export function CategoryForm({
         <Field label="Name" name="name">
           <TextInput name="name" required defaultValue={editing?.name} />
         </Field>
-        <Field label="Slug" name="slug" hint="lowercase-with-hyphens">
-          <TextInput name="slug" required defaultValue={editing?.slug} />
-        </Field>
       </div>
       <Field label="Parent category" name="parentId" hint="Leave unset for a top-level category">
         <Select name="parentId" defaultValue={editing?.parentId ?? ""}>

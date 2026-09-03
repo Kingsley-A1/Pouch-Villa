@@ -74,3 +74,86 @@ jobs:
 
       - name: Scan the tree
         run: node scripts/check-business-facts.mjs
+
+  lighthouse:
+    name: Performance budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Reports rather than gates, for now. The app does not yet meet three of the
+    # four budgets in AGENTS.md §2 — measured 2026-09-03 on the home page:
+    # LCP 4.2s against 2.5s, total blocking time 1.2s against 200ms, and 180KB
+    # of script against 120KB. Making this a required check before the work that
+    # fixes those would put main permanently red, which teaches everyone to
+    # ignore CI. The thresholds below are the real ones and are not to be
+    # loosened; the numbers are collected on every run so the trend is visible,
+    # and this flag comes off when the budgets are met. See work-plan.md §4.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      # A real database, because the storefront renders from one. Without it the
+      # only measurable page is /track, and a budget that only ever sees one page
+      # with no catalogue on it is not measuring what customers load. Insecure
+      # single-node is right here: it lives for the length of the job and holds
+      # nothing but an empty schema.
+      - name: Start CockroachDB
+        run: |
+          docker run -d --name crdb -p 26257:26257             cockroachdb/cockroach:latest-v24.1 start-single-node --insecure
+          for i in $(seq 1 60); do
+            if docker exec crdb ./cockroach sql --insecure -e "SELECT 1" >/dev/null 2>&1; then
+              echo "cockroach ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "CockroachDB did not become ready"
+          docker logs crdb
+          exit 1
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrate
+        run: pnpm run db:migrate
+        env:
+          DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
+
+      - name: Build
+        run: pnpm run build
+        env:
+          DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
+          AUTH_SECRET: ci-only-never-used-to-sign-anything-real
+
+      - name: Lighthouse
+        run: |
+          pnpm --filter @pv/frontend exec next start -p 3131 &
+          # A curl loop rather than a wait-on dependency: one fewer package to
+          # install, and it fails with the reason rather than a generic timeout.
+          for i in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3131/track; then
+              echo "server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:3131/track
+          npx lhci autorun
+        env:
+          DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
+          AUTH_SECRET: ci-only-never-used-to-sign-anything-real
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14

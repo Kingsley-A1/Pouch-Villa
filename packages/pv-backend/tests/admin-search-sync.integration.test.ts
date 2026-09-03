@@ -66,8 +66,10 @@ describeDb("admin search document synchronization", () => {
   });
 
   it("keeps a brand searchable through its public mutation service", async () => {
+    // The slug is derived from the name now, so uniqueness across repeated runs
+    // has to come from the name rather than a hand-made slug.
     brandId = await createBrand(
-      { name: "Zephyr Sync Brand", slug: `zephyr-${randomUUID()}`, sortOrder: 0 },
+      { name: `Zephyr Sync Brand ${randomUUID().slice(0, 8)}`, sortOrder: 0 },
       { staffId },
     );
 

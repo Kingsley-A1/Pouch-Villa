@@ -5,8 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CaretRight, List, User, X } from "@phosphor-icons/react";
-
-type NavLinks = ReadonlyArray<readonly [string, string]>;
+import { INFO_LINKS, SHOP_LINKS } from "@/lib/store-nav";
 
 /**
  * The signed-in customer, or `null` for a visitor. Resolved on the server so the
@@ -14,15 +13,12 @@ type NavLinks = ReadonlyArray<readonly [string, string]>;
  */
 export type DrawerAccount = { name: string | null; monogram: string | null; email: string };
 
-export function MobileNav({
-  links,
-  infoLinks,
-  account,
-}: {
-  links: NavLinks;
-  infoLinks: NavLinks;
-  account: DrawerAccount | null;
-}) {
+/**
+ * Reads the navigation from `lib/store-nav` rather than taking it as props. The
+ * desktop sidebar reads the same list, so the two cannot drift — which they had,
+ * back when the header owned one copy and the drawer another.
+ */
+export function MobileNav({ account }: { account: DrawerAccount | null }) {
   const pathname = usePathname();
   // The header sets backdrop-filter, which makes it the containing block for any
   // fixed-position descendant. Rendered inline, the overlay was therefore sized to
@@ -125,7 +121,7 @@ export function MobileNav({
                     </Link>
                   ) : null}
 
-                  {links.map(([label, href]) => {
+                  {SHOP_LINKS.map(({ label, href }) => {
                     const active = pathname === href;
                     return (
                       <Link
@@ -175,7 +171,7 @@ export function MobileNav({
                     Information
                   </p>
                   <ul aria-labelledby="mobile-nav-info">
-                    {infoLinks.map(([label, href]) => {
+                    {INFO_LINKS.map(({ label, href }) => {
                       const active = pathname === href;
                       return (
                         <li key={href}>

@@ -5,7 +5,7 @@
 **Repository:** [`github.com/Kingsley-A1/Pouch-Villa`](https://github.com/Kingsley-A1/Pouch-Villa) · `main` · CI green
 **Standard:** [`../AGENTS.md`](../AGENTS.md) · **Commitment:** [`scope.md`](scope.md) · **Blockers:** [`open-questions.md`](open-questions.md) · **Decisions:** [`decisions/`](decisions/)
 
-**Status at last update (2026-09-02):** Phases 0–2 complete. **Phase 3 is built and green except for its E2E harness**; Phase 4 has started with the client's Q2/Q7 interface asks. The storefront half has now caught up with the admin — home-page composition, likes and the customer account all shipped on 2026-09-02, closing three signed-scope rows that §1 still listed as absent. See §4.
+**Status at last update (2026-09-03):** Phases 0–2 complete. **Phase 3 is built and green except for its E2E harness**; Phase 4 has started with the client's Q2/Q7 interface asks. The storefront half has now caught up with the admin — home-page composition, likes and the customer account all shipped on 2026-09-02, closing three signed-scope rows that §1 still listed as absent. See §4.
 
 > §1 and §2 below are the original assessment of the inherited prototype, kept as
 > the record of _why_ the rebuild was chosen. They describe PouchHub as it was
@@ -349,6 +349,40 @@ Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 Security review against §5 with a written report. Load testing. WCAG 2.2 AA audit including manual keyboard and screen-reader passes. Lighthouse budgets enforced in CI. Backup and **tested restore**. Runbook. Staff training. Pilot, then launch.
 
 **Gate:** a restore drill actually performed and timed; the security report signed off; the client's staff complete their own tasks unaided.
+
+**Started 2026-09-03.** What is done, and what each still needs:
+
+| Item                                  | Status                                                                                                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security headers and a strict CSP** | ✅ Built. There were none at all. Nonce-based, no `unsafe-inline`, verified against a real build and pinned by a unit test and the route check.                                         |
+| **Security review**                   | ✅ Written — [`security-review.md`](security-review.md). Internal only; **no independent penetration test**.                                                                            |
+| **Runbook**                           | ✅ Written — [`runbook.md`](runbook.md).                                                                                                                                                |
+| **Accessibility audit**               | ⚠️ [`accessibility-audit.md`](accessibility-audit.md). Automated passes done and one real dark-mode contrast failure fixed. **Manual keyboard and screen-reader passes not performed.** |
+| **Lighthouse budgets in CI**          | ⚠️ Running, with the real §2 thresholds, against a CockroachDB service so it measures real pages. **Reports rather than gates** — see below.                                            |
+| **Backup and tested restore**         | ❌ Procedure written ([`runbook.md`](runbook.md) §6); **drill not performed**.                                                                                                          |
+| **Load testing**                      | ❌ Not performed. Scope in [`security-review.md`](security-review.md) §11.                                                                                                              |
+| **Staff training**                    | ❌ Not started. The operating manual is the deliverable.                                                                                                                                |
+| **Pilot and launch**                  | ❌ Blocked on an empty catalogue.                                                                                                                                                       |
+
+> **The performance budgets are not met, and the numbers are here rather than
+> buried.** Measured 2026-09-03 on the home page, mobile emulation, throttled:
+>
+> | Metric                   | Measured | §2 budget |
+> | ------------------------ | -------- | --------- |
+> | Largest contentful paint | 4194 ms  | ≤ 2500 ms |
+> | Cumulative layout shift  | 0.025    | ≤ 0.1 ✅  |
+> | Total blocking time      | 1197 ms  | ≤ 200 ms  |
+> | Script transferred       | 180 KB   | ≤ 120 KB  |
+>
+> Three of four fail. The Lighthouse job therefore **records** rather than
+> blocks: a required check that is red on `main` from the day it is added trains
+> everyone to ignore CI. The thresholds in `lighthouserc.json` are the real ones
+> and must not be loosened to make the job green — the fix is the app, not the
+> budget. The `continue-on-error` flag comes off when they are met.
+>
+> Part of the LCP figure is this cluster's 2–3 second per-statement latency,
+> which load testing should characterise before anyone optimises the wrong thing.
+> Total blocking time and script size are client-side and are ours to fix.
 
 ---
 

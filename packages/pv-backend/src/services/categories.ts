@@ -1,6 +1,7 @@
-import { query, queryOne } from "../db/client";
+import { query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { syncAdminSearchDocument } from "./admin-search-index";
+import { deriveUniqueSlug } from "../domain/slug";
 import { recordAudit } from "./audit";
 
 export type AdminCategory = {
@@ -46,33 +47,33 @@ export async function listAllCategories(): Promise<AdminCategory[]> {
   return rows.map(toAdminCategory);
 }
 
-export class SlugTakenError extends Error {
-  constructor(slug: string) {
-    super(`The slug "${slug}" is already in use.`);
-    this.name = "SlugTakenError";
-  }
-}
-
 export type CategoryInput = {
   parentId: string | null;
   name: string;
-  slug: string;
   description: string | null;
   sortOrder: number;
 };
 
+/**
+ * The slug is derived from the name, never typed. Its own literal statement
+ * rather than a shared table name, per AGENTS.md §5.
+ */
+async function deriveCategorySlug(tx: Queryable, name: string): Promise<string> {
+  return deriveUniqueSlug(name, async (pattern) => {
+    const rows = await tx.query("SELECT slug FROM category WHERE slug LIKE $1", [pattern]);
+    return (rows.rows as { slug: string }[]).map((row) => row.slug);
+  });
+}
+
 export async function createCategory(input: CategoryInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
-    const clash = await tx.query("SELECT id FROM category WHERE slug = $1 AND deleted_at IS NULL", [
-      input.slug,
-    ]);
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
+    const slug = await deriveCategorySlug(tx, input.name);
 
     const result = await tx.query(
       `INSERT INTO category (parent_id, name, slug, description, sort_order)
             VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-      [input.parentId, input.name, input.slug, input.description, input.sortOrder],
+      [input.parentId, input.name, slug, input.description, input.sortOrder],
     );
     const id = (result.rows[0] as { id: string }).id;
     await recordAudit(tx, {
@@ -96,18 +97,14 @@ export async function updateCategory(id: string, input: CategoryInput, actor: { 
     );
     if (before.rows.length === 0) return false;
 
-    const clash = await tx.query(
-      "SELECT id FROM category WHERE slug = $1 AND id <> $2 AND deleted_at IS NULL",
-      [input.slug, id],
-    );
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
-
+    // The slug is not re-derived on rename: it is already in shop URLs that
+    // customers have bookmarked and search engines have indexed.
     await tx.query(
       `UPDATE category
-          SET parent_id = $2, name = $3, slug = $4, description = $5, sort_order = $6,
+          SET parent_id = $2, name = $3, description = $4, sort_order = $5,
               updated_at = now()
         WHERE id = $1`,
-      [id, input.parentId, input.name, input.slug, input.description, input.sortOrder],
+      [id, input.parentId, input.name, input.description, input.sortOrder],
     );
     await recordAudit(tx, {
       actorType: "staff",

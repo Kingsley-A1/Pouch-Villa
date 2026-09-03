@@ -1,6 +1,7 @@
-import { query, queryOne } from "../db/client";
+import { query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { syncAdminSearchDocument, syncDeviceSearchDocumentsForBrand } from "./admin-search-index";
+import { deriveUniqueSlug } from "../domain/slug";
 import { recordAudit } from "./audit";
 
 export type AdminBrand = {
@@ -23,13 +24,6 @@ function toAdminBrand(row: BrandRow): AdminBrand {
   };
 }
 
-export class SlugTakenError extends Error {
-  constructor(slug: string) {
-    super(`The slug "${slug}" is already in use.`);
-    this.name = "SlugTakenError";
-  }
-}
-
 export async function listAllBrands(): Promise<AdminBrand[]> {
   const rows = await query<BrandRow>(
     "SELECT id, name, slug, sort_order, is_active FROM brand WHERE deleted_at IS NULL ORDER BY sort_order, name",
@@ -45,18 +39,28 @@ export async function getBrand(id: string): Promise<AdminBrand | null> {
   return row === null ? null : toAdminBrand(row);
 }
 
-export type BrandInput = { name: string; slug: string; sortOrder: number };
+export type BrandInput = { name: string; sortOrder: number };
+
+/**
+ * The slug is derived from the name, never typed. Staff should not have to know
+ * what a slug is, and a hand-typed one is a standing source of broken URLs.
+ *
+ * Its own literal statement rather than a shared table name, per AGENTS.md §5.
+ */
+async function deriveBrandSlug(tx: Queryable, name: string): Promise<string> {
+  return deriveUniqueSlug(name, async (pattern) => {
+    const rows = await tx.query("SELECT slug FROM brand WHERE slug LIKE $1", [pattern]);
+    return (rows.rows as { slug: string }[]).map((row) => row.slug);
+  });
+}
 
 export async function createBrand(input: BrandInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
-    const clash = await tx.query("SELECT id FROM brand WHERE slug = $1 AND deleted_at IS NULL", [
-      input.slug,
-    ]);
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
+    const slug = await deriveBrandSlug(tx, input.name);
 
     const result = await tx.query(
       "INSERT INTO brand (name, slug, sort_order) VALUES ($1, $2, $3) RETURNING id",
-      [input.name, input.slug, input.sortOrder],
+      [input.name, slug, input.sortOrder],
     );
     const id = (result.rows[0] as { id: string }).id;
     await recordAudit(tx, {
@@ -77,15 +81,12 @@ export async function updateBrand(id: string, input: BrandInput, actor: { staffI
     const before = await tx.query("SELECT name, slug, sort_order FROM brand WHERE id = $1", [id]);
     if (before.rows.length === 0) return false;
 
-    const clash = await tx.query(
-      "SELECT id FROM brand WHERE slug = $1 AND id <> $2 AND deleted_at IS NULL",
-      [input.slug, id],
-    );
-    if (clash.rows.length > 0) throw new SlugTakenError(input.slug);
-
+    // The slug is not re-derived on rename. It is already in shop URLs that
+    // customers have bookmarked and search engines have indexed, and renaming a
+    // brand is a display change, not a decision to move it.
     await tx.query(
-      "UPDATE brand SET name = $2, slug = $3, sort_order = $4, updated_at = now() WHERE id = $1",
-      [id, input.name, input.slug, input.sortOrder],
+      "UPDATE brand SET name = $2, sort_order = $3, updated_at = now() WHERE id = $1",
+      [id, input.name, input.sortOrder],
     );
     await recordAudit(tx, {
       actorType: "staff",

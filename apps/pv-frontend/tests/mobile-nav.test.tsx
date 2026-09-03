@@ -4,12 +4,6 @@ import { MobileNav } from "@/components/mobile-nav";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/shop" }));
 
-const links = [
-  ["Shop", "/shop"],
-  ["Track order", "/track"],
-] as const;
-const infoLinks = [["Returns & warranty", "/returns"]] as const;
-
 /**
  * Below `lg` the header no longer carries a user icon for someone who is signed
  * in — the drawer does. That trade only holds if the drawer actually reaches the
@@ -24,11 +18,7 @@ describe("mobile navigation drawer", () => {
 
   it("names the signed-in customer and links to their account", () => {
     render(
-      <MobileNav
-        links={links}
-        infoLinks={infoLinks}
-        account={{ name: "Kingsley", monogram: "KA", email: "kingsley@example.com" }}
-      />,
+      <MobileNav account={{ name: "Kingsley", monogram: "KA", email: "kingsley@example.com" }} />,
     );
     open();
 
@@ -39,7 +29,7 @@ describe("mobile navigation drawer", () => {
   });
 
   it("invites a visitor to sign in instead", () => {
-    render(<MobileNav links={links} infoLinks={infoLinks} account={null} />);
+    render(<MobileNav account={null} />);
     open();
 
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/account");
@@ -47,13 +37,7 @@ describe("mobile navigation drawer", () => {
   });
 
   it("still reaches the shopping and information links", () => {
-    render(
-      <MobileNav
-        links={links}
-        infoLinks={infoLinks}
-        account={{ name: null, monogram: null, email: "kingsley@example.com" }}
-      />,
-    );
+    render(<MobileNav account={{ name: null, monogram: null, email: "kingsley@example.com" }} />);
     open();
 
     expect(screen.getByRole("link", { name: "Shop" })).toBeVisible();

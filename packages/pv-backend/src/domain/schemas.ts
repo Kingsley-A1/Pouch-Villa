@@ -8,13 +8,6 @@ import { normalisePhone } from "./phone";
  * matching `app/api/v1/*` route — one schema per boundary, per AGENTS.md §3.
  */
 
-const slug = z
-  .string()
-  .trim()
-  .min(1, "Required")
-  .max(160)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens only");
-
 const koboAmount = z.coerce.number().int().min(0).max(1_000_000_000);
 
 export const adminSearchQuerySchema = z.object({
@@ -77,17 +70,21 @@ export const emailCodeSchema = z.object({
     .regex(/^\d{6}$/, "Enter the 6-digit code"),
 });
 
+/**
+ * No `slug` on any of these, for the same reason `productSchema` has none: it is
+ * derived from the name in the service layer. Staff should not have to know what
+ * a slug is, and a hand-typed one is a standing source of broken URLs and
+ * duplicate-key errors that a person then has to resolve by inventing a suffix.
+ */
 export const categorySchema = z.object({
   parentId: z.string().uuid().nullable(),
   name: z.string().trim().min(1).max(120),
-  slug,
   description: z.string().trim().max(2000).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
 export const brandSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  slug,
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
@@ -134,7 +131,6 @@ export const deliveryZoneSchema = z
 export const deviceSchema = z.object({
   brandId: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
-  slug,
   releasedYear: z.coerce.number().int().min(1990).max(2100).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });

@@ -72,7 +72,7 @@ export default async function HomePage() {
       <section className="section-space">
         <div className="container-shell">
           <p className="eyebrow rise-in">Welcome to Pouch Villa</p>
-          <h1 className="hero-title rise-in mt-4 max-w-[16ch] [animation-delay:90ms] sm:max-w-[20ch]">
+          <h1 className="hero-title rise-in mt-4 max-w-[24ch] [animation-delay:90ms] sm:max-w-[34ch]">
             {headline.present ? headline.value : DEFAULT_HEADLINE}
           </h1>
           <p className="rise-in mt-6 max-w-2xl text-lg leading-8 text-(--pv-muted) [animation-delay:180ms]">
