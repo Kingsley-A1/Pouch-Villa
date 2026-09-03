@@ -208,8 +208,13 @@ function MediaCard({
   return (
     <li className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-3">
       <div className="relative aspect-square overflow-hidden rounded-xl bg-(--pv-wash)">
+        {/*
+          `card`, not `thumb`: this tile renders up to 90vw on a phone, which at
+          2x device pixels wants more than `thumb`'s 200px. `thumb` is sized for
+          the storefront's small gallery rail, not this preview.
+        */}
         <Image
-          src={item.urls.thumb}
+          src={item.urls.card}
           alt={item.alt ?? ""}
           fill
           sizes="(max-width: 640px) 90vw, 300px"

@@ -366,6 +366,22 @@ No migration.
 > now also asserts that two different lengths give two different signatures, so
 > a regression back to signing a constant fails.
 
+**Product image sharpness, added 2026-09-03.** Recorded in
+[`decisions/0012-image-derivative-widths.md`](decisions/0012-image-derivative-widths.md).
+No migration.
+
+- **The `card` and `hero` derivatives were narrower than the boxes they fill**
+  at 2x device pixels — an ordinary retina laptop or mid-range phone, not an
+  edge case — so `next/image` handed back the narrowest file it had and the
+  browser stretched it. `card` 600px → 960px, `hero` 1400px → 1600px, and a
+  feature-size product tile now reads `hero` rather than stretching `card`
+  further than even the new width covers.
+- **Existing products are not automatically sharper.** The source photo is
+  deleted once its derivatives are generated, by design, so there is no
+  server-side backfill — a product uploaded before this ships keeps its old,
+  narrower images until someone re-uploads the photo, which the Replace
+  control from the upload-manager repair above is built for.
+
 Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.

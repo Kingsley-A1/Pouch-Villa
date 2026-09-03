@@ -135,6 +135,14 @@ export function ProductCard({
   const image = product.primaryImage;
   const feature = size === "feature";
 
+  /**
+   * A feature tile spans up to the full viewport width on a phone — see
+   * `FEATURE_IMAGE_SIZES` — which at 2x device pixels needs more than the
+   * `card` derivative has. `hero` is the same file already generated for the
+   * product page, so this costs nothing extra to store.
+   */
+  const imageUrl = image === null ? null : feature ? image.heroUrl : image.cardUrl;
+
   return (
     <div className="relative h-full">
       <Link href={`/products/${product.slug}`} className={cn(CARD_SHELL_CLASS, "h-full")}>
@@ -145,9 +153,9 @@ export function ProductCard({
           outOfStock={product.inStock <= 0}
           size={size}
           imageSlot={
-            image ? (
+            image !== null && imageUrl !== null ? (
               <Image
-                src={image.cardUrl}
+                src={imageUrl}
                 alt={image.alt ?? product.name}
                 fill
                 sizes={feature ? FEATURE_IMAGE_SIZES : CARD_IMAGE_SIZES}
