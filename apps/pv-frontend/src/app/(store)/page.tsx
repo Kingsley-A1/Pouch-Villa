@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   listPublishedProducts,
   listCategoryTree,
@@ -139,23 +140,42 @@ export default async function HomePage() {
         </section>
       ) : null}
 
+      {/*
+        A real photo beside the address, rather than the address on its own.
+        An unfamiliar name and a street address are abstract; what the door
+        actually looks like is what someone glances at from a bike or a bus to
+        confirm they have arrived. `fill` is right here — unlike the About
+        photo, this box has a shape of its own (`aspect-video`) that the source
+        image is cropped to fit, rather than the image dictating the box.
+      */}
       <section className="section-space">
-        <div className="container-shell grid gap-6 sm:grid-cols-2">
-          <div>
-            <h2 className="text-lg font-bold">Store address</h2>
-            {address.present ? (
-              <p className="mt-2 text-(--pv-muted)">{address.value}</p>
-            ) : (
-              <AwaitingConfirmation what="store address" />
-            )}
+        <div className="container-shell grid gap-8 lg:grid-cols-2 lg:items-center">
+          <div className="relative aspect-video overflow-hidden rounded-3xl bg-(--pv-wash)">
+            <Image
+              src="/images/storefront-display-wall.jpg"
+              alt="Phone cases and pouches on display inside Pouch Villa."
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
           </div>
-          <div>
-            <h2 className="text-lg font-bold">Opening hours</h2>
-            {hours.present ? (
-              <p className="mt-2 text-(--pv-muted)">{hours.value}</p>
-            ) : (
-              <AwaitingConfirmation what="opening hours" />
-            )}
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <h2 className="text-lg font-bold">Store address</h2>
+              {address.present ? (
+                <p className="mt-2 text-(--pv-muted)">{address.value}</p>
+              ) : (
+                <AwaitingConfirmation what="store address" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Opening hours</h2>
+              {hours.present ? (
+                <p className="mt-2 text-(--pv-muted)">{hours.value}</p>
+              ) : (
+                <AwaitingConfirmation what="opening hours" />
+              )}
+            </div>
           </div>
         </div>
       </section>
