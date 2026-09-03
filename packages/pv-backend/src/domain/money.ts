@@ -23,6 +23,21 @@ export function kobo(value: number): Kobo {
   return value as Kobo;
 }
 
+/** CockroachDB returns INT8 values as strings through `pg`; decode that boundary explicitly. */
+export function koboFromDatabase(value: string): Kobo {
+  if (!/^\d+$/.test(value)) throw new InvalidMoneyError(value);
+  return kobo(Number(value));
+}
+
+/** Parse a staff-entered naira value exactly, without binary floating-point multiplication. */
+export function parseNairaToKobo(value: string): Kobo {
+  const normalized = value.replaceAll(",", "").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) throw new InvalidMoneyError(value);
+  const [nairaPart, fraction = ""] = normalized.split(".");
+  const amount = Number(nairaPart) * KOBO_PER_NAIRA + Number(fraction.padEnd(2, "0"));
+  return kobo(amount);
+}
+
 export function isKobo(value: unknown): value is Kobo {
   return typeof value === "number" && Number.isSafeInteger(value);
 }

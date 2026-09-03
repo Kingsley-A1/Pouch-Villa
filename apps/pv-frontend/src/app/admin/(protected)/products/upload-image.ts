@@ -1,3 +1,4 @@
+import { describeUploadFailure } from "@/lib/upload-error";
 import { beginUploadAction, finaliseUploadAction, replaceMediaAction } from "./media-actions";
 
 /**
@@ -34,10 +35,10 @@ function megabytes(bytes: number): string {
 /**
  * Refuses a file the server was always going to refuse.
  *
- * Purely a courtesy, and never the enforcement — the authority is the byte count
- * measured server-side after the object is fetched back. But on Nigerian mobile
- * data, letting someone spend four minutes uploading a 30MB photo before telling
- * them is the difference between a checkable mistake and a wasted afternoon.
+ * `beginUpload` refuses the same sizes and signs the real length into the URL,
+ * so this is not the enforcement — it is the difference between a checkable
+ * mistake and four minutes of mobile data spent on a 30MB photo before anybody
+ * says anything.
  */
 export function rejectionReason(file: File): string | null {
   if (!ACCEPTED_MEDIA_TYPES.includes(file.type)) {
@@ -57,6 +58,7 @@ export async function uploadProductImage(
   const refusal = rejectionReason(file);
   if (refusal !== null) return { ok: false, error: refusal };
 
+  // The size is signed into the URL, so it has to be the file's real length.
   const began = await beginUploadAction(productId, file.type, file.size);
   if (!began.ok) return { ok: false, error: began.error };
 
@@ -72,18 +74,12 @@ export async function uploadProductImage(
         error: `Storage refused ${file.name} (${put.status}). The upload link may have expired — try again.`,
       };
     }
-  } catch {
-    /**
-     * `fetch` throws rather than returning a response for a network failure and
-     * for a cross-origin request the browser blocked. The second is invisible
-     * from here and is a configuration fault, not the operator's — it is worth
-     * naming, because "check your connection" sends someone to look in entirely
-     * the wrong place when every upload fails identically.
-     */
-    return {
-      ok: false,
-      error: `${file.name} could not be sent to storage. If every image fails this way, the storage bucket is not allowing uploads from this site.`,
-    };
+  } catch (error) {
+    // `fetch` throws rather than returning a response both for a dropped
+    // connection and for a cross-origin request the browser blocked. The second
+    // is invisible from here and is a bucket-configuration fault, which is why
+    // `describeUploadFailure` names it rather than saying "check your connection".
+    return { ok: false, error: `${file.name}: ${describeUploadFailure(error)}` };
   }
 
   const alt = options.alt ?? null;

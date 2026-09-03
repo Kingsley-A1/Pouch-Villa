@@ -24,6 +24,7 @@
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run check:facts && pnpm run test && pnpm run build && pnpm run test:routes"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@types/node": "^24.13.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",

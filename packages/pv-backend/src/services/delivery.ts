@@ -1,6 +1,6 @@
 import { query, queryOne } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import { kobo, type Kobo } from "../domain/money";
+import { koboFromDatabase, type Kobo } from "../domain/money";
 import { recordAudit } from "./audit";
 import { syncAdminSearchDocument } from "./admin-search-index";
 
@@ -25,11 +25,11 @@ type ZoneRow = {
   id: string;
   name: string;
   lga: string | null;
-  fee_kobo: number;
-  min_days: number | null;
-  max_days: number | null;
+  fee_kobo: string;
+  min_days: string | null;
+  max_days: string | null;
   is_active: boolean;
-  sort_order: number;
+  sort_order: string;
 };
 
 function toZone(row: ZoneRow): DeliveryZone {
@@ -37,17 +37,19 @@ function toZone(row: ZoneRow): DeliveryZone {
     id: row.id,
     name: row.name,
     lga: row.lga,
-    feeKobo: kobo(row.fee_kobo),
-    minDays: row.min_days,
-    maxDays: row.max_days,
+    feeKobo: koboFromDatabase(row.fee_kobo),
+    minDays: row.min_days === null ? null : Number(row.min_days),
+    maxDays: row.max_days === null ? null : Number(row.max_days),
     isActive: row.is_active,
-    sortOrder: row.sort_order,
+    sortOrder: Number(row.sort_order),
   };
 }
 
 export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
   const rows = await query<ZoneRow>(
-    `SELECT id, name, lga, fee_kobo, min_days, max_days, is_active, sort_order
+    `SELECT id, name, lga, fee_kobo::STRING AS fee_kobo,
+            min_days::STRING AS min_days, max_days::STRING AS max_days,
+            is_active, sort_order::STRING AS sort_order
        FROM delivery_zone
       WHERE deleted_at IS NULL
       ORDER BY sort_order, name`,
@@ -57,7 +59,9 @@ export async function listAllDeliveryZones(): Promise<DeliveryZone[]> {
 
 export async function listActiveDeliveryZones(): Promise<DeliveryZone[]> {
   const rows = await query<ZoneRow>(
-    `SELECT id, name, lga, fee_kobo, min_days, max_days, is_active, sort_order
+    `SELECT id, name, lga, fee_kobo::STRING AS fee_kobo,
+            min_days::STRING AS min_days, max_days::STRING AS max_days,
+            is_active, sort_order::STRING AS sort_order
        FROM delivery_zone
       WHERE deleted_at IS NULL AND is_active
       ORDER BY sort_order, name`,
@@ -67,7 +71,9 @@ export async function listActiveDeliveryZones(): Promise<DeliveryZone[]> {
 
 export async function getDeliveryZone(id: string): Promise<DeliveryZone | null> {
   const row = await queryOne<ZoneRow>(
-    `SELECT id, name, lga, fee_kobo, min_days, max_days, is_active, sort_order
+    `SELECT id, name, lga, fee_kobo::STRING AS fee_kobo,
+            min_days::STRING AS min_days, max_days::STRING AS max_days,
+            is_active, sort_order::STRING AS sort_order
        FROM delivery_zone WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
@@ -80,7 +86,6 @@ export type DeliveryZoneInput = {
   feeKobo: Kobo;
   minDays: number | null;
   maxDays: number | null;
-  sortOrder: number;
 };
 
 export class InvalidTimeframeError extends Error {
@@ -101,9 +106,10 @@ export async function createDeliveryZone(input: DeliveryZoneInput, actor: { staf
   return withTransaction(async (tx) => {
     const result = await tx.query(
       `INSERT INTO delivery_zone (name, lga, fee_kobo, min_days, max_days, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            SELECT $1, $2, $3, $4, $5, coalesce(max(sort_order), -1) + 1
+              FROM delivery_zone
          RETURNING id`,
-      [input.name, input.lga, input.feeKobo, input.minDays, input.maxDays, input.sortOrder],
+      [input.name, input.lga, input.feeKobo, input.minDays, input.maxDays],
     );
     const id = (result.rows[0] as { id: string }).id;
     await recordAudit(tx, {
@@ -134,10 +140,10 @@ export async function updateDeliveryZone(
 
     await tx.query(
       `UPDATE delivery_zone
-          SET name = $2, lga = $3, fee_kobo = $4, min_days = $5, max_days = $6, sort_order = $7,
+          SET name = $2, lga = $3, fee_kobo = $4, min_days = $5, max_days = $6,
               updated_at = now()
         WHERE id = $1`,
-      [id, input.name, input.lga, input.feeKobo, input.minDays, input.maxDays, input.sortOrder],
+      [id, input.name, input.lga, input.feeKobo, input.minDays, input.maxDays],
     );
     await recordAudit(tx, {
       actorType: "staff",

@@ -8,13 +8,6 @@ import { normalisePhone } from "./phone";
  * matching `app/api/v1/*` route — one schema per boundary, per AGENTS.md §3.
  */
 
-const slug = z
-  .string()
-  .trim()
-  .min(1, "Required")
-  .max(160)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens only");
-
 const koboAmount = z.coerce.number().int().min(0).max(1_000_000_000);
 
 export const adminSearchQuerySchema = z.object({
@@ -25,6 +18,26 @@ export const adminSearchQuerySchema = z.object({
 export const passwordSchema = z
   .string()
   .min(MINIMUM_PASSWORD_LENGTH, `At least ${MINIMUM_PASSWORD_LENGTH} characters`);
+
+/**
+ * A staff access change, with the note the CEO writes to go with it (Q11).
+ *
+ * The message is optional because cutting off access must never be blocked by a
+ * blank field — but when one is written it has to be substantial enough to be
+ * worth sending, so a stray space does not produce an email containing nothing.
+ */
+export const staffStatusChangeSchema = z.object({
+  status: z.enum(["active", "suspended"]),
+  message: z
+    .string()
+    .trim()
+    .max(2000)
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .refine((value) => value === null || value.length >= 10, {
+      message: "Write at least a sentence, or send it without a message.",
+    }),
+});
 
 export const roleCodeMintSchema = z.object({
   role: z.enum(STAFF_ROLES),
@@ -57,17 +70,21 @@ export const emailCodeSchema = z.object({
     .regex(/^\d{6}$/, "Enter the 6-digit code"),
 });
 
+/**
+ * No `slug` on any of these, for the same reason `productSchema` has none: it is
+ * derived from the name in the service layer. Staff should not have to know what
+ * a slug is, and a hand-typed one is a standing source of broken URLs and
+ * duplicate-key errors that a person then has to resolve by inventing a suffix.
+ */
 export const categorySchema = z.object({
   parentId: z.string().uuid().nullable(),
   name: z.string().trim().min(1).max(120),
-  slug,
   description: z.string().trim().max(2000).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
 export const brandSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  slug,
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
@@ -102,7 +119,6 @@ export const deliveryZoneSchema = z
     feeKobo: koboAmount,
     minDays: z.coerce.number().int().min(0).max(90).nullable(),
     maxDays: z.coerce.number().int().min(0).max(90).nullable(),
-    sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   })
   .refine(
     (value) => value.minDays === null || value.maxDays === null || value.maxDays >= value.minDays,
@@ -115,7 +131,6 @@ export const deliveryZoneSchema = z
 export const deviceSchema = z.object({
   brandId: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
-  slug,
   releasedYear: z.coerce.number().int().min(1990).max(2100).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
@@ -141,15 +156,8 @@ export const productSchema = z.object({
 export const VARIANT_AXES = ["colour", "size", "model"] as const;
 
 export const variantSchema = z.object({
-  sku: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[A-Z0-9-]+$/, "Uppercase letters, numbers and hyphens only"),
   priceKobo: koboAmount,
   compareAtKobo: koboAmount.nullable(),
-  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   axes: z
     .record(z.string(), z.string().trim().max(80))
     .refine(

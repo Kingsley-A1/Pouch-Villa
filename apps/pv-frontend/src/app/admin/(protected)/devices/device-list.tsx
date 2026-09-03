@@ -51,9 +51,6 @@ function DeviceForm({
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Slug" name="slug" hint="lowercase-with-hyphens">
-          <TextInput name="slug" required defaultValue={editing?.slug} />
-        </Field>
         <Field label="Released year" name="releasedYear" hint="Optional">
           <TextInput
             name="releasedYear"

@@ -6,28 +6,12 @@ import { MobileNav } from "@/components/mobile-nav";
 import { getCartCount } from "@/server/cart-count";
 import { getCustomerPrincipal } from "@/server/customer-session";
 
-/** The shopping path. Few enough to sit across the desktop header. */
-const links = [
-  ["Shop", "/shop"],
-  ["Categories", "/categories"],
-  ["Track order", "/track"],
-  ["Contact", "/contact"],
-] as const;
-
 /**
- * The supporting pages, reachable from the drawer as well as the footer.
- *
- * Deliberately not added to the desktop header: eight top-level links would
- * bury the four that lead to a sale. On a phone the footer is a long scroll
- * away, so someone looking for the returns policy mid-purchase — exactly when
- * they are deciding whether to buy — would otherwise have to hunt for it.
+ * The header carries no navigation of its own any more. On desktop the sidebar
+ * holds it, on a phone the drawer does, and both read the same list from
+ * `lib/store-nav` — a third copy across the top was the one most likely to fall
+ * behind. What is left here is brand, search, cart and account.
  */
-const infoLinks = [
-  ["About us", "/about"],
-  ["Returns & warranty", "/returns"],
-  ["Privacy", "/privacy"],
-  ["Terms", "/terms"],
-] as const;
 
 export async function StoreHeader() {
   const [cartCount, customer] = await Promise.all([getCartCount(), getCustomerPrincipal()]);
@@ -46,17 +30,6 @@ export async function StoreHeader() {
         <Link href="/" aria-label="Pouch Villa home">
           <BrandMark compact />
         </Link>
-        <nav className="hidden items-center gap-6 lg:flex" aria-label="Main navigation">
-          {links.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className="text-sm font-semibold text-(--pv-ink) transition-colors hover:text-(--pv-red)"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
         <div className="flex items-center gap-1.5">
           <Link
             href="/search"
@@ -111,7 +84,7 @@ export async function StoreHeader() {
             <User size={23} weight={account === null ? "regular" : "fill"} />
           </Link>
 
-          <MobileNav links={links} infoLinks={infoLinks} account={account} />
+          <MobileNav account={account} />
         </div>
       </div>
     </header>

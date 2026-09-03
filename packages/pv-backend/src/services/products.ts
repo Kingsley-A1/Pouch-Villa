@@ -1,6 +1,7 @@
 import { query, queryOne, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import { kobo, type Kobo } from "../domain/money";
+import { koboFromDatabase, type Kobo } from "../domain/money";
+import { generateSku } from "../domain/sku";
 import { firstFreeSlug, slugify } from "../domain/slug";
 import { recordAudit } from "./audit";
 import { syncAdminSearchDocument } from "./admin-search-index";
@@ -102,7 +103,7 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
   );
   if (product === null) return null;
 
-  const [categories, devices, variantRows] = await Promise.all([
+  const [categories, devices, variantRows, axisRows] = await Promise.all([
     query<{ category_id: string }>(
       "SELECT category_id FROM product_category WHERE product_id = $1",
       [id],
@@ -114,22 +115,36 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
     query<{
       id: string;
       sku: string;
-      price_kobo: number;
-      compare_at_kobo: number | null;
+      price_kobo: string;
+      compare_at_kobo: string | null;
       is_active: boolean;
-      sort_order: number;
+      sort_order: string;
       in_stock: string;
-      axes: Record<string, string> | null;
     }>(
-      `SELECT v.id, v.sku, v.price_kobo, v.compare_at_kobo, v.is_active, v.sort_order,
-              (SELECT coalesce(sum(se.delta), 0)::STRING FROM stock_entry se WHERE se.variant_id = v.id) AS in_stock,
-              (SELECT jsonb_object_agg(vv.axis_code, vv.value) FROM variant_value vv WHERE vv.variant_id = v.id) AS axes
+      `SELECT v.id, v.sku, v.price_kobo::STRING AS price_kobo,
+              v.compare_at_kobo::STRING AS compare_at_kobo, v.is_active,
+              v.sort_order::STRING AS sort_order,
+              (SELECT coalesce(sum(se.delta), 0)::STRING FROM stock_entry se WHERE se.variant_id = v.id) AS in_stock
          FROM product_variant v
         WHERE v.product_id = $1 AND v.deleted_at IS NULL
         ORDER BY v.sort_order, v.sku`,
       [id],
     ),
+    query<{ variant_id: string; axis_code: string; value: string }>(
+      `SELECT vv.variant_id, vv.axis_code, vv.value
+         FROM variant_value vv
+         JOIN product_variant v ON v.id = vv.variant_id
+        WHERE v.product_id = $1 AND v.deleted_at IS NULL`,
+      [id],
+    ),
   ]);
+
+  const axesByVariant = new Map<string, Record<string, string>>();
+  for (const row of axisRows) {
+    const axes = axesByVariant.get(row.variant_id) ?? {};
+    axes[row.axis_code] = row.value;
+    axesByVariant.set(row.variant_id, axes);
+  }
 
   return {
     id: product.id,
@@ -143,12 +158,12 @@ export async function getProductForEdit(id: string): Promise<AdminProduct | null
     variants: variantRows.map((row) => ({
       id: row.id,
       sku: row.sku,
-      priceKobo: kobo(row.price_kobo),
-      compareAtKobo: row.compare_at_kobo === null ? null : kobo(row.compare_at_kobo),
+      priceKobo: koboFromDatabase(row.price_kobo),
+      compareAtKobo: row.compare_at_kobo === null ? null : koboFromDatabase(row.compare_at_kobo),
       isActive: row.is_active,
-      sortOrder: row.sort_order,
+      sortOrder: Number(row.sort_order),
       inStock: Number(row.in_stock),
-      axes: row.axes ?? {},
+      axes: axesByVariant.get(row.id) ?? {},
     })),
   };
 }
@@ -364,10 +379,8 @@ export class SkuTakenError extends Error {
 }
 
 export type VariantInput = {
-  sku: string;
   priceKobo: Kobo;
   compareAtKobo: Kobo | null;
-  sortOrder: number;
   axes: Record<string, string>;
 };
 
@@ -393,19 +406,30 @@ export async function createVariant(
   actor: { staffId: string },
 ) {
   return withTransaction(async (tx) => {
-    const clash = await tx.query(
-      "SELECT id FROM product_variant WHERE sku = $1 AND deleted_at IS NULL",
-      [input.sku],
+    const product = await tx.query(
+      "SELECT name FROM product WHERE id = $1 AND deleted_at IS NULL",
+      [productId],
     );
-    if (clash.rows.length > 0) throw new SkuTakenError(input.sku);
+    const productName = (product.rows[0] as { name: string } | undefined)?.name;
+    if (productName === undefined) return null;
 
-    const result = await tx.query(
-      `INSERT INTO product_variant (product_id, sku, price_kobo, compare_at_kobo, sort_order)
-            VALUES ($1, $2, $3, $4, $5)
-         RETURNING id`,
-      [productId, input.sku, input.priceKobo, input.compareAtKobo, input.sortOrder],
-    );
-    const id = (result.rows[0] as { id: string }).id;
+    let created: { id: string; sku: string } | undefined;
+    for (let attempt = 0; attempt < 8 && created === undefined; attempt += 1) {
+      const sku = generateSku(productName);
+      const result = await tx.query(
+        `INSERT INTO product_variant (product_id, sku, price_kobo, compare_at_kobo, sort_order)
+              SELECT $1, $2, $3, $4, coalesce(max(sort_order), -1) + 1
+                FROM product_variant
+               WHERE product_id = $1 AND deleted_at IS NULL
+          ON CONFLICT (sku) WHERE deleted_at IS NULL DO NOTHING
+           RETURNING id`,
+        [productId, sku, input.priceKobo, input.compareAtKobo],
+      );
+      const id = (result.rows[0] as { id: string } | undefined)?.id;
+      if (id !== undefined) created = { id, sku };
+    }
+    if (created === undefined) throw new SkuTakenError(`${productName}-XXXX`);
+    const { id, sku } = created;
     await setVariantAxisValues(tx, id, input.axes);
 
     await recordAudit(tx, {
@@ -414,7 +438,7 @@ export async function createVariant(
       action: "variant.created",
       entityType: "product_variant",
       entityId: id,
-      after: input,
+      after: { ...input, sku },
     });
     await syncAdminSearchDocument(tx, "product", productId);
     return id;
@@ -429,17 +453,11 @@ export async function updateVariant(id: string, input: VariantInput, actor: { st
     );
     if (before.rows.length === 0) return false;
 
-    const clash = await tx.query(
-      "SELECT id FROM product_variant WHERE sku = $1 AND id <> $2 AND deleted_at IS NULL",
-      [input.sku, id],
-    );
-    if (clash.rows.length > 0) throw new SkuTakenError(input.sku);
-
     await tx.query(
       `UPDATE product_variant
-          SET sku = $2, price_kobo = $3, compare_at_kobo = $4, sort_order = $5, updated_at = now()
+          SET price_kobo = $2, compare_at_kobo = $3, updated_at = now()
         WHERE id = $1`,
-      [id, input.sku, input.priceKobo, input.compareAtKobo, input.sortOrder],
+      [id, input.priceKobo, input.compareAtKobo],
     );
     await setVariantAxisValues(tx, id, input.axes);
 

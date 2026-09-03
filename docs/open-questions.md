@@ -18,6 +18,7 @@ Decisions only Pouch Villa can make. Each one states what we do **in the meantim
 | Q8  | Delivery zones, fees, timeframes                   | 🟡 Order totals         | Open               |
 | Q9  | Reviews: verified purchase only?                   | 🟢 Reviews              | Open               |
 | Q10 | Policy wording — returns, privacy, terms           | 🟢 Supporting pages     | Partially answered |
+| Q11 | Email staff when their access changes?             | 🟢 Staff notification   | Answered           |
 
 ---
 
@@ -129,7 +130,7 @@ About, Privacy Policy and Terms & Conditions are committed deliverables. We will
 
 ---
 
-### 🟠 Q11 — Should staff be emailed when their access changes?
+### 🟢 Q11 — Should staff be emailed when their access changes? _(answered)_
 
 Raised by us on 2026-09-02 while closing the notification gaps in
 [`decisions/0008-device-finder-and-notifications.md`](decisions/0008-device-finder-and-notifications.md),
@@ -149,7 +150,28 @@ staff side are still silent, and both are the client's call rather than ours:
   in front of you — is the stronger process and costs the CEO nothing.
 
 **Ask:** should a suspended or reactivated staff member be emailed, and in whose
-words?
+words? Yes, themain should be compoased by the CEO in the spot where the staff access is being changed, and it sends through an establised email template.
 
-**Meanwhile:** neither sends anything. Suspension still revokes sessions at once,
-and every access change is still in the audit trail.
+**Answered 2026-09-02, and built.** The CEO writes the message where the change
+is made — the Suspend and Reactivate controls on `/admin/staff` open a composer
+rather than acting immediately — and it goes out through the same transactional
+template as every other message.
+
+Three things follow from the answer that are worth recording, because they were
+decisions rather than transcription:
+
+- **The message is optional.** Access must never stay open because nobody could
+  find the right words, so the button is always live and reads "Suspend without
+  a message" when the field is empty. A blank field sends nothing, exactly as
+  before.
+- **The email carries no link and no code.** A suspension notice is the one
+  message deliberately sent to someone the business has just stopped trusting,
+  at an address that may no longer be theirs. It says what happened and repeats
+  the CEO's words; anything more would be a way back in that outlives the
+  mailbox. The composer says so above the field.
+- **What was written is audited.** The message is stored on the
+  `staff.status_changed` audit record as well as sent, so the account of an
+  access change does not live only in one person's mailbox.
+
+**The role-code half stands as recommended:** a minted code is still shown once
+on screen and carried out of band, never emailed.

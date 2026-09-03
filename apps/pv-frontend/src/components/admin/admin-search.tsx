@@ -210,7 +210,7 @@ export function AdminSearch({ sections }: { sections: NavSection[] }) {
   };
 
   return (
-    <div className="min-w-0 flex-1 md:max-w-xl">
+    <div className="min-w-0 flex-1 md:w-full md:max-w-xl md:justify-self-center">
       <div className="relative hidden md:block">
         <MagnifyingGlass
           size={18}

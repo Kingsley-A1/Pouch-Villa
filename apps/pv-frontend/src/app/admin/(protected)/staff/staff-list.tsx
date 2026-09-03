@@ -1,9 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
 import type { AdminStaffMember } from "@pv/backend/services/staff-access";
-import { ConfirmButton } from "@/components/admin/confirm-button";
-import { setStaffStatusAction } from "./actions";
+import { AccessChange } from "./access-change";
 
 export function StaffList({
   members,
@@ -12,14 +10,12 @@ export function StaffList({
   members: AdminStaffMember[];
   canManage: boolean;
 }) {
-  const [pending, start] = useTransition();
-
   return (
     <ul className="grid gap-3">
       {members.map((member) => (
         <li
           key={member.id}
-          className="grid gap-2 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4 sm:flex sm:items-center sm:justify-between"
+          className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4 sm:flex sm:items-start sm:justify-between sm:gap-6"
         >
           <div>
             <p className="font-bold">
@@ -45,30 +41,7 @@ export function StaffList({
                 : " · never signed in"}
             </p>
           </div>
-          {canManage ? (
-            member.status === "active" ? (
-              <ConfirmButton
-                label="Suspend"
-                confirmLabel="Suspend"
-                onConfirm={async () => {
-                  await setStaffStatusAction(member.id, "suspended");
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  start(async () => {
-                    await setStaffStatusAction(member.id, "active");
-                  })
-                }
-                className="min-h-11 text-sm font-bold text-(--pv-success) disabled:opacity-60"
-              >
-                Reactivate
-              </button>
-            )
-          ) : null}
+          {canManage ? <AccessChange member={member} /> : null}
         </li>
       ))}
     </ul>

@@ -11,7 +11,6 @@ function parseCategoryInput(formData: FormData) {
   return categorySchema.safeParse({
     parentId: formData.get("parentId") || null,
     name: formData.get("name"),
-    slug: formData.get("slug"),
     description: formData.get("description") || null,
     sortOrder: formData.get("sortOrder") || 0,
   });
@@ -59,7 +58,6 @@ export async function deleteCategoryAction(id: string, reason: string): Promise<
 function parseBrandInput(formData: FormData) {
   return brandSchema.safeParse({
     name: formData.get("name"),
-    slug: formData.get("slug"),
     sortOrder: formData.get("sortOrder") || 0,
   });
 }

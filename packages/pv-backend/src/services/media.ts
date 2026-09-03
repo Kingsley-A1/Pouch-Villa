@@ -1,12 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getPool, query } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import {
-  DERIVATIVES,
-  ImageTooLargeError,
-  MAX_IMAGE_BYTES,
-  type DerivativeName,
-} from "../storage/image-formats";
+import { DERIVATIVES, MAX_IMAGE_BYTES, type DerivativeName } from "../storage/image-formats";
 import { mediaKey } from "../storage/media-key";
 import { deleteObject, getObjectBytes, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
@@ -49,27 +44,37 @@ export type BeganUpload = {
   maxBytes: number;
 };
 
+export class InvalidUploadSizeError extends Error {
+  constructor() {
+    super("That image is empty or larger than the upload limit.");
+    this.name = "InvalidUploadSizeError";
+  }
+}
+
 /**
- * `declaredBytes` is what the browser says the file weighs, and it is checked
- * before a URL is issued rather than trusted.
+ * `contentLength` is the file's real size, and it is signed into the URL — so it
+ * is both an early refusal and a genuine cap. A browser that then sends anything
+ * other than exactly that many bytes fails the signature check at R2, which is
+ * why the size is checked here before a URL exists rather than trusted after.
  *
- * It cannot be the enforcement — a client that lies is still a client — but it
- * is free, and refusing here saves someone on mobile data from spending four
- * minutes uploading a photo `processImage` was always going to reject. The
- * authority is still the byte count measured after the object is fetched back.
+ * The last word still belongs to `processImage`, which is the only thing that
+ * ever holds the bytes.
  */
 export async function beginUpload(
   productId: string,
   contentType: string,
+  contentLength: number,
   actor: { staffId: string },
-  declaredBytes?: number,
 ): Promise<BeganUpload> {
-  if (declaredBytes !== undefined && declaredBytes > MAX_IMAGE_BYTES) {
-    throw new ImageTooLargeError(MAX_IMAGE_BYTES);
+  if (
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0 ||
+    contentLength > MAX_IMAGE_BYTES
+  ) {
+    throw new InvalidUploadSizeError();
   }
-
   const stagingKey = `staging/${productId}/${randomUUID()}`;
-  const { url, expiresIn } = await presignUpload("public", stagingKey, contentType);
+  const { url, expiresIn } = await presignUpload("public", stagingKey, contentType, contentLength);
 
   const rows = await query<{ id: string }>(
     `INSERT INTO media_upload (product_id, staging_key, created_by)

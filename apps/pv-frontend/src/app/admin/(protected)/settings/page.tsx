@@ -4,6 +4,7 @@ import { readSettings, pick } from "@pv/backend/services/settings";
 import { BankSettingsForm } from "./bank-settings-form";
 import { StoreSettingsForm } from "./store-settings-form";
 import { PolicySettingsForm } from "./policy-settings-form";
+import { EditableSettingsSection } from "./editable-settings-section";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Settings" };
@@ -36,25 +37,37 @@ export default async function SettingsAdminPage() {
         </p>
       </div>
 
-      <BankSettingsForm
-        accountName={pick(settings, "bank.account_name")}
-        accountNumber={pick(settings, "bank.account_number")}
-        bankName={pick(settings, "bank.bank_name")}
-      />
-      <StoreSettingsForm
-        address={pick(settings, "store.address")}
-        hours={pick(settings, "store.opening_hours")}
-        whatsapp={pick(settings, "store.whatsapp_number")}
-        contactEmail={pick(settings, "store.contact_email")}
-        heroHeadline={pick(settings, "store.hero_headline")}
-        heroSubtitle={pick(settings, "store.hero_subtitle")}
-      />
-      <PolicySettingsForm
-        about={pick(settings, "policy.about")}
-        returns={pick(settings, "policy.returns")}
-        privacy={pick(settings, "policy.privacy")}
-        terms={pick(settings, "policy.terms")}
-      />
+      <EditableSettingsSection
+        title="Bank account for transfers"
+        summary="Account details shown during checkout."
+      >
+        <BankSettingsForm
+          accountName={pick(settings, "bank.account_name")}
+          accountNumber={pick(settings, "bank.account_number")}
+          bankName={pick(settings, "bank.bank_name")}
+        />
+      </EditableSettingsSection>
+      <EditableSettingsSection title="Store details" summary="Contact details and home page copy.">
+        <StoreSettingsForm
+          address={pick(settings, "store.address")}
+          hours={pick(settings, "store.opening_hours")}
+          whatsapp={pick(settings, "store.whatsapp_number")}
+          contactEmail={pick(settings, "store.contact_email")}
+          heroHeadline={pick(settings, "store.hero_headline")}
+          heroSubtitle={pick(settings, "store.hero_subtitle")}
+        />
+      </EditableSettingsSection>
+      <EditableSettingsSection
+        title="Supporting pages"
+        summary="About, returns, privacy, and terms content."
+      >
+        <PolicySettingsForm
+          about={pick(settings, "policy.about")}
+          returns={pick(settings, "policy.returns")}
+          privacy={pick(settings, "policy.privacy")}
+          terms={pick(settings, "policy.terms")}
+        />
+      </EditableSettingsSection>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { AdminSearch } from "@/components/admin/admin-search";
 import { AdminSidebar } from "./admin-sidebar";
 import { LogoutButton } from "./logout-button";
 import { NAV_SECTIONS } from "./nav-sections";
+import { initialsForName } from "@/lib/initials";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const principal = await requireStaffPrincipal();
@@ -17,15 +18,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-dvh bg-(--pv-wash)">
       <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-(--pv-surface)">
-        <div className="flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6">
-          <Link href="/admin" aria-label="Admin home">
+        <div className="flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:grid lg:grid-cols-[minmax(10rem,1fr)_minmax(20rem,36rem)_minmax(10rem,1fr)]">
+          <Link href="/admin" aria-label="Admin home" className="justify-self-start">
             <BrandMark compact />
           </Link>
           <AdminSearch sections={sections} />
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-bold">{principal.fullName}</p>
-              <p className="text-xs text-(--pv-muted)">{principal.role}</p>
+          <div className="flex shrink-0 items-center gap-2 justify-self-end sm:gap-3">
+            <div className="hidden items-center gap-2.5 sm:flex">
+              <span
+                aria-hidden="true"
+                className="grid h-10 w-10 place-items-center rounded-full bg-(--pv-red) text-xs font-extrabold text-(--pv-on-brand)"
+              >
+                {initialsForName(principal.fullName)}
+              </span>
+              <div className="text-right">
+                <p className="text-sm font-bold">{principal.fullName}</p>
+                <p className="text-xs text-(--pv-muted)">{principal.role}</p>
+              </div>
             </div>
             <LogoutButton />
             <AdminMobileNav sections={sections} />

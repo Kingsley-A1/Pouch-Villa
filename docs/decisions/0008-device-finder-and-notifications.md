@@ -172,6 +172,22 @@ itself enough. A suspension notice is defensible and is a product decision about
 how the client wants to part with staff, not an engineering gap — it belongs in
 [`open-questions.md`](../open-questions.md), not in a quiet default.
 
+> **Resolved 2026-09-02.** [Q11](../open-questions.md) came back answered: yes,
+> and the CEO writes it at the moment they change the access. The Suspend and
+> Reactivate controls on `/admin/staff` now open a composer, and
+> [`staff-email.ts`](../../packages/pv-backend/src/services/staff-email.ts) sends
+> those words through the same template as everything else.
+>
+> The message stays optional — access must never remain open because nobody
+> could find the right words — and it carries **no sign-in link and no code**.
+> This is the one message the system sends deliberately to somebody it has just
+> stopped trusting, at an address that may no longer be theirs, so anything more
+> than an explanation would be a way back in that outlives the mailbox. What was
+> written is stored on the audit record as well as sent.
+>
+> The role-code half stands as recommended: still shown once, still never
+> emailed.
+
 **A pending-review or pending-proof digest.** Both queues now alert on arrival.
 A daily "you have twelve waiting" is a scheduled job, not an email, and is Phase
 4 work once real volume says whether it is needed.

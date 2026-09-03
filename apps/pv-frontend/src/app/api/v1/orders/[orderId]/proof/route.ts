@@ -1,5 +1,6 @@
 import { proofUploadFinaliseSchema } from "@pv/backend/domain/schemas";
 import { normalisePhone } from "@pv/backend/domain/phone";
+import { MAX_PROOF_BYTES } from "@pv/backend/storage/documents";
 import { beginProofUpload, finaliseProofUpload } from "@pv/backend/services/payments";
 import { getOrderById } from "@pv/backend/services/orders";
 import {
@@ -53,10 +54,18 @@ async function authorise(orderId: string, request: Request): Promise<boolean> {
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await context.params;
   const contentType = request.headers.get("x-upload-content-type") ?? "";
+  const contentLength = Number(request.headers.get("x-upload-content-length"));
 
   const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
   if (!allowed.includes(contentType)) {
     return fail("validation_failed", "Upload a JPEG, PNG, WebP or PDF of your transfer receipt.");
+  }
+  if (
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0 ||
+    contentLength > MAX_PROOF_BYTES
+  ) {
+    return fail("validation_failed", "Choose a non-empty file within the upload limit.");
   }
 
   if (!(await authorise(orderId, request))) {
@@ -65,7 +74,9 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
 
   const requestInfo = await requestContext();
   try {
-    const began = await beginProofUpload(orderId, contentType, { ip: requestInfo.ip });
+    const began = await beginProofUpload(orderId, contentType, contentLength, {
+      ip: requestInfo.ip,
+    });
     return created(began);
   } catch (error) {
     return toApiError(error);

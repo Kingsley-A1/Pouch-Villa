@@ -19,20 +19,20 @@ export type BeginUploadResult = { ok: true; upload: BeganUpload } | { ok: false;
 export async function beginUploadAction(
   productId: string,
   contentType: string,
-  declaredBytes?: number,
+  contentLength: number,
 ): Promise<BeginUploadResult> {
   const principal = await requirePermission("media.manage");
   // The declared type only decides whether to issue a URL at all; what the file
   // actually is gets settled from its bytes when the upload is finalised. The
-  // declared size is treated the same way — a free early refusal, never the
-  // enforcement.
+  // size is different: it is signed into the URL, so a browser that sends a
+  // different number of bytes fails at R2 rather than here.
   if (!ACCEPTED.has(contentType)) {
     return { ok: false, error: "Choose a JPEG, PNG, WebP or AVIF image." };
   }
   try {
     return {
       ok: true,
-      upload: await beginUpload(productId, contentType, principal, declaredBytes),
+      upload: await beginUpload(productId, contentType, contentLength, principal),
     };
   } catch (error) {
     const state = toActionError(error, "Uploading is not available right now.");

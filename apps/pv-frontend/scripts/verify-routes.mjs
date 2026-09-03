@@ -125,6 +125,7 @@ let failure;
 try {
   await waitForServer();
   const results = [];
+  let nonced = 0;
   for (const route of routes) {
     const response = await fetch(`${origin}${route}`, { redirect: "manual" });
     if (response.status < 200 || response.status >= 400) {
@@ -134,7 +135,53 @@ try {
     if (!body.includes("Pouch Villa")) {
       throw new Error(`${route} did not render the Pouch Villa shell`);
     }
+
+    /*
+      Every script on every page must carry the nonce. One that does not is a
+      script the browser refuses to run, and the page breaks in production while
+      a typecheck, a build and every other check here still pass.
+
+      Checked on each route rather than only the home page: a hand-written
+      <script> tends to be added to one page, and the point of the gate is to
+      catch it wherever it lands.
+    */
+    const unnonced = [...body.matchAll(/<script\b([^>]*)>/g)]
+      .map((match) => match[1])
+      .filter((attrs) => !attrs.includes("nonce="));
+    if (unnonced.length > 0) {
+      throw new Error(
+        `${unnonced.length} script tag(s) on ${route} carry no nonce and would be blocked by the ` +
+          `Content-Security-Policy. If it is one of ours, read x-nonce from headers().`,
+      );
+    }
+    nonced += body.match(/<script\b/g)?.length ?? 0;
+
     results.push(`${response.status} ${route}`);
+  }
+
+  /*
+    The security headers, asserted against a running server rather than a unit
+    test, because what matters is that the proxy actually runs on a document
+    request and that Next honours the nonce it was given. A policy that is
+    correct in a string builder and absent from the response protects nothing.
+  */
+  {
+    const response = await fetch(`${origin}/`, { redirect: "manual" });
+    const csp = response.headers.get("content-security-policy") ?? "";
+    if (csp === "") throw new Error("/ served no Content-Security-Policy header");
+    if (csp.includes("'unsafe-inline'")) {
+      throw new Error("Content-Security-Policy allows 'unsafe-inline'; AGENTS.md §5 forbids it");
+    }
+    if (!/script-src[^;]*'nonce-/.test(csp)) {
+      throw new Error("Content-Security-Policy does not carry a script nonce");
+    }
+    for (const header of ["x-content-type-options", "referrer-policy", "x-frame-options"]) {
+      if (!response.headers.has(header)) throw new Error(`/ served no ${header} header`);
+    }
+
+    // The per-script nonce check runs in the route loop above, on every page
+    // rather than only this one. This block asserts the header itself.
+    results.push(`CSP ok on every route, ${nonced} script tags, all nonced`);
   }
 
   for (const route of protectedAdminRoutes) {

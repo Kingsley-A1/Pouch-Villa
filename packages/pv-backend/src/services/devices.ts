@@ -1,6 +1,7 @@
-import { query } from "../db/client";
+import { query, type Queryable } from "../db/client";
 import { withTransaction } from "../db/transaction";
 import { syncAdminSearchDocument } from "./admin-search-index";
+import { deriveUniqueSlug } from "../domain/slug";
 import { recordAudit } from "./audit";
 
 /**
@@ -52,34 +53,40 @@ export async function listAllDevices(): Promise<AdminDevice[]> {
   return rows.map(toDevice);
 }
 
-export class DeviceSlugTakenError extends Error {
-  constructor(slug: string) {
-    super(`That brand already has a device with the slug "${slug}".`);
-    this.name = "DeviceSlugTakenError";
-  }
-}
-
 export type DeviceInput = {
   brandId: string;
   name: string;
-  slug: string;
   releasedYear: number | null;
   sortOrder: number;
 };
 
+/**
+ * The slug is derived from the name, never typed.
+ *
+ * Scoped to the brand, because `device_brand_slug_idx` is unique on
+ * `(brand_id, slug)` rather than on the slug alone — two makers may both sell a
+ * model called "Note 12", and each keeps the obvious slug under its own brand.
+ * Its own literal statement rather than a shared table name, per AGENTS.md §5.
+ */
+async function deriveDeviceSlug(tx: Queryable, brandId: string, name: string): Promise<string> {
+  return deriveUniqueSlug(name, async (pattern) => {
+    const rows = await tx.query("SELECT slug FROM device WHERE brand_id = $1 AND slug LIKE $2", [
+      brandId,
+      pattern,
+    ]);
+    return (rows.rows as { slug: string }[]).map((row) => row.slug);
+  });
+}
+
 export async function createDevice(input: DeviceInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
-    const clash = await tx.query("SELECT id FROM device WHERE brand_id = $1 AND slug = $2", [
-      input.brandId,
-      input.slug,
-    ]);
-    if (clash.rows.length > 0) throw new DeviceSlugTakenError(input.slug);
+    const slug = await deriveDeviceSlug(tx, input.brandId, input.name);
 
     const result = await tx.query(
       `INSERT INTO device (brand_id, name, slug, released_year, sort_order)
             VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-      [input.brandId, input.name, input.slug, input.releasedYear, input.sortOrder],
+      [input.brandId, input.name, slug, input.releasedYear, input.sortOrder],
     );
     const id = (result.rows[0] as { id: string }).id;
     await recordAudit(tx, {
@@ -103,17 +110,20 @@ export async function updateDevice(id: string, input: DeviceInput, actor: { staf
     );
     if (before.rows.length === 0) return false;
 
-    const clash = await tx.query(
-      "SELECT id FROM device WHERE brand_id = $1 AND slug = $2 AND id <> $3",
-      [input.brandId, input.slug, id],
-    );
-    if (clash.rows.length > 0) throw new DeviceSlugTakenError(input.slug);
+    // Moving a device to another brand re-derives its slug, because uniqueness
+    // is per brand and the existing one may already be taken there. A rename
+    // alone keeps it: the slug is in "fits my phone" URLs customers may hold.
+    const current = before.rows[0] as { brand_id: string; slug: string };
+    const slug =
+      current.brand_id === input.brandId
+        ? current.slug
+        : await deriveDeviceSlug(tx, input.brandId, input.name);
 
     await tx.query(
       `UPDATE device
           SET brand_id = $2, name = $3, slug = $4, released_year = $5, sort_order = $6
         WHERE id = $1`,
-      [id, input.brandId, input.name, input.slug, input.releasedYear, input.sortOrder],
+      [id, input.brandId, input.name, slug, input.releasedYear, input.sortOrder],
     );
     await recordAudit(tx, {
       actorType: "staff",

@@ -10,7 +10,6 @@ function parseInput(formData: FormData) {
   return deviceSchema.safeParse({
     brandId: formData.get("brandId"),
     name: formData.get("name"),
-    slug: formData.get("slug"),
     releasedYear: formData.get("releasedYear") || null,
     sortOrder: formData.get("sortOrder") || 0,
   });

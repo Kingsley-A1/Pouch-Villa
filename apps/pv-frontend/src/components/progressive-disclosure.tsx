@@ -20,6 +20,11 @@ import type { ReactNode } from "react";
  *   - Reduced motion needs no branch here: `globals.css` already neutralises
  *     transition durations under `prefers-reduced-motion: reduce`, so the
  *     content simply appears.
+ *
+ * The open and closed states are utility classes rather than a `style` object.
+ * An inline `style` attribute requires `style-src-attr 'unsafe-inline'`, and §5
+ * forbids `unsafe-inline` outright — a single attribute anywhere in the app
+ * would have forced the whole policy open.
  */
 export function ProgressiveDisclosure({
   open,
@@ -32,8 +37,9 @@ export function ProgressiveDisclosure({
 }) {
   return (
     <div
-      className={`grid transition-[grid-template-rows,opacity] duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] ${className}`}
-      style={{ gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0 }}
+      className={`grid transition-[grid-template-rows,opacity] duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+      } ${className}`}
       inert={!open}
     >
       <div className="overflow-hidden">{children}</div>

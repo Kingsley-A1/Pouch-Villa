@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { AdminVariant } from "@pv/backend/services/products";
 import { koboToNaira } from "@pv/backend/domain/money";
+import { MoneyInput } from "@/components/admin/money-input";
 import {
   Field,
   FormError,
@@ -32,36 +33,29 @@ export function VariantForm({
       className="grid gap-3 rounded-xl border border-(--pv-line) bg-(--pv-wash) p-4"
     >
       {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="SKU" name="sku" hint="Uppercase, numbers and hyphens">
-          <TextInput name="sku" required defaultValue={editing?.sku} />
-        </Field>
-        <Field label="Sort order" name="sortOrder">
-          <TextInput
-            name="sortOrder"
-            type="number"
-            min={0}
-            defaultValue={editing?.sortOrder ?? 0}
-          />
-        </Field>
-      </div>
+      {editing ? (
+        <div>
+          <p className="text-sm font-bold">SKU</p>
+          <p className="mt-1 font-mono text-sm text-(--pv-muted)">{editing.sku}</p>
+        </div>
+      ) : (
+        <p className="text-sm text-(--pv-muted)">
+          The SKU will be generated from the product name when this variant is saved.
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Price (₦)" name="priceNaira">
-          <TextInput
+          <MoneyInput
             name="priceNaira"
-            type="number"
-            min={0}
-            step="1"
             required
+            placeholder="e.g. 25,000"
             defaultValue={editing ? koboToNaira(editing.priceKobo) : undefined}
           />
         </Field>
         <Field label="Compare-at price (₦)" name="compareAtNaira" hint="Optional">
-          <TextInput
+          <MoneyInput
             name="compareAtNaira"
-            type="number"
-            min={0}
-            step="1"
+            placeholder="e.g. 30,000"
             defaultValue={editing?.compareAtKobo ? koboToNaira(editing.compareAtKobo) : ""}
           />
         </Field>

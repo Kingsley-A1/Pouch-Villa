@@ -1,6 +1,17 @@
 import { cn } from "@/lib/utils";
 import { PouchMark } from "./pouch-mark";
 
+/**
+ * `inverse` means "this sits on a permanently dark ground" — the footer band,
+ * which is inverted in both themes.
+ *
+ * It uses `--pv-footer-ink`, which is fixed white, and deliberately **not**
+ * `--pv-on-brand`. That token means "text on a filled brand button" and
+ * correctly flips to near-black in dark mode; used here it painted the wordmark
+ * `#14100f` on the footer's `#09090b`, a contrast ratio of 1.05. The mark was
+ * invisible in the footer for every visitor in dark mode, and it was Lighthouse's
+ * `color-contrast` audit that found it rather than anybody looking.
+ */
 export function BrandMark({
   inverse = false,
   compact = false,
@@ -12,7 +23,7 @@ export function BrandMark({
     <span
       className={cn(
         "inline-flex items-center gap-2.5",
-        inverse ? "text-(--pv-on-brand)" : "text-(--pv-red)",
+        inverse ? "text-(--pv-footer-ink)" : "text-(--pv-red)",
       )}
       aria-label="Pouch Villa"
     >

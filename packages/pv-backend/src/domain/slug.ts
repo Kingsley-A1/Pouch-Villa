@@ -32,6 +32,27 @@ export function slugify(input: string): string {
 }
 
 /**
+ * Derives a free slug from a name, given a way to read the slugs already taken.
+ *
+ * The loader is a callback rather than a table name because AGENTS.md §5 forbids
+ * interpolating an identifier into SQL, "even behind an enum guard". Each caller
+ * passes a closure holding its own literal statement, so there is one shared
+ * rule for deriving a slug and still one distinct prepared statement per table.
+ *
+ * `pattern` is a `LIKE` prefix, so a caller reads only the slugs sharing the
+ * derived stem rather than scanning its whole table.
+ */
+export async function deriveUniqueSlug(
+  name: string,
+  loadTaken: (pattern: string) => Promise<string[]>,
+): Promise<string> {
+  const base = slugify(name);
+  const stem = base === "" ? "item" : base;
+  const taken = await loadTaken(`${stem}%`);
+  return firstFreeSlug(base, new Set(taken));
+}
+
+/**
  * Picks the first free slug in the `base`, `base-2`, `base-3` … sequence.
  *
  * `taken` is the set of slugs already in use. Callers read that set inside the

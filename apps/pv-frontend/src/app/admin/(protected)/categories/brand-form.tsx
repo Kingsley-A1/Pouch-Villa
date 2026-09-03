@@ -28,9 +28,6 @@ export function BrandForm({ editing, onDone }: { editing?: AdminBrand; onDone?: 
         <Field label="Name" name="name">
           <TextInput name="name" required defaultValue={editing?.name} />
         </Field>
-        <Field label="Slug" name="slug" hint="lowercase-with-hyphens">
-          <TextInput name="slug" required defaultValue={editing?.slug} />
-        </Field>
       </div>
       <Field label="Sort order" name="sortOrder">
         <TextInput name="sortOrder" type="number" min={0} defaultValue={editing?.sortOrder ?? 0} />

@@ -3,11 +3,13 @@
 import { useActionState } from "react";
 import type { DeliveryZone } from "@pv/backend/services/delivery";
 import { koboToNaira } from "@pv/backend/domain/money";
+import { MoneyInput } from "@/components/admin/money-input";
 import {
   Field,
   FormError,
   FormSuccess,
   SubmitButton,
+  Select,
   TextInput,
 } from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
@@ -29,33 +31,42 @@ export function ZoneForm({ editing, onDone }: { editing?: DeliveryZone; onDone?:
         <Field label="Zone name" name="name">
           <TextInput name="name" required defaultValue={editing?.name} />
         </Field>
-        <Field label="LGA" name="lga" hint="Optional">
-          <TextInput name="lga" defaultValue={editing?.lga ?? ""} />
+        <Field label="Local government area" name="lga">
+          <Select name="lga" required defaultValue={editing?.lga ?? ""}>
+            <option value="" disabled>
+              Choose a location
+            </option>
+            <option value="Calabar Municipal">Calabar Municipal</option>
+            <option value="Calabar South">Calabar South</option>
+            <option value="Outside Calabar">Outside Calabar</option>
+          </Select>
         </Field>
       </div>
       <Field label="Delivery fee (₦)" name="feeNaira">
-        <TextInput
+        <MoneyInput
           name="feeNaira"
-          type="number"
-          min={0}
-          step="1"
           required
-          defaultValue={editing ? koboToNaira(editing.feeKobo) : 0}
+          placeholder="e.g. 2,500"
+          defaultValue={editing ? koboToNaira(editing.feeKobo) : ""}
         />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Min days" name="minDays" hint="Optional">
-          <TextInput name="minDays" type="number" min={0} defaultValue={editing?.minDays ?? ""} />
-        </Field>
-        <Field label="Max days" name="maxDays" hint="Optional">
-          <TextInput name="maxDays" type="number" min={0} defaultValue={editing?.maxDays ?? ""} />
-        </Field>
-        <Field label="Sort order" name="sortOrder">
           <TextInput
-            name="sortOrder"
+            name="minDays"
             type="number"
             min={0}
-            defaultValue={editing?.sortOrder ?? 0}
+            placeholder="e.g. 1"
+            defaultValue={editing?.minDays ?? ""}
+          />
+        </Field>
+        <Field label="Max days" name="maxDays" hint="Optional">
+          <TextInput
+            name="maxDays"
+            type="number"
+            min={0}
+            placeholder="e.g. 3"
+            defaultValue={editing?.maxDays ?? ""}
           />
         </Field>
       </div>

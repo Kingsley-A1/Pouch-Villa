@@ -27,11 +27,7 @@ export function PolicySettingsForm({
   const [state, formAction] = useActionState(savePolicySettingsAction, INITIAL_ACTION_STATE);
 
   return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
-    >
-      <h2 className="text-lg font-bold">Supporting pages</h2>
+    <form action={formAction} className="grid gap-4">
       <p className="text-sm text-(--pv-muted)">
         Legally operative wording needs a named owner on your side, so nothing here is drafted for
         you. Left blank, a page shows an explicit awaiting-confirmation notice rather than inventing

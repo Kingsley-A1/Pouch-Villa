@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { productSchema, variantSchema, stockAdjustmentSchema } from "@pv/backend/domain/schemas";
-import { kobo } from "@pv/backend/domain/money";
+import { kobo, parseNairaToKobo } from "@pv/backend/domain/money";
 import * as products from "@pv/backend/services/products";
 import { setProductCollections } from "@pv/backend/services/home-sections";
 import { requirePermission } from "@/server/session";
@@ -112,12 +112,10 @@ function parseVariantInput(formData: FormData) {
     if (typeof value === "string" && value.trim()) axes[axis] = value.trim();
   }
   return variantSchema.safeParse({
-    sku: formData.get("sku"),
-    priceKobo: formData.get("priceNaira") ? Number(formData.get("priceNaira")) * 100 : 0,
+    priceKobo: parseNairaToKobo(String(formData.get("priceNaira") ?? "")),
     compareAtKobo: formData.get("compareAtNaira")
-      ? Number(formData.get("compareAtNaira")) * 100
+      ? parseNairaToKobo(String(formData.get("compareAtNaira")))
       : null,
-    sortOrder: formData.get("sortOrder") || 0,
     axes,
   });
 }
@@ -128,7 +126,12 @@ export async function saveVariantAction(
   formData: FormData,
 ): Promise<ActionState> {
   const principal = await requirePermission("product.manage");
-  const parsed = parseVariantInput(formData);
+  let parsed: ReturnType<typeof parseVariantInput>;
+  try {
+    parsed = parseVariantInput(formData);
+  } catch {
+    return { error: "Enter valid prices using naira and up to two decimal places." };
+  }
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   const input = {
