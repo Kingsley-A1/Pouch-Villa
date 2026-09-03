@@ -340,6 +340,33 @@ No migration.
 > emailing a role code would weaken the guarantee `BOOTSTRAP_CEO_EMAIL` exists
 > to provide.
 
+**Media upload repair, added 2026-09-03.** Recorded in
+[`decisions/0009-media-upload-repair.md`](decisions/0009-media-upload-repair.md).
+No migration.
+
+- **No image could be uploaded, anywhere, ever.** `presignUpload` passed the size
+  cap as `ContentLength`, which SigV4 signs — so every pre-signed URL demanded a
+  `Content-Length` of exactly 10485760 and a browser sends the real file size.
+  Both the admin product upload and the **customer payment-receipt upload** were
+  broken by it. The regression test asserts the signed-header set and was watched
+  failing against the old code.
+- **The edit screen now takes a whole selection.** It read `files[0]` from a
+  single-file input while the backend and the create screen both allowed five.
+- **Images can be replaced in place**, on both screens. On the edit screen that
+  is one transaction — the new row takes the old row's position and the old row
+  goes — rather than a delete and an add, where a dropped connection lands the
+  delete first.
+- **Alt text is a real field.** Both screens stored the _filename_ as alt text,
+  which a screen reader reads out as "IMG 4021 dot jpeg". Not part of the
+  reported fault, but created by the line that had to change, and §2 puts WCAG
+  2.2 AA at the floor.
+
+> **A deployment prerequisite that was never written down.** Uploads go from the
+> browser straight to R2, so both buckets need a CORS policy allowing `PUT` from
+> the site's origin. Without it every upload fails identically and looks exactly
+> like a broken app. The policy is now in [`.env.example`](../.env.example). If
+> uploads still fail after this change, check that first.
+
 Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
