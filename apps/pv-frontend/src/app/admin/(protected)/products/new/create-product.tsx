@@ -9,7 +9,7 @@ import type { ActionState } from "@/lib/action-state";
 import { LoadingLine } from "@/components/loading-line";
 import { ProductForm } from "../product-form";
 import type { PickedFile } from "../media-picker";
-import { beginUploadAction, finaliseUploadAction } from "../media-actions";
+import { uploadProductImage } from "../upload-image";
 
 type CreateResult = ActionState & { productId?: string };
 
@@ -68,30 +68,11 @@ export function CreateProduct({
     // connection contend with each other and are more likely to time out than
     // the same five sent one after another.
     for (const [index, picked] of files.entries()) {
-      try {
-        const began = await beginUploadAction(productId, picked.file.type);
-        if (!began.ok) {
-          failed.push(picked.file.name);
-          continue;
-        }
-        const put = await fetch(began.upload.url, {
-          method: "PUT",
-          body: picked.file,
-          headers: { "Content-Type": picked.file.type },
-        });
-        if (!put.ok) {
-          failed.push(picked.file.name);
-          continue;
-        }
-        const finalised = await finaliseUploadAction(
-          productId,
-          began.upload.uploadId,
-          picked.file.name,
-        );
-        if (finalised.error !== null) failed.push(picked.file.name);
-      } catch {
-        failed.push(picked.file.name);
-      }
+      // Every failure mode is a returned value — see `uploadProductImage`. The
+      // reason is kept rather than only the filename: "storage refused it" and
+      // "that file is 30MB" need different things done about them.
+      const outcome = await uploadProductImage(productId, picked.file);
+      if (!outcome.ok) failed.push(outcome.error);
       setUploading({ done: index + 1, total: files.length });
     }
 
@@ -102,7 +83,7 @@ export function CreateProduct({
       return {
         error: `The product was created, but ${failed.length} image${
           failed.length === 1 ? "" : "s"
-        } did not upload. Add ${failed.length === 1 ? "it" : "them"} again below.`,
+        } did not upload. Add ${failed.length === 1 ? "it" : "them"} again on the edit screen.`,
       };
     }
 
@@ -118,11 +99,11 @@ export function CreateProduct({
       <div className="panel-bracket grid gap-4 p-5">
         <h2 className="text-lg font-bold">Product created, but some images did not upload</h2>
         <p className="text-sm text-(--pv-muted)">
-          The product was saved as a draft. Nothing is public yet. These files did not upload:
+          The product was saved as a draft. Nothing is public yet. These did not upload:
         </p>
         <ul className="grid gap-1 text-sm text-(--pv-danger)">
-          {failures.map((name) => (
-            <li key={name}>{name}</li>
+          {failures.map((reason) => (
+            <li key={reason}>{reason}</li>
           ))}
         </ul>
         <p className="text-sm text-(--pv-muted)">

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { ACCEPTED_MEDIA, ACCEPTED_MEDIA_TYPES, rejectionReason } from "./upload-image";
 
 export const MIN_MEDIA = 1;
 export const MAX_MEDIA = 5;
 
-export const ACCEPTED_MEDIA = "image/jpeg,image/png,image/webp,image/avif";
+export { ACCEPTED_MEDIA };
 
 export type PickedFile = { id: string; file: File; previewUrl: string };
 
@@ -37,10 +38,10 @@ export function MediaPicker({
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
-  // Revoke on unmount only. Per-item revocation happens in `remove`, because
-  // revoking on every `files` change would kill URLs still being rendered.
-  // The ref is written in an effect, not during render, so a discarded render
-  // pass cannot leave it pointing at files that were never shown.
+  // Revoke on unmount only. Per-item revocation happens in `remove` and
+  // `replace`, because revoking on every `files` change would kill URLs still
+  // being rendered. The ref is written in an effect, not during render, so a
+  // discarded render pass cannot leave it pointing at files that were never shown.
   const latest = useRef(files);
   useEffect(() => {
     latest.current = files;
@@ -62,10 +63,12 @@ export function MediaPicker({
     }
 
     const incoming = Array.from(selected);
-    const accepted = incoming.filter((file) => ACCEPTED_MEDIA.split(",").includes(file.type));
-    if (accepted.length < incoming.length) {
-      setProblem("Only JPEG, PNG, WebP and AVIF images can be used.");
-    }
+    // The same rules the upload path applies, applied here so a file that was
+    // never going to be accepted is refused before anything is chosen at all.
+    const refusals = incoming.map(rejectionReason).filter((reason) => reason !== null);
+    const accepted = incoming.filter((file) => rejectionReason(file) === null);
+
+    if (refusals.length > 0) setProblem(refusals.join(" "));
     if (accepted.length > room) {
       setProblem(`Only the first ${room} of those fit — the limit is ${MAX_MEDIA} images.`);
     }
@@ -86,6 +89,30 @@ export function MediaPicker({
     if (target) URL.revokeObjectURL(target.previewUrl);
     onChange(files.filter((picked) => picked.id !== id));
     setProblem(null);
+  }
+
+  /**
+   * Swaps one chosen file for another, in place.
+   *
+   * Nothing has been uploaded yet, so this is a straight substitution — but the
+   * old preview URL still has to be revoked, or the discarded photo stays in
+   * memory for as long as the tab is open.
+   */
+  function replace(id: string, file: File | undefined) {
+    if (file === undefined) return;
+    const refusal = rejectionReason(file);
+    if (refusal !== null) {
+      setProblem(refusal);
+      return;
+    }
+    setProblem(null);
+    onChange(
+      files.map((picked) => {
+        if (picked.id !== id) return picked;
+        URL.revokeObjectURL(picked.previewUrl);
+        return { ...picked, file, previewUrl: URL.createObjectURL(file) };
+      }),
+    );
   }
 
   function move(index: number, direction: -1 | 1) {
@@ -114,7 +141,7 @@ export function MediaPicker({
           <input
             ref={input}
             type="file"
-            accept={ACCEPTED_MEDIA}
+            accept={ACCEPTED_MEDIA_TYPES.join(",")}
             multiple
             className="sr-only"
             disabled={disabled || files.length >= MAX_MEDIA}
@@ -157,6 +184,7 @@ export function MediaPicker({
                   </span>
                 ) : null}
               </div>
+
               <div className="mt-2 flex items-center justify-between gap-1">
                 <div className="flex gap-1">
                   <button
@@ -188,6 +216,29 @@ export function MediaPicker({
                   ×
                 </button>
               </div>
+
+              {/* Swapping one photo for a better one should not mean removing it
+                  and re-adding it at the back of the queue. */}
+              <label
+                className={cn(
+                  "mt-1 inline-flex min-h-11 w-full cursor-pointer items-center justify-center text-sm font-bold",
+                  disabled && "pointer-events-none opacity-40",
+                )}
+              >
+                Replace
+                <span className="sr-only"> {picked.file.name}</span>
+                <input
+                  type="file"
+                  accept={ACCEPTED_MEDIA_TYPES.join(",")}
+                  className="sr-only"
+                  disabled={disabled}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    replace(picked.id, file);
+                  }}
+                />
+              </label>
             </li>
           ))}
         </ul>

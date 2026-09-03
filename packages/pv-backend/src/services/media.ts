@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { getPool, query } from "../db/client";
 import { withTransaction } from "../db/transaction";
-import { DERIVATIVES, MAX_IMAGE_BYTES, type DerivativeName } from "../storage/image-formats";
+import {
+  DERIVATIVES,
+  ImageTooLargeError,
+  MAX_IMAGE_BYTES,
+  type DerivativeName,
+} from "../storage/image-formats";
 import { mediaKey } from "../storage/media-key";
 import { deleteObject, getObjectBytes, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
@@ -29,6 +34,13 @@ export class UploadNotFoundError extends Error {
   }
 }
 
+export class MediaNotFoundError extends Error {
+  constructor() {
+    super("That image was not found on this product.");
+    this.name = "MediaNotFoundError";
+  }
+}
+
 export type BeganUpload = {
   uploadId: string;
   url: string;
@@ -37,18 +49,27 @@ export type BeganUpload = {
   maxBytes: number;
 };
 
+/**
+ * `declaredBytes` is what the browser says the file weighs, and it is checked
+ * before a URL is issued rather than trusted.
+ *
+ * It cannot be the enforcement — a client that lies is still a client — but it
+ * is free, and refusing here saves someone on mobile data from spending four
+ * minutes uploading a photo `processImage` was always going to reject. The
+ * authority is still the byte count measured after the object is fetched back.
+ */
 export async function beginUpload(
   productId: string,
   contentType: string,
   actor: { staffId: string },
+  declaredBytes?: number,
 ): Promise<BeganUpload> {
+  if (declaredBytes !== undefined && declaredBytes > MAX_IMAGE_BYTES) {
+    throw new ImageTooLargeError(MAX_IMAGE_BYTES);
+  }
+
   const stagingKey = `staging/${productId}/${randomUUID()}`;
-  const { url, expiresIn } = await presignUpload(
-    "public",
-    stagingKey,
-    contentType,
-    MAX_IMAGE_BYTES,
-  );
+  const { url, expiresIn } = await presignUpload("public", stagingKey, contentType);
 
   const rows = await query<{ id: string }>(
     `INSERT INTO media_upload (product_id, staging_key, created_by)
@@ -68,10 +89,24 @@ export async function beginUpload(
 
 export type FinalisedMedia = { mediaId: string; width: number; height: number };
 
+/**
+ * `replacesMediaId` swaps a new image into an existing one's place.
+ *
+ * Doing it as add-then-delete-then-reorder would be three round trips with three
+ * chances to leave the product showing two versions of the same photo, or none.
+ * Here the new row takes the old row's `sort_order` and the old row goes, in one
+ * transaction — so the gallery either has the new image where the old one was,
+ * or is untouched.
+ *
+ * The old renditions are deleted **after** the transaction commits: object
+ * deletion is an external effect, and a CockroachDB transaction body may be run
+ * more than once.
+ */
 export async function finaliseUpload(
   uploadId: string,
   alt: string | null,
   actor: { staffId: string },
+  options: { replacesMediaId?: string } = {},
 ): Promise<FinalisedMedia> {
   const staged = await query<{ id: string; product_id: string; staging_key: string }>(
     `SELECT id, product_id, staging_key FROM media_upload
@@ -117,12 +152,39 @@ export async function finaliseUpload(
   // The staged original has served its purpose; only the derivatives are served.
   await deleteObject("public", upload.staging_key).catch(() => {});
 
-  const mediaId = await withTransaction(async (tx) => {
-    const next = await tx.query(
-      "SELECT coalesce(max(sort_order), -1) + 1 AS next FROM product_media WHERE product_id = $1",
-      [upload.product_id],
-    );
-    const sortOrder = (next.rows[0] as { next: number }).next;
+  const { mediaId, replacedHash } = await withTransaction(async (tx) => {
+    /**
+     * Where the new image lands.
+     *
+     * Replacing takes the old row's slot so the gallery does not visibly
+     * reshuffle; otherwise the image goes on the end. The replaced row is read
+     * inside the transaction so a concurrent reorder cannot leave the new image
+     * in a position the old one no longer held.
+     */
+    let replaced: { sort_order: number; content_hash: string | null } | null = null;
+    if (options.replacesMediaId !== undefined) {
+      const existing = await tx.query(
+        "SELECT sort_order, content_hash FROM product_media WHERE id = $1 AND product_id = $2",
+        [options.replacesMediaId, upload.product_id],
+      );
+      replaced = (existing.rows[0] as { sort_order: number; content_hash: string | null }) ?? null;
+      if (replaced === null) throw new MediaNotFoundError();
+    }
+
+    let sortOrder: number;
+    if (replaced !== null) {
+      sortOrder = replaced.sort_order;
+    } else {
+      const next = await tx.query(
+        "SELECT coalesce(max(sort_order), -1) + 1 AS next FROM product_media WHERE product_id = $1",
+        [upload.product_id],
+      );
+      sortOrder = (next.rows[0] as { next: number }).next;
+    }
+
+    if (options.replacesMediaId !== undefined) {
+      await tx.query("DELETE FROM product_media WHERE id = $1", [options.replacesMediaId]);
+    }
 
     const inserted = await tx.query(
       `INSERT INTO product_media
@@ -151,16 +213,33 @@ export async function finaliseUpload(
     await recordAudit(tx, {
       actorType: "staff",
       actorId: actor.staffId,
-      action: "media.uploaded",
+      action: replaced === null ? "media.uploaded" : "media.replaced",
       entityType: "product_media",
       entityId: id,
+      ...(replaced === null ? {} : { before: { mediaId: options.replacesMediaId } }),
       after: { productId: upload.product_id, width: processed.width, height: processed.height },
     });
 
-    return id;
+    return { mediaId: id, replacedHash: replaced?.content_hash ?? null };
   });
 
+  /**
+   * Only now, and only when the replaced image's bytes are not the new image's.
+   * Keys are content-hashed, so re-uploading an identical file produces the same
+   * objects — deleting "the old ones" would delete the ones just written.
+   */
+  if (replacedHash !== null && replacedHash !== processed.hash) {
+    await deleteRenditions(upload.product_id, replacedHash);
+  }
+
   return { mediaId, width: processed.width, height: processed.height };
+}
+
+/** Every derivative for one content hash. Missing objects are not an error. */
+async function deleteRenditions(productId: string, contentHash: string): Promise<void> {
+  for (const derivative of DERIVATIVES) {
+    await deleteObject("public", mediaKey(productId, contentHash, derivative.name)).catch(() => {});
+  }
 }
 
 export async function deleteMedia(mediaId: string, actor: { staffId: string }) {
@@ -173,12 +252,7 @@ export async function deleteMedia(mediaId: string, actor: { staffId: string }) {
 
   // Deleting a product must not orphan its objects, so the renditions go too.
   if (removed.content_hash !== null) {
-    for (const derivative of DERIVATIVES) {
-      await deleteObject(
-        "public",
-        mediaKey(removed.product_id, removed.content_hash, derivative.name),
-      ).catch(() => {});
-    }
+    await deleteRenditions(removed.product_id, removed.content_hash);
   }
 
   await recordAudit(getPool(), {
@@ -189,6 +263,36 @@ export async function deleteMedia(mediaId: string, actor: { staffId: string }) {
     entityId: mediaId,
   });
   return true;
+}
+
+/**
+ * The alternative text a screen reader will read for this image.
+ *
+ * Editable after upload because it is a sentence about the photograph, and
+ * nobody writes a good one while waiting for five files to upload. Stored as
+ * `null` when cleared rather than as an empty string: the two mean different
+ * things to a screen reader, and only one of them is "this image is decorative".
+ */
+export async function updateMediaAlt(
+  mediaId: string,
+  alt: string | null,
+  actor: { staffId: string },
+): Promise<void> {
+  const trimmed = alt?.trim() ?? "";
+  const rows = await query<{ id: string }>(
+    "UPDATE product_media SET alt = $2 WHERE id = $1 RETURNING id",
+    [mediaId, trimmed === "" ? null : trimmed],
+  );
+  if (rows[0] === undefined) throw new MediaNotFoundError();
+
+  await recordAudit(getPool(), {
+    actorType: "staff",
+    actorId: actor.staffId,
+    action: "media.alt_changed",
+    entityType: "product_media",
+    entityId: mediaId,
+    after: { alt: trimmed === "" ? null : trimmed },
+  });
 }
 
 export async function reorderMedia(
