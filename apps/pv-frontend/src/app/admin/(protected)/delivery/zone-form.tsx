@@ -9,13 +9,21 @@ import {
   FormError,
   FormSuccess,
   SubmitButton,
-  Select,
   TextInput,
 } from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { saveZoneAction } from "./actions";
 
-export function ZoneForm({ editing, onDone }: { editing?: DeliveryZone; onDone?: () => void }) {
+export function ZoneForm({
+  editing,
+  knownAreas,
+  onDone,
+}: {
+  editing?: DeliveryZone;
+  /** Areas already in use, offered as suggestions. Supplied by the page. */
+  knownAreas: string[];
+  onDone?: () => void;
+}) {
   const [state, formAction] = useActionState(saveZoneAction, INITIAL_ACTION_STATE);
 
   return (
@@ -31,15 +39,32 @@ export function ZoneForm({ editing, onDone }: { editing?: DeliveryZone; onDone?:
         <Field label="Zone name" name="name">
           <TextInput name="name" required defaultValue={editing?.name} />
         </Field>
-        <Field label="Local government area" name="lga">
-          <Select name="lga" required defaultValue={editing?.lga ?? ""}>
-            <option value="" disabled>
-              Choose a location
-            </option>
-            <option value="Calabar Municipal">Calabar Municipal</option>
-            <option value="Calabar South">Calabar South</option>
-            <option value="Outside Calabar">Outside Calabar</option>
-          </Select>
+        {/*
+          Free text with suggestions, not a fixed list.
+
+          Three areas used to be hardcoded here as <option> elements, which made
+          the places Pouch Villa serves a fact only a deployment could change —
+          the failure mode §4 exists to prevent. The suggestions are the areas
+          already in the delivery table, so the list grows as the shop does and
+          a new one can always be typed.
+        */}
+        <Field
+          label="Local government area"
+          name="lga"
+          hint="Type an area, or pick one already in use."
+        >
+          <TextInput
+            name="lga"
+            required
+            list="delivery-areas"
+            maxLength={120}
+            defaultValue={editing?.lga ?? ""}
+          />
+          <datalist id="delivery-areas">
+            {knownAreas.map((area) => (
+              <option key={area} value={area} />
+            ))}
+          </datalist>
         </Field>
       </div>
       <Field label="Delivery fee (₦)" name="feeNaira">

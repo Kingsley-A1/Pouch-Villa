@@ -4,12 +4,13 @@ import {
   listCategoryTree,
   listDevices,
 } from "@pv/backend/services/catalogue";
-import { listHomeSections, type HomeSection } from "@pv/backend/services/home-sections";
+import { listHomeSections } from "@pv/backend/services/home-sections";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { ProductGrid } from "@/components/product-grid";
+import { StorefrontSection } from "@/components/storefront-section";
 import { DeviceFinder } from "@/components/device-finder";
 import { AwaitingConfirmation } from "@/components/awaiting-confirmation";
-import { likeSummaryFor, type LikeSummary } from "@/server/product-likes";
+import { likeSummaryFor } from "@/server/product-likes";
 
 /**
  * Catalogue and settings come from the database, so this renders per request.
@@ -159,41 +160,6 @@ export default async function HomePage() {
         </div>
       </section>
     </>
-  );
-}
-
-function StorefrontSection({ section, likes }: { section: HomeSection; likes: LikeSummary }) {
-  return (
-    <section className="section-space">
-      <div className="container-shell">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <h2 className="section-title">{section.title}</h2>
-            {section.subtitle ? (
-              <p className="mt-2 max-w-xl text-(--pv-muted)">{section.subtitle}</p>
-            ) : null}
-          </div>
-          {/*
-            A rule-driven section can show only its first few products, so it
-            offers the rest. A hand-picked collection is complete by definition:
-            there is nothing further to see, and a "See all" that led to the
-            whole shop would be a lie about what the link does.
-          */}
-          {section.browseHref ? (
-            <Link
-              href={section.browseHref}
-              className="min-h-11 self-center text-sm font-bold text-(--pv-red) hover:underline"
-            >
-              See all
-              <span className="sr-only"> {section.title}</span>
-            </Link>
-          ) : null}
-        </div>
-        <div className="mt-6">
-          <ProductGrid products={section.products} likes={likes} />
-        </div>
-      </div>
-    </section>
   );
 }
 

@@ -8,6 +8,11 @@ import { ZoneForm } from "./zone-form";
 import { setZoneActiveAction, deleteZoneAction } from "./actions";
 
 export function ZoneList({ zones }: { zones: DeliveryZone[] }) {
+  // Derived from the zones already on screen rather than passed in: it is the
+  // same data, and a second prop would be one more thing to keep in step.
+  const knownAreas = [
+    ...new Set(zones.map((zone) => zone.lga).filter((lga): lga is string => lga !== null)),
+  ].sort();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
 
   return (
@@ -23,7 +28,9 @@ export function ZoneList({ zones }: { zones: DeliveryZone[] }) {
         </button>
       </div>
 
-      {editingId === "new" ? <ZoneForm onDone={() => setEditingId(null)} /> : null}
+      {editingId === "new" ? (
+        <ZoneForm knownAreas={knownAreas} onDone={() => setEditingId(null)} />
+      ) : null}
 
       {zones.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
@@ -35,7 +42,11 @@ export function ZoneList({ zones }: { zones: DeliveryZone[] }) {
           {zones.map((zone) =>
             editingId === zone.id ? (
               <li key={zone.id}>
-                <ZoneForm editing={zone} onDone={() => setEditingId(null)} />
+                <ZoneForm
+                  editing={zone}
+                  knownAreas={knownAreas}
+                  onDone={() => setEditingId(null)}
+                />
               </li>
             ) : (
               <li

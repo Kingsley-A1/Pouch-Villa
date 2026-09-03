@@ -98,7 +98,11 @@ describeDb("staff sessions", () => {
   it("rejects a session past its absolute expiry", async () => {
     const { staffId } = await createEmployee();
     const { token } = await issueStaffSession(staffId);
-    await query("UPDATE staff_session SET absolute_expires_at = now() - interval '1 second'");
+    // An hour, not a second. `now()` is the database's clock and the check runs
+    // against this process's clock; against a cloud cluster those differ by more
+    // than a second, so a one-second margin made this fail on latency rather
+    // than on the rule it is testing. The sibling idle test already uses an hour.
+    await query("UPDATE staff_session SET absolute_expires_at = now() - interval '1 hour'");
     expect(await verifyStaffSession(token)).toBeNull();
   });
 

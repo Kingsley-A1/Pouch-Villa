@@ -3,6 +3,7 @@ import { withTransaction } from "../db/transaction";
 import { listPublishedProducts, listPublishedProductsByIds } from "./catalogue";
 import type { CatalogueListItem } from "./catalogue";
 import { recordAudit } from "./audit";
+import type { HomeSectionLayout } from "../domain/section-layout";
 
 /**
  * How the home page is composed.
@@ -16,9 +17,13 @@ import { recordAudit } from "./audit";
 
 export type HomeSectionKind = "category" | "brand" | "collection";
 
+/** Re-exported so a caller holding a section does not need a second import. */
+export { SECTION_LAYOUTS, type HomeSectionLayout } from "../domain/section-layout";
+
 export type AdminHomeSection = {
   id: string;
   kind: HomeSectionKind;
+  layout: HomeSectionLayout;
   title: string;
   subtitle: string | null;
   categoryId: string | null;
@@ -37,6 +42,7 @@ export type AdminHomeSection = {
 export type HomeSection = {
   id: string;
   kind: HomeSectionKind;
+  layout: HomeSectionLayout;
   title: string;
   subtitle: string | null;
   /** Where "See all" goes, or null for a collection, which has no shop filter. */
@@ -47,6 +53,7 @@ export type HomeSection = {
 type SectionRow = {
   id: string;
   kind: HomeSectionKind;
+  layout: HomeSectionLayout;
   title: string;
   subtitle: string | null;
   category_id: string | null;
@@ -64,7 +71,7 @@ type SectionRow = {
  * the CHECK constraint guarantees which, so exactly one side is ever non-null.
  */
 const SECTION_SELECT = `
-  SELECT s.id, s.kind, s.title, s.subtitle, s.category_id, s.brand_id,
+  SELECT s.id, s.kind, s.layout, s.title, s.subtitle, s.category_id, s.brand_id,
          coalesce(c.name, b.name) AS source_name,
          coalesce(c.slug, b.slug) AS source_slug,
          s.max_items, s.sort_order, s.is_active,
@@ -79,6 +86,7 @@ function toAdminSection(row: SectionRow): AdminHomeSection {
   return {
     id: row.id,
     kind: row.kind,
+    layout: row.layout,
     title: row.title,
     subtitle: row.subtitle,
     categoryId: row.category_id,
@@ -159,6 +167,7 @@ async function resolveSection(row: SectionRow): Promise<HomeSection | null> {
   return {
     id: row.id,
     kind: row.kind,
+    layout: row.layout,
     title: row.title,
     subtitle: row.subtitle,
     browseHref,
@@ -175,6 +184,7 @@ export class InvalidSectionSourceError extends Error {
 
 export type HomeSectionInput = {
   kind: HomeSectionKind;
+  layout: HomeSectionLayout;
   title: string;
   subtitle: string | null;
   categoryId: string | null;
@@ -214,11 +224,13 @@ export async function createHomeSection(input: HomeSectionInput, actor: { staffI
   return withTransaction(async (tx) => {
     const result = await tx.query(
       `INSERT INTO home_section
-         (kind, title, subtitle, category_id, brand_id, max_items, sort_order, created_by, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+         (kind, layout, title, subtitle, category_id, brand_id, max_items, sort_order,
+          created_by, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
        RETURNING id`,
       [
         input.kind,
+        input.layout,
         input.title,
         input.subtitle,
         references.categoryId,
@@ -249,7 +261,7 @@ export async function updateHomeSection(
   const references = referencesFor(input);
   return withTransaction(async (tx) => {
     const before = await tx.query(
-      `SELECT kind, title, subtitle, category_id, brand_id, max_items, sort_order
+      `SELECT kind, layout, title, subtitle, category_id, brand_id, max_items, sort_order
          FROM home_section WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );
@@ -257,12 +269,14 @@ export async function updateHomeSection(
 
     await tx.query(
       `UPDATE home_section
-          SET kind = $2, title = $3, subtitle = $4, category_id = $5, brand_id = $6,
-              max_items = $7, sort_order = $8, updated_at = now(), updated_by = $9
+          SET kind = $2, layout = $3, title = $4, subtitle = $5, category_id = $6,
+              brand_id = $7, max_items = $8, sort_order = $9,
+              updated_at = now(), updated_by = $10
         WHERE id = $1`,
       [
         id,
         input.kind,
+        input.layout,
         input.title,
         input.subtitle,
         references.categoryId,

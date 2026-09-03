@@ -31,6 +31,7 @@ export async function saveSectionAction(
 
   const parsed = homeSectionSchema.safeParse({
     kind: formData.get("kind"),
+    layout: formData.get("layout") ?? "grid",
     title: formData.get("title"),
     subtitle: formData.get("subtitle") || null,
     categoryId: formData.get("categoryId") || null,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { MINIMUM_PASSWORD_LENGTH } from "../auth/password";
 import { STAFF_ROLES } from "../auth/role-codes";
 import { normalisePhone } from "./phone";
+import { SECTION_LAYOUTS } from "./section-layout";
 
 /**
  * Validation schemas shared between a form (a Server Action) and, eventually, the
@@ -96,6 +97,7 @@ export const brandSchema = z.object({
 export const homeSectionSchema = z
   .object({
     kind: z.enum(["category", "brand", "collection"]),
+    layout: z.enum(SECTION_LAYOUTS).default("grid"),
     title: z.string().trim().min(1).max(80),
     subtitle: z.string().trim().max(160).nullable(),
     categoryId: z.string().uuid().nullable(),

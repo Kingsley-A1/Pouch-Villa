@@ -2,6 +2,11 @@
 
 import { useActionState, useState } from "react";
 import type { AdminHomeSection, HomeSectionKind } from "@pv/backend/services/home-sections";
+import {
+  SECTION_LAYOUTS,
+  SECTION_LAYOUT_LABELS,
+  type HomeSectionLayout,
+} from "@pv/backend/domain/section-layout";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import {
@@ -40,6 +45,7 @@ export function SectionForm({
 }) {
   const [state, formAction] = useActionState(saveSectionAction, INITIAL_ACTION_STATE);
   const [kind, setKind] = useState<HomeSectionKind>(editing?.kind ?? "category");
+  const [layout, setLayout] = useState<HomeSectionLayout>(editing?.layout ?? "grid");
 
   return (
     <form
@@ -94,6 +100,26 @@ export function SectionForm({
           </Select>
         </Field>
       ) : null}
+
+      {/*
+        How it is drawn, beside what it shows. A section's treatment is a
+        merchandising judgement — a premium line reads differently from a
+        workhorse line — so it belongs to the person arranging the shop, not to
+        whoever last deployed.
+      */}
+      <Field label="Layout" name="layout" hint={SECTION_LAYOUT_LABELS[layout].hint}>
+        <Select
+          name="layout"
+          value={layout}
+          onChange={(event) => setLayout(event.target.value as HomeSectionLayout)}
+        >
+          {SECTION_LAYOUTS.map((option) => (
+            <option key={option} value={option}>
+              {SECTION_LAYOUT_LABELS[option].name}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
       <Field
         label="Heading"

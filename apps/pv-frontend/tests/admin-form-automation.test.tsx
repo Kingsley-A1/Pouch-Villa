@@ -10,12 +10,21 @@ vi.mock("@/app/admin/(protected)/delivery/actions", () => ({
 describe("automatic admin form fields", () => {
   afterEach(cleanup);
 
-  it("uses a location dropdown and example delivery timeframes without sort order", () => {
-    render(<ZoneForm />);
+  it("suggests known areas without limiting delivery to a fixed list", () => {
+    render(<ZoneForm knownAreas={["Calabar Municipal", "Obudu"]} />);
 
-    expect(screen.getByRole("combobox", { name: "Local government area" })).toHaveTextContent(
-      "Outside Calabar",
-    );
+    // Free text with a datalist, not a <select>. Three areas were once hardcoded
+    // as options here, which made the places Pouch Villa serves a fact only a
+    // deployment could change.
+    const area = screen.getByLabelText("Local government area");
+    expect(area).toHaveAttribute("list", "delivery-areas");
+    expect(area.tagName).toBe("INPUT");
+
+    // The suggestions are the areas already in use, so a new one can be typed.
+    for (const known of ["Calabar Municipal", "Obudu"]) {
+      expect(document.querySelector(`#delivery-areas option[value="${known}"]`)).not.toBeNull();
+    }
+
     expect(screen.getByLabelText("Min days")).toHaveAttribute("placeholder", "e.g. 1");
     expect(screen.getByLabelText("Max days")).toHaveAttribute("placeholder", "e.g. 3");
     expect(screen.queryByLabelText("Sort order")).not.toBeInTheDocument();

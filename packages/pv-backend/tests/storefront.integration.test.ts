@@ -173,6 +173,7 @@ describeDb("storefront likes and home sections", () => {
       createHomeSection(
         {
           kind: "category",
+          layout: "grid",
           title: "ZZ Broken",
           subtitle: null,
           categoryId: null,
@@ -189,6 +190,7 @@ describeDb("storefront likes and home sections", () => {
     const sectionId = await createHomeSection(
       {
         kind: "category",
+        layout: "grid",
         title: "ZZ Pouches On Show",
         subtitle: "Tested",
         categoryId,
@@ -220,6 +222,7 @@ describeDb("storefront likes and home sections", () => {
     const sectionId = await createHomeSection(
       {
         kind: "collection",
+        layout: "grid",
         title: "ZZ Staff Picks",
         subtitle: null,
         categoryId: null,
@@ -252,6 +255,7 @@ describeDb("storefront likes and home sections", () => {
     const sectionId = await createHomeSection(
       {
         kind: "collection",
+        layout: "grid",
         title: "ZZ Removable",
         subtitle: null,
         categoryId: null,
