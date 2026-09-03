@@ -32,14 +32,26 @@ export function VariantsSection({
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Variants</h2>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold">Price and options</h2>
+          {/*
+            "Variants" is our word, not a shop owner's. Most products are sold
+            one way and need one price — which the create screen now takes — so
+            this section is only worth opening when the same product comes in
+            several colours or sizes.
+          */}
+          <p className="mt-1 max-w-prose text-sm text-(--pv-muted)">
+            One price is enough for most products. Add more only if you sell this in several colours
+            or sizes.
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setEditingId(editingId === "new" ? null : "new")}
           className="min-h-11 rounded-xl border border-(--pv-line) px-4 text-sm font-bold"
         >
-          {editingId === "new" ? "Cancel" : "Add variant"}
+          {editingId === "new" ? "Cancel" : "Add a price or option"}
         </button>
       </div>
 
@@ -49,8 +61,7 @@ export function VariantsSection({
 
       {variants.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
-          No variants yet. A product needs at least one active, priced variant before it can be
-          published.
+          No price set yet. This product cannot go live until it has one.
         </p>
       ) : (
         <ul className="grid gap-3">

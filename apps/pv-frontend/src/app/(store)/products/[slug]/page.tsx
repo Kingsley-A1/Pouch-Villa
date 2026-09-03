@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getPublishedProductBySlug, listCompatibleDevices } from "@pv/backend/services/catalogue";
 import { formatKobo } from "@pv/backend/domain/money";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { ProductGallery } from "@/components/product-gallery";
 import { DeviceFit } from "@/components/device-fit";
 import { getRatingSummary, listApprovedReviews } from "@pv/backend/services/reviews";
 import { ReviewModal } from "@/components/review-modal";
@@ -50,29 +50,12 @@ export default async function ProductPage({ params }: Params) {
     listCompatibleDevices(product.id),
   ]);
 
-  const hero = product.images[0];
-
   return (
     <>
       <Breadcrumbs trail={[{ label: "Shop", href: "/shop" }, { label: product.name }]} />
       <section className="section-space">
         <div className="container-shell grid gap-10 lg:grid-cols-2">
-          <div className="relative aspect-square overflow-hidden rounded-3xl bg-(--pv-wash)">
-            {hero ? (
-              <Image
-                src={hero.heroUrl}
-                alt={hero.alt ?? product.name}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-cover"
-              />
-            ) : (
-              <div className="grid h-full place-items-center text-sm text-(--pv-muted)">
-                No image has been uploaded for this product yet.
-              </div>
-            )}
-          </div>
+          <ProductGallery images={product.images} productName={product.name} />
 
           <div>
             <h1 className="section-title">{product.name}</h1>

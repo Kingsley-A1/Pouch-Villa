@@ -18,6 +18,7 @@ import { CARD_SHELL_CLASS, ProductCardFace } from "@/components/product-card";
 import { useFormDraft } from "@/lib/use-form-draft";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { MAX_MEDIA, MIN_MEDIA, MediaPicker, type PickedFile } from "./media-picker";
+import { MoneyInput } from "@/components/admin/money-input";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -162,6 +163,33 @@ export function ProductForm({
         </Field>
 
         {collectsMedia ? <MediaPicker files={pickedFiles} onChange={onPickedFilesChange} /> : null}
+
+        {/*
+          Price and opening stock, on the screen that creates the product.
+
+          These were two further steps afterwards — add a variant, then adjust
+          its stock — and both were easy to miss, which is why products read
+          "Out of stock" and would not publish. Someone selling one version of a
+          thing should not have to learn what a variant is to say what it costs.
+
+          Only on create. On the edit screen the variants section owns both,
+          because by then there may be several and a single price field would
+          have to pick one to represent.
+        */}
+        {creating ? (
+          <div className="grid gap-4 rounded-2xl border border-(--pv-line) p-4 sm:grid-cols-2">
+            <Field
+              label="Price (₦)"
+              name="priceNaira"
+              hint="Leave blank to set it later. A product needs a price before it can be published."
+            >
+              <MoneyInput name="priceNaira" placeholder="e.g. 25,000" />
+            </Field>
+            <Field label="Opening stock" name="openingStock" hint="How many you have right now.">
+              <TextInput name="openingStock" type="number" min={0} placeholder="e.g. 10" />
+            </Field>
+          </div>
+        ) : null}
 
         <Field
           label="Description"

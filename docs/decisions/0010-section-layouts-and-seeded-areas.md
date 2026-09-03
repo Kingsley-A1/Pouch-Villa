@@ -6,9 +6,9 @@
 
 ## Context
 
-[ADR 0006](0006-storefront-composition-and-likes.md) made *what* a home-page
+[ADR 0006](0006-storefront-composition-and-likes.md) made _what_ a home-page
 section shows a runtime decision the CEO owns — a category rule, a brand rule,
-or a hand-picked collection. It left *how* a section looks fixed. Every section
+or a hand-picked collection. It left _how_ a section looks fixed. Every section
 rendered as the same grid under the same heading, so a page with three of them
 read as one long undifferentiated wall of cards, and a premium line was
 presented exactly like a workhorse line.
@@ -37,11 +37,11 @@ mode §4 forbids for business facts, applied to merchandising.
 Three treatments, deliberately few. A picker with eight near-identical options
 is a way of not deciding.
 
-| Layout    | What it does                                                     | What it is for                                                            |
-| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `grid`    | Even grid under a left-aligned heading                           | The default. Every existing section keeps it, so this changed nothing.    |
-| `feature` | First product leads at double size, rest fill beside it, serif heading | A small, considered range where one piece can carry the section.     |
-| `band`    | Tinted full-bleed band, heading in its own sticky column         | A broad utilitarian range; also breaks up a long run of white sections.   |
+| Layout    | What it does                                                           | What it is for                                                          |
+| --------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `grid`    | Even grid under a left-aligned heading                                 | The default. Every existing section keeps it, so this changed nothing.  |
+| `feature` | First product leads at double size, rest fill beside it, serif heading | A small, considered range where one piece can carry the section.        |
+| `band`    | Tinted full-bleed band, heading in its own sticky column               | A broad utilitarian range; also breaks up a long run of white sections. |
 
 `feature` drops its asymmetry below `md` and becomes an ordinary two-column
 grid. A lead tile only reads as a lead when something sits beside it, and on a
@@ -79,7 +79,7 @@ Two things it deliberately refuses to decide:
 - **Products.** Only the CEO knows what is actually in stock.
 
 A place name is not a business fact of the kind §4 forbids. It makes no claim
-about Pouch Villa and it does not go stale. What an area *costs* is a business
+about Pouch Villa and it does not go stale. What an area _costs_ is a business
 fact, and that is the part left blank.
 
 ### 4. The delivery area is free text with suggestions, not a fixed list
@@ -120,7 +120,7 @@ weight than the shop.
 
 `staff-login.integration.test.ts` set a session's absolute expiry to
 `now() - interval '1 second'` and asserted it was rejected. `now()` is the
-*database's* clock; the check runs against *this process's* clock. Against a
+_database's_ clock; the check runs against _this process's_ clock. Against a
 cloud cluster the two differ by more than a second — the measured round trip
 alone was 3.7 s — so the test failed on latency rather than on the rule it was
 testing. Widened to an hour, matching the sibling idle test that never had the

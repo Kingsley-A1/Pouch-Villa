@@ -51,10 +51,18 @@ export default async function EditProductPage({ params }: Params) {
       <Breadcrumbs
         trail={[{ label: "Products", href: "/admin/products" }, { label: product.name }]}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{product.name}</h1>
-        <StatusControl productId={product.id} status={product.status} />
-      </div>
+      <h1 className="text-2xl font-bold">{product.name}</h1>
+
+      {/*
+        Its own row rather than crowded beside the heading, and sticky, so the
+        button that puts this product in front of customers is reachable from
+        anywhere on a long edit screen.
+      */}
+      <StatusControl
+        productId={product.id}
+        status={product.status}
+        canPublish={product.variants.some((variant) => variant.isActive && variant.priceKobo > 0)}
+      />
 
       <ProductForm
         action={boundUpdate}

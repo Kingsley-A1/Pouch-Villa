@@ -161,11 +161,22 @@ export function MediaPicker({
           No images chosen yet. The first one is what shoppers see on the product card.
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        /*
+          A single scrolling row of small thumbnails, not a wrapping grid.
+
+          The grid grew a new row for every few images and pushed the rest of
+          the form — including the button that saves it — further down the page
+          with each one added. A fixed-height row keeps the form the same shape
+          however many photographs are chosen, and scrolling sideways through
+          ten thumbnails is a better trade than scrolling down past them.
+
+          `snap-x` so a flick lands on a thumbnail rather than between two.
+        */
+        <ul className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
           {files.map((picked, index) => (
             <li
               key={picked.id}
-              className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-2"
+              className="w-36 shrink-0 snap-start rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-2"
             >
               <div className="relative aspect-square overflow-hidden rounded-xl bg-(--pv-wash)">
                 {/*
@@ -185,7 +196,7 @@ export function MediaPicker({
                 ) : null}
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-1">
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                 <div className="flex gap-1">
                   <button
                     type="button"

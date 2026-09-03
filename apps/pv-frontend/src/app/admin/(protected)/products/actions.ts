@@ -52,9 +52,46 @@ export async function createProductAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   let id: string;
+  /**
+   * Price and opening stock, taken on the same screen as the product.
+   *
+   * They used to be two further steps — add a variant, then adjust its stock —
+   * and both were easy to miss, which is why every product in the catalogue
+   * read "Out of stock" and refused to publish. A shop that sells one version
+   * of a thing should be able to say what it costs and how many there are
+   * without learning what a variant is.
+   *
+   * Variants remain for the case they are actually for: the same product sold
+   * in several colours or sizes, added afterwards on the edit screen.
+   */
+  const priceRaw = formData.get("priceNaira");
+  const stockRaw = formData.get("openingStock");
+
   try {
     id = await products.createProduct(parsed.data, { staffId: principal.staffId });
     await setProductCollections(id, collectionIdsFrom(formData), { staffId: principal.staffId });
+
+    if (typeof priceRaw === "string" && priceRaw.trim() !== "") {
+      const variantId = await products.createVariant(
+        id,
+        { priceKobo: parseNairaToKobo(priceRaw), compareAtKobo: null, axes: {} },
+        { staffId: principal.staffId },
+      );
+
+      // `createVariant` answers null when the product is gone, which cannot
+      // happen a line after creating it — but the stock call needs a real id and
+      // narrowing is cheaper than explaining a non-null assertion.
+      const opening = Number(typeof stockRaw === "string" ? stockRaw.trim() : "");
+      if (variantId !== null && Number.isInteger(opening) && opening > 0) {
+        await products.adjustStock(
+          variantId,
+          opening,
+          "received",
+          "Opening stock, entered when the product was created",
+          { staffId: principal.staffId },
+        );
+      }
+    }
   } catch (error) {
     return toActionError(error, "The product could not be created.");
   }
