@@ -56,6 +56,13 @@ export class ProofNotFoundError extends Error {
   }
 }
 
+export class InvalidProofUploadSizeError extends Error {
+  constructor() {
+    super("That proof is empty or larger than the upload limit.");
+    this.name = "InvalidProofUploadSizeError";
+  }
+}
+
 export type BeganProofUpload = {
   uploadId: string;
   url: string;
@@ -73,8 +80,16 @@ export type BeganProofUpload = {
 export async function beginProofUpload(
   orderId: string,
   contentType: string,
+  contentLength: number,
   context: { ip?: string | undefined } = {},
 ): Promise<BeganProofUpload> {
+  if (
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0 ||
+    contentLength > MAX_PROOF_BYTES
+  ) {
+    throw new InvalidProofUploadSizeError();
+  }
   await assertWithinRateLimit("payment_proof.upload", [context.ip, orderId]);
 
   const order = await queryOne<{ id: string; status: OrderStatus }>(
@@ -87,12 +102,7 @@ export async function beginProofUpload(
   }
 
   const stagingKey = `staging/proofs/${orderId}/${randomUUID()}`;
-  const { url, expiresIn } = await presignUpload(
-    "private",
-    stagingKey,
-    contentType,
-    MAX_PROOF_BYTES,
-  );
+  const { url, expiresIn } = await presignUpload("private", stagingKey, contentType, contentLength);
 
   const rows = await query<{ id: string }>(
     "INSERT INTO payment_proof_upload (order_id, staging_key) VALUES ($1, $2) RETURNING id",

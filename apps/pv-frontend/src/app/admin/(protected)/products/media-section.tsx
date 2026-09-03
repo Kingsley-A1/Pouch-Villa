@@ -6,6 +6,7 @@ import type { AdminMedia } from "@pv/backend/services/media";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { FormError, FormSuccess } from "@/components/admin/form-controls";
 import { cn } from "@/lib/utils";
+import { describeUploadFailure } from "@/lib/upload-error";
 import { ACCEPTED_MEDIA, MAX_MEDIA } from "./media-picker";
 import {
   beginUploadAction,
@@ -38,7 +39,7 @@ export function MediaSection({
     setBusy(true);
     setStatus({ error: null });
     try {
-      const began = await beginUploadAction(productId, file.type);
+      const began = await beginUploadAction(productId, file.type, file.size);
       if (!began.ok) {
         setStatus({ error: began.error });
         return;
@@ -56,8 +57,8 @@ export function MediaSection({
 
       const finalised = await finaliseUploadAction(productId, began.upload.uploadId, file.name);
       setStatus(finalised);
-    } catch {
-      setStatus({ error: "The image could not be uploaded." });
+    } catch (error) {
+      setStatus({ error: describeUploadFailure(error) });
     } finally {
       setBusy(false);
       if (fileInput.current) fileInput.current.value = "";

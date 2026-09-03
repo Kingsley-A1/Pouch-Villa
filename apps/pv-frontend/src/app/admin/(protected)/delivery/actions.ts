@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { deliveryZoneSchema } from "@pv/backend/domain/schemas";
 import * as delivery from "@pv/backend/services/delivery";
-import { kobo } from "@pv/backend/domain/money";
+import { kobo, parseNairaToKobo } from "@pv/backend/domain/money";
 import { requirePermission } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
 
@@ -11,16 +11,20 @@ function parseInput(formData: FormData) {
   return deliveryZoneSchema.safeParse({
     name: formData.get("name"),
     lga: formData.get("lga") || null,
-    feeKobo: formData.get("feeNaira") ? Number(formData.get("feeNaira")) * 100 : 0,
+    feeKobo: parseNairaToKobo(String(formData.get("feeNaira") ?? "")),
     minDays: formData.get("minDays") || null,
     maxDays: formData.get("maxDays") || null,
-    sortOrder: formData.get("sortOrder") || 0,
   });
 }
 
 export async function saveZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const principal = await requirePermission("delivery.manage");
-  const parsed = parseInput(formData);
+  let parsed: ReturnType<typeof parseInput>;
+  try {
+    parsed = parseInput(formData);
+  } catch {
+    return { error: "Enter a valid delivery fee." };
+  }
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
 
   const input = { ...parsed.data, feeKobo: kobo(parsed.data.feeKobo) };

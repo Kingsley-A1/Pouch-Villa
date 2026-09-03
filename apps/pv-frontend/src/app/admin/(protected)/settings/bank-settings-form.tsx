@@ -25,13 +25,7 @@ export function BankSettingsForm({
   const [state, formAction] = useActionState(saveBankSettingsAction, INITIAL_ACTION_STATE);
 
   return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Bank account for transfers</h2>
-      </div>
+    <form action={formAction} className="grid gap-4">
       <p className="text-sm text-(--pv-muted)">
         Shown at checkout for &ldquo;Pay by Transfer&rdquo;. An admin edit here permanently takes
         over from whatever was seeded in the environment.

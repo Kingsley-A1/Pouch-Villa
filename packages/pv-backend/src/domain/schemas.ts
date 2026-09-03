@@ -122,7 +122,6 @@ export const deliveryZoneSchema = z
     feeKobo: koboAmount,
     minDays: z.coerce.number().int().min(0).max(90).nullable(),
     maxDays: z.coerce.number().int().min(0).max(90).nullable(),
-    sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   })
   .refine(
     (value) => value.minDays === null || value.maxDays === null || value.maxDays >= value.minDays,
@@ -161,15 +160,8 @@ export const productSchema = z.object({
 export const VARIANT_AXES = ["colour", "size", "model"] as const;
 
 export const variantSchema = z.object({
-  sku: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[A-Z0-9-]+$/, "Uppercase letters, numbers and hyphens only"),
   priceKobo: koboAmount,
   compareAtKobo: koboAmount.nullable(),
-  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   axes: z
     .record(z.string(), z.string().trim().max(80))
     .refine(

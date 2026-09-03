@@ -37,18 +37,28 @@ export type BeganUpload = {
   maxBytes: number;
 };
 
+export class InvalidUploadSizeError extends Error {
+  constructor() {
+    super("That image is empty or larger than the upload limit.");
+    this.name = "InvalidUploadSizeError";
+  }
+}
+
 export async function beginUpload(
   productId: string,
   contentType: string,
+  contentLength: number,
   actor: { staffId: string },
 ): Promise<BeganUpload> {
+  if (
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0 ||
+    contentLength > MAX_IMAGE_BYTES
+  ) {
+    throw new InvalidUploadSizeError();
+  }
   const stagingKey = `staging/${productId}/${randomUUID()}`;
-  const { url, expiresIn } = await presignUpload(
-    "public",
-    stagingKey,
-    contentType,
-    MAX_IMAGE_BYTES,
-  );
+  const { url, expiresIn } = await presignUpload("public", stagingKey, contentType, contentLength);
 
   const rows = await query<{ id: string }>(
     `INSERT INTO media_upload (product_id, staging_key, created_by)

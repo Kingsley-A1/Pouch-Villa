@@ -37,6 +37,8 @@ export function getR2(): S3Client {
   client ??= new S3Client({
     region: "auto",
     endpoint: required("R2_ENDPOINT"),
+    // R2 does not support the SDK's automatic x-amz-sdk-checksum-algorithm field.
+    requestChecksumCalculation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: required("R2_ACCESS_KEY_ID"),
       secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
@@ -74,7 +76,7 @@ export async function presignUpload(
   bucket: Bucket,
   key: string,
   contentType: string,
-  maxBytes: number,
+  contentLength: number,
 ) {
   const url = await getSignedUrl(
     getR2(),
@@ -82,7 +84,7 @@ export async function presignUpload(
       Bucket: bucketName(bucket),
       Key: key,
       ContentType: contentType,
-      ContentLength: maxBytes,
+      ContentLength: contentLength,
     }),
     { expiresIn: UPLOAD_URL_TTL_SECONDS },
   );

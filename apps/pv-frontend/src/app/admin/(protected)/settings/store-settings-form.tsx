@@ -32,11 +32,7 @@ export function StoreSettingsForm({
   const [state, formAction] = useActionState(saveStoreSettingsAction, INITIAL_ACTION_STATE);
 
   return (
-    <form
-      action={formAction}
-      className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
-    >
-      <h2 className="text-lg font-bold">Store details</h2>
+    <form action={formAction} className="grid gap-4">
       <p className="text-sm text-(--pv-muted)">
         A blank field renders on the storefront as &ldquo;awaiting confirmation&rdquo; — never a
         guessed address or number.

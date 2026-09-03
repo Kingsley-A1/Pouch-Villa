@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, UploadSimple, WarningCircle } from "@phosphor-icons/react";
+import { describeUploadFailure } from "@/lib/upload-error";
 
 /**
  * Client because the upload is a three-step exchange the browser drives: ask for
@@ -55,7 +56,10 @@ export function ProofUpload({
 
       const begin = await fetch(`/api/v1/orders/${orderId}/proof`, {
         method: "POST",
-        headers: { "x-upload-content-type": file.type },
+        headers: {
+          "x-upload-content-type": file.type,
+          "x-upload-content-length": String(file.size),
+        },
       });
       const beginBody = await begin.json();
       if (!begin.ok || !beginBody.ok) {
@@ -86,7 +90,7 @@ export function ProofUpload({
       router.refresh();
     } catch (error) {
       setPhase("error");
-      setMessage(error instanceof Error ? error.message : "That upload did not work.");
+      setMessage(describeUploadFailure(error));
     }
   }
 

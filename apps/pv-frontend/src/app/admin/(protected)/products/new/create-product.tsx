@@ -69,7 +69,7 @@ export function CreateProduct({
     // the same five sent one after another.
     for (const [index, picked] of files.entries()) {
       try {
-        const began = await beginUploadAction(productId, picked.file.type);
+        const began = await beginUploadAction(productId, picked.file.type, picked.file.size);
         if (!began.ok) {
           failed.push(picked.file.name);
           continue;

@@ -18,6 +18,7 @@ export type BeginUploadResult = { ok: true; upload: BeganUpload } | { ok: false;
 export async function beginUploadAction(
   productId: string,
   contentType: string,
+  contentLength: number,
 ): Promise<BeginUploadResult> {
   const principal = await requirePermission("media.manage");
   // The declared type only decides whether to issue a URL at all; what the file
@@ -26,7 +27,10 @@ export async function beginUploadAction(
     return { ok: false, error: "Choose a JPEG, PNG, WebP or AVIF image." };
   }
   try {
-    return { ok: true, upload: await beginUpload(productId, contentType, principal) };
+    return {
+      ok: true,
+      upload: await beginUpload(productId, contentType, contentLength, principal),
+    };
   } catch (error) {
     const state = toActionError(error, "Uploading is not available right now.");
     return { ok: false, error: state.error ?? "Uploading is not available right now." };

@@ -21,6 +21,7 @@
 ### Task 1: Money decoding and formatted inputs
 
 **Files:**
+
 - Modify: `packages/pv-backend/src/services/delivery.ts`
 - Modify: `packages/pv-backend/src/services/products.ts`
 - Modify: `packages/pv-backend/src/domain/money.ts`
@@ -29,6 +30,7 @@
 - Test: `apps/pv-frontend/tests/money-input.test.tsx`
 
 **Interfaces:**
+
 - Produces: `parseNairaToKobo(value: string): Kobo` and `MoneyInput` submitting normalized naira text.
 
 - [ ] Write failing tests for Cockroach string decoding and visible `2,500` / submitted `2500` behaviour.
@@ -39,6 +41,7 @@
 ### Task 2: Automatic delivery and variant metadata
 
 **Files:**
+
 - Modify: `packages/pv-backend/src/domain/schemas.ts`
 - Modify: `packages/pv-backend/src/services/delivery.ts`
 - Modify: `packages/pv-backend/src/services/products.ts`
@@ -49,6 +52,7 @@
 - Test: relevant backend integration and frontend component tests.
 
 **Interfaces:**
+
 - Produces: create-only `generateSku(productName, code)` behaviour and service-owned next sort order.
 
 - [ ] Write failing tests for next ordering, stable edits, location choices, placeholders, and generated SKU shape/uniqueness.
@@ -59,6 +63,7 @@
 ### Task 3: R2 upload policy and error handling
 
 **Files:**
+
 - Create: `packages/pv-backend/src/storage/r2-cors.ts`
 - Create: `packages/pv-backend/scripts/configure-r2-cors.ts`
 - Modify: `packages/pv-backend/package.json`
@@ -67,6 +72,7 @@
 - Test: focused R2 CORS and upload-error unit tests.
 
 **Interfaces:**
+
 - Produces: an idempotent CORS policy command and `describeUploadFailure(error): string`.
 
 - [ ] Write failing tests for the exact origin/method/header policy and network-failure message.
@@ -77,12 +83,14 @@
 ### Task 4: Admin header and collapsed settings
 
 **Files:**
+
 - Modify: `apps/pv-frontend/src/app/admin/(protected)/layout.tsx`
 - Create: `apps/pv-frontend/src/app/admin/(protected)/settings/editable-settings-section.tsx`
 - Modify: settings page/forms.
 - Test: admin shell and settings component tests.
 
 **Interfaces:**
+
 - Produces: centered desktop search, two-initial avatar, and closed native disclosures.
 
 - [ ] Write failing UI tests for identity/avatar, centered grid, closed disclosures, and edit controls.
@@ -93,6 +101,7 @@
 ### Task 5: Release verification
 
 **Files:**
+
 - Modify only files required by formatter or verified plan corrections.
 
 - [ ] Run `pnpm run verify` and inspect the complete exit status.
