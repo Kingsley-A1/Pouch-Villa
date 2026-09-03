@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { MINIMUM_PASSWORD_LENGTH } from "@pv/backend/auth/password";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { RegisterForm } from "../auth-forms";
+import { GoogleSignInProblem, googleReason } from "@/components/google-sign-in-problem";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Create an account" };
@@ -29,7 +30,8 @@ export default async function RegisterPage({
         <p className="mt-3 text-(--pv-muted)">
           No confirmation email to wait for. You can start shopping straight away.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 grid gap-5">
+          <GoogleSignInProblem reason={googleReason(params.google)} />
           <RegisterForm
             googleClientId={process.env.GOOGLE_CLIENT_ID ?? null}
             next={next}

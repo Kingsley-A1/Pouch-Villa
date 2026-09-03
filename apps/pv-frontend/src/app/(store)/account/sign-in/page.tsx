@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { SignInForm } from "../auth-forms";
+import { GoogleSignInProblem, googleReason } from "@/components/google-sign-in-problem";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Sign in" };
@@ -34,7 +35,8 @@ export default async function SignInPage({
         <p className="mt-3 text-(--pv-muted)">
           Track your orders, keep your details, and save what you like.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 grid gap-5">
+          <GoogleSignInProblem reason={googleReason(params.google)} />
           <SignInForm
             googleClientId={process.env.GOOGLE_CLIENT_ID ?? null}
             next={next}

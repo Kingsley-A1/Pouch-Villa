@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import {
   Field,
@@ -10,16 +10,15 @@ import {
   TextInput,
 } from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
-import { loginAction, loginWithGoogleAction } from "./actions";
+import { loginAction } from "./actions";
 
+/**
+ * `googleError` is gone with the SDK. A redirect flow reports its outcome by
+ * coming back to this page with a `?google=` reason, which the page reads and
+ * renders — there is no in-page callback left to catch an error from.
+ */
 export function LoginForm({ googleClientId }: { googleClientId: string | null }) {
   const [state, formAction] = useActionState(loginAction, INITIAL_ACTION_STATE);
-  const [googleError, setGoogleError] = useState<string | null>(null);
-
-  async function handleGoogleCredential(credential: string) {
-    const result = await loginWithGoogleAction(credential);
-    setGoogleError(result.error);
-  }
 
   return (
     <div className="grid gap-6">
@@ -41,10 +40,7 @@ export function LoginForm({ googleClientId }: { googleClientId: string | null })
             or
             <span className="h-px flex-1 bg-(--pv-line)" />
           </div>
-          <div>
-            <GoogleSignInButton clientId={googleClientId} onCredential={handleGoogleCredential} />
-            <FormError message={googleError} />
-          </div>
+          <GoogleSignInButton flow="staff" />
         </>
       ) : null}
     </div>

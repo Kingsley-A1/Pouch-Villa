@@ -1,16 +1,23 @@
 import type { Metadata } from "next";
+import { GoogleSignInProblem, googleReason } from "@/components/google-sign-in-problem";
 import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Staff sign in" };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const googleClientId = process.env.GOOGLE_CLIENT_ID ?? null;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
       <h1 className="text-2xl font-bold">Staff sign in</h1>
       <p className="mt-2 text-sm text-(--pv-muted)">Pouch Villa team members only.</p>
+      <GoogleSignInProblem reason={googleReason(params.google)} />
       <div className="mx-auto mt-8">
         <LoginForm googleClientId={googleClientId} />
       </div>

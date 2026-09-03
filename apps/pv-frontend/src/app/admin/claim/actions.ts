@@ -8,7 +8,6 @@ import {
   RoleCodeRejectedError,
 } from "@pv/backend/services/staff-access";
 import { sendVerificationCode } from "@pv/backend/services/staff-email-verification";
-import { verifyGoogleIdToken } from "@pv/backend/auth/google";
 import { createStaffSession, currentRequestContext } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
 
@@ -45,32 +44,4 @@ export async function claimWithPassword(
   }
 
   redirect("/admin/verify-email");
-}
-
-export async function claimWithGoogle(code: string, credential: string): Promise<ActionState> {
-  const parsedCode = claimRoleCodeSchema.shape.code.safeParse(code);
-  if (!parsedCode.success) return { error: "Enter the role code first." };
-
-  const context = await currentRequestContext();
-  try {
-    const { email, subject, emailVerified } = await verifyGoogleIdToken(credential);
-    if (!emailVerified) return { error: "That Google account's email is not verified." };
-
-    const { staffId } = await redeemRoleCode(
-      {
-        code: parsedCode.data,
-        email,
-        fullName: email.split("@")[0] ?? "Staff member",
-        googleSubject: subject,
-      },
-      context,
-    );
-    await createStaffSession(staffId);
-  } catch (error) {
-    if (error instanceof RoleCodeRejectedError) return { error: GENERIC_CODE_ERROR };
-    if (error instanceof EmailAlreadyRegisteredError) return { error: error.message };
-    return toActionError(error, "That account could not be created.");
-  }
-
-  redirect("/admin");
 }

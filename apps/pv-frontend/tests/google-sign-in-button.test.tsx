@@ -1,47 +1,57 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GoogleSignInButton, googleButtonWidth } from "@/components/google-sign-in-button";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 
-vi.mock("next/script", () => ({
-  default: ({ onReady }: { onReady: () => void }) => {
-    queueMicrotask(onReady);
-    return null;
-  },
-}));
-
+/**
+ * The button replaced Google's own widget, which built itself with inline styles
+ * a strict Content Security Policy refuses — so it rendered as a 448px logo.
+ *
+ * These assertions guard the two properties that made the replacement worth
+ * doing: it posts rather than links, so a role code never reaches a URL, and it
+ * is ordinary markup that needs no third-party script to appear.
+ */
 describe("Google sign-in button", () => {
-  const renderButton = vi.fn();
+  afterEach(cleanup);
 
-  beforeEach(() => {
-    renderButton.mockReset();
-    window.google = {
-      accounts: { id: { initialize: vi.fn(), renderButton } },
-    };
+  function form() {
+    // The form is the accessible container; queried by role to avoid asserting
+    // on markup this component is free to change.
+    return screen.getByRole("button", { name: /Continue with Google/ }).closest("form");
+  }
+
+  it("posts to the redirect flow rather than linking to Google", () => {
+    render(<GoogleSignInButton flow="customer" />);
+    // A GET would put a role code in the URL bar, the browser history and every
+    // proxy log between here and Google.
+    // Case-insensitively: HTML does not care, and the DOM returns whatever the
+    // JSX wrote, so asserting an exact case would test the spelling not the verb.
+    expect(form()?.getAttribute("method")?.toLowerCase()).toBe("post");
+    expect(form()).toHaveAttribute("action", "/api/v1/auth/google/start");
   });
 
-  it("caps Google's control to its responsive host", () => {
-    expect(googleButtonWidth(280)).toBe(280);
-    expect(googleButtonWidth(400)).toBe(320);
-    expect(googleButtonWidth(0)).toBe(320);
+  it("names which of the three sign-ins it starts", () => {
+    render(<GoogleSignInButton flow="staff" />);
+    const field = form()?.querySelector('input[name="flow"]');
+    // The callback reads the flow from a cookie, not this field — but sending
+    // the wrong one here would start the wrong sign-in.
+    expect(field).toHaveValue("staff");
   });
 
-  it("centres the rendered control and uses the measured width", async () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-      width: 280,
-      height: 44,
-      top: 0,
-      right: 280,
-      bottom: 44,
-      left: 0,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
+  it("carries the role code in the body for a claim", () => {
+    render(<GoogleSignInButton flow="claim" roleCode="ABCD-1234" />);
+    expect(form()?.querySelector('input[name="roleCode"]')).toHaveValue("ABCD-1234");
+  });
 
-    render(<GoogleSignInButton clientId="public-client" onCredential={vi.fn()} />);
-    const host = screen.getByLabelText("Continue with Google");
-    expect(host).toHaveClass("justify-center", "w-full");
-    await waitFor(() => expect(renderButton).toHaveBeenCalled());
-    expect(renderButton.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ width: 280 }));
+  it("sends no role code field when there is no code", () => {
+    render(<GoogleSignInButton flow="customer" next="/account/orders" />);
+    expect(form()?.querySelector('input[name="roleCode"]')).toBeNull();
+    expect(form()?.querySelector('input[name="next"]')).toHaveValue("/account/orders");
+  });
+
+  it("renders without any third-party script", () => {
+    const { container } = render(<GoogleSignInButton flow="customer" />);
+    // The whole point: no <script>, and the mark is inline SVG we ship.
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("svg")).not.toBeNull();
   });
 });

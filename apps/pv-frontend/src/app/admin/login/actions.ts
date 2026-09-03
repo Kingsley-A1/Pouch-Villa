@@ -4,11 +4,9 @@ import { redirect } from "next/navigation";
 import { staffLoginSchema } from "@pv/backend/domain/schemas";
 import {
   loginWithPassword,
-  loginWithGoogle,
   InvalidCredentialsError,
   TooManyAttemptsError,
   AccountSuspendedError,
-  AccountNotLinkedError,
 } from "@pv/backend/services/staff-login";
 import { createStaffSession, currentRequestContext } from "@/server/session";
 import { toActionError, type ActionState } from "@/lib/action-state";
@@ -32,22 +30,6 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
       error instanceof TooManyAttemptsError ||
       error instanceof AccountSuspendedError
     ) {
-      return { error: error.message };
-    }
-    return toActionError(error, "Sign-in could not be completed.");
-  }
-
-  await createStaffSession(staffId);
-  redirect("/admin");
-}
-
-export async function loginWithGoogleAction(credential: string): Promise<ActionState> {
-  const context = await currentRequestContext();
-  let staffId: string;
-  try {
-    ({ staffId } = await loginWithGoogle(credential, context));
-  } catch (error) {
-    if (error instanceof AccountNotLinkedError || error instanceof AccountSuspendedError) {
       return { error: error.message };
     }
     return toActionError(error, "Sign-in could not be completed.");

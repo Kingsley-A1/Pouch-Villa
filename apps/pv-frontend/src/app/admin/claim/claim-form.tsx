@@ -10,17 +10,17 @@ import {
   TextInput,
 } from "@/components/admin/form-controls";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
-import { claimWithGoogle, claimWithPassword } from "./actions";
+import { claimWithPassword } from "./actions";
 
 export function ClaimForm({ googleClientId }: { googleClientId: string | null }) {
   const [state, formAction] = useActionState(claimWithPassword, INITIAL_ACTION_STATE);
+  /*
+    The code stays controlled state for one reason: the Google button is a form
+    of its own, posting to the redirect flow, so the code typed in the form above
+    has to be copied into it as a hidden field. A redirect leaves the page
+    entirely, and an uncontrolled input's value would not survive the trip.
+  */
   const [code, setCode] = useState("");
-  const [googleError, setGoogleError] = useState<string | null>(null);
-
-  async function handleGoogleCredential(credential: string) {
-    const result = await claimWithGoogle(code, credential);
-    setGoogleError(result.error);
-  }
 
   return (
     <div className="grid gap-6">
@@ -60,8 +60,7 @@ export function ClaimForm({ googleClientId }: { googleClientId: string | null })
             <p className="mb-2 text-sm text-(--pv-muted)">
               Enter your role code above, then continue with Google.
             </p>
-            <GoogleSignInButton clientId={googleClientId} onCredential={handleGoogleCredential} />
-            <FormError message={googleError} />
+            <GoogleSignInButton flow="claim" roleCode={code} />
           </div>
         </>
       ) : null}

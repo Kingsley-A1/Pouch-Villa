@@ -11,7 +11,6 @@ import {
 } from "@pv/backend/domain/schemas";
 import { passwordSchema } from "@pv/backend/domain/schemas";
 import * as account from "@pv/backend/services/customer-account";
-import { loginCustomerWithGoogle } from "@pv/backend/services/customer-account";
 import {
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
@@ -112,20 +111,6 @@ export async function signInAction(_prev: ActionState, formData: FormData): Prom
     return toActionError(error, "That email and password could not be checked. Try again.");
   }
   redirect(safeRedirect(formData.get("next")));
-}
-
-/** Google, for a customer. It may create the account — see the route handler. */
-export async function googleSignInAction(credential: string, next: string): Promise<void> {
-  const context = await requestContext();
-  const { customerId, created } = await loginCustomerWithGoogle(credential, {
-    ip: context.ip,
-    requestId: context.requestId,
-  });
-  await establishCustomerSession(customerId);
-  // Signing in with Google is one tap, so nothing on screen otherwise
-  // distinguishes "you now have an account" from "you were already a member".
-  // A returning customer is sent straight on; only a new one is welcomed.
-  redirect(created ? welcomeRedirect(safeRedirect(next)) : safeRedirect(next));
 }
 
 export async function signOutAction(): Promise<void> {

@@ -1,10 +1,11 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 /**
- * Verification of a Google Identity Services credential — an ID token JWT —
- * against Google's own published keys. No server-side redirect flow is needed
- * for the "Sign in with Google" button, which hands the browser a signed token
- * directly, and no client secret is used.
+ * Verification of a Google ID token against Google's own published keys.
+ *
+ * The token now arrives from the authorization-code exchange in
+ * `google-oauth.ts` rather than from a browser SDK. What this function does is
+ * unchanged: it resolves a signed token to a Google subject and an email.
  *
  * This lives in `auth/` rather than inside either sign-in service because both
  * identity stacks need it and neither should import the other. That does not
@@ -44,7 +45,18 @@ export type GoogleIdentity = {
   fullName: string | null;
 };
 
-export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentity> {
+export async function verifyGoogleIdToken(
+  idToken: string,
+  /**
+   * The nonce this sign-in was started with, when there is one.
+   *
+   * Binding the token to a value we generated is what stops a token obtained
+   * for some other purpose, or replayed from an earlier sign-in, being accepted
+   * here. The redirect flow always passes it; it is optional only so the
+   * signature stays honest about tokens that never had one.
+   */
+  expectedNonce?: string,
+): Promise<GoogleIdentity> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new GoogleNotConfiguredError();
 
@@ -52,6 +64,10 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdenti
     issuer: ["https://accounts.google.com", "accounts.google.com"],
     audience: clientId,
   });
+
+  if (expectedNonce !== undefined && payload.nonce !== expectedNonce) {
+    throw new GoogleIdentityError("That sign-in could not be matched to this browser.");
+  }
 
   const subject = payload.sub;
   const email = typeof payload.email === "string" ? payload.email.toLowerCase() : null;

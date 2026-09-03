@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
-import { googleSignInAction, registerAction, signInAction } from "./actions";
+import { registerAction, signInAction } from "./actions";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -31,12 +31,7 @@ function GoogleBlock({ clientId, next }: { clientId: string | null; next: string
   if (clientId === null) return null;
   return (
     <>
-      <GoogleSignInButton
-        clientId={clientId}
-        onCredential={async (credential) => {
-          await googleSignInAction(credential, next);
-        }}
-      />
+      <GoogleSignInButton flow="customer" next={next} />
       <p className="flex items-center gap-3 text-xs font-bold tracking-wider text-(--pv-muted) uppercase">
         <span className="h-px flex-1 bg-(--pv-line)" />
         or
