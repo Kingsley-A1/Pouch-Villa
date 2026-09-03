@@ -92,6 +92,16 @@ export function buildContentSecurityPolicy(nonce: string, env: CspEnvironment): 
     // nonce. No `unsafe-inline`, which is the whole point.
     ["style-src", "'self'", `'nonce-${nonce}'`],
 
+    // `style-src-elem` governs a loaded <link rel="stylesheet"> or <style>
+    // block, and falls back to `style-src` above when unset — which is exactly
+    // what broke Google's sign-in button in production: it loads its own
+    // stylesheet from accounts.google.com/gsi/style to size the logo and hide a
+    // duplicate accessibility label, that request was blocked outright, and
+    // without it the raw SVG rendered at full size next to visible fallback
+    // text. Verified against a live Chrome pointed at the deployed policy, not
+    // assumed: the console named the exact blocked URL.
+    ["style-src-elem", "'self'", `'nonce-${nonce}'`, GOOGLE_ORIGIN],
+
     // Style *attributes* are governed separately, and a nonce cannot address
     // them. `next/image` puts `style="color:transparent"` on every image it
     // renders, to stop alt text flashing before the file loads. That is one

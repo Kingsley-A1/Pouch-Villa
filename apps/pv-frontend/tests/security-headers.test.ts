@@ -17,6 +17,8 @@ const ENV = {
   mediaBaseUrl: "https://media.example.test",
 };
 
+const GOOGLE_ORIGIN_FOR_TEST = "https://accounts.google.com";
+
 function directive(policy: string, name: string): string {
   const found = policy.split("; ").find((part) => part.startsWith(`${name} `) || part === name);
   return found ?? "";
@@ -63,6 +65,20 @@ describe("content security policy", () => {
   it("allows Google sign-in to load and frame itself", () => {
     expect(directive(policy, "connect-src")).toContain("https://accounts.google.com");
     expect(directive(policy, "frame-src")).toContain("https://accounts.google.com");
+  });
+
+  it("lets Google's sign-in button load its own stylesheet", () => {
+    // Regression test. Production served a giant unstyled logo and a visible
+    // duplicate accessibility label, because style-src-elem was unset and fell
+    // back to the nonce-only style-src — which blocked the stylesheet Google's
+    // button loads from its own origin to size and hide those elements.
+    // Verified against a live Chrome pointed at the deployed policy: the
+    // console named accounts.google.com/gsi/style as the blocked request.
+    const styleElem = directive(policy, "style-src-elem");
+    expect(styleElem).toContain(GOOGLE_ORIGIN_FOR_TEST);
+    expect(styleElem).toContain("'nonce-test-nonce'");
+    // This directive governs a loaded stylesheet, never a script.
+    expect(directive(policy, "script-src")).not.toContain(GOOGLE_ORIGIN_FOR_TEST);
   });
 
   it("refuses to be framed, and forbids plugins and base tag injection", () => {
