@@ -5,11 +5,39 @@ import { buildR2CorsRules } from "../src/storage/r2-cors";
 import { bucketName, getR2, type Bucket } from "../src/storage/r2";
 
 async function main() {
-  loadEnvFiles(resolve(process.cwd(), "../.."));
-  loadEnvFiles(process.cwd());
+  const workspaceRoot = resolve(process.cwd(), "../..");
+  const loaded = [
+    ...loadEnvFiles(workspaceRoot).map((name) => `${workspaceRoot}/${name}`),
+    ...loadEnvFiles(process.cwd()).map((name) => `${process.cwd()}/${name}`),
+  ];
 
   const configured = process.env.R2_ALLOWED_ORIGINS?.split(",").map((value) => value.trim());
   const origins = configured?.filter(Boolean) ?? [];
+
+  /**
+   * Said here rather than left to `buildR2CorsRules`, which knows the rule but
+   * not where the value was meant to come from. "At least one origin is
+   * required" is true and unactionable; the thing an operator needs is the
+   * variable name and the files that were actually read for it.
+   */
+  if (origins.length === 0) {
+    throw new Error(
+      [
+        "R2_ALLOWED_ORIGINS is not set, so there is no origin to allow.",
+        "",
+        "Set it in the .env at the workspace root, as a comma-separated list of",
+        "every address the site is served from — each one a full origin with its",
+        "scheme, and no trailing slash:",
+        "",
+        "  R2_ALLOWED_ORIGINS=https://your-site,http://localhost:3000",
+        "",
+        loaded.length === 0
+          ? `No env file was found at ${workspaceRoot} or ${process.cwd()}.`
+          : `Env files read: ${loaded.join(", ")}`,
+      ].join("\n"),
+    );
+  }
+
   const rules = buildR2CorsRules(origins);
 
   for (const bucket of ["public", "private"] satisfies Bucket[]) {
