@@ -69,20 +69,31 @@ const READ_URL_TTL_SECONDS = 5 * 60;
  * A short-lived URL the browser PUTs bytes to directly. The upload does not pass
  * through the application server — but the object is not trusted until
  * `finalise` has fetched it back and checked what it actually contains.
+ *
+ * **Nothing but `host` may be signed here, and that is the whole point.**
+ *
+ * This function used to pass the size cap as `ContentLength`, which SigV4 then
+ * folded into the signature: the presigned URL came back with
+ * `X-Amz-SignedHeaders=content-length;host`, committing the browser to sending
+ * `Content-Length: 10485760` exactly. A browser sends the real length of the
+ * file, so every upload of anything other than a precisely 10MiB image was
+ * rejected with a signature mismatch — which is to say, every upload.
+ *
+ * A signed header is a promise about the request the browser will make, and the
+ * browser is not taking instructions from us. So the size cap is enforced where
+ * it can actually be checked, in three places that do not depend on a header:
+ * the picker refuses an oversized file before asking for a URL, `beginUpload`
+ * refuses to issue one for a declared size over the cap, and `processImage`
+ * — the only authority, because it is the only one holding the bytes — rejects
+ * the object after it is fetched back, and the staged object is deleted.
  */
-export async function presignUpload(
-  bucket: Bucket,
-  key: string,
-  contentType: string,
-  maxBytes: number,
-) {
+export async function presignUpload(bucket: Bucket, key: string, contentType: string) {
   const url = await getSignedUrl(
     getR2(),
     new PutObjectCommand({
       Bucket: bucketName(bucket),
       Key: key,
       ContentType: contentType,
-      ContentLength: maxBytes,
     }),
     { expiresIn: UPLOAD_URL_TTL_SECONDS },
   );

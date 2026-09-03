@@ -87,12 +87,10 @@ export async function beginProofUpload(
   }
 
   const stagingKey = `staging/proofs/${orderId}/${randomUUID()}`;
-  const { url, expiresIn } = await presignUpload(
-    "private",
-    stagingKey,
-    contentType,
-    MAX_PROOF_BYTES,
-  );
+  // No size is signed into the URL — see `presignUpload`. `declaredBytes` is
+  // refused above the cap before a URL is issued, and `validateProof` measures
+  // the real thing once the bytes are fetched back.
+  const { url, expiresIn } = await presignUpload("private", stagingKey, contentType);
 
   const rows = await query<{ id: string }>(
     "INSERT INTO payment_proof_upload (order_id, staging_key) VALUES ($1, $2) RETURNING id",
