@@ -265,9 +265,16 @@ before the record is written.
   serialisable conflicts server-side; the concern is whether the retry loop's
   backoff holds up when many writers contend, not whether it is correct.
 
-The cluster's per-statement latency of 2–3 seconds is the dominant factor in
-every page timing measured so far, and it should be the first thing load testing
-characterises.
+**Correction, 2026-09-03, same day.** This section previously stated the
+cluster's per-statement latency was "the dominant factor in every page timing
+measured so far." That claim rested on a local measurement that was itself
+wrong — see the correction in [`work-plan.md`](work-plan.md) §4. Google's own
+PageSpeed Insights against the live production site measures LCP at 2.6 s with
+a 97/100 performance score, which does not support a 2–3 second bottleneck on
+the pages it tested. Whether per-statement latency matters under concurrent
+load — many simultaneous writers contending for the same rows — is still
+unmeasured and is exactly what load testing should establish; it should not be
+assumed from a single-request page load.
 
 ---
 
