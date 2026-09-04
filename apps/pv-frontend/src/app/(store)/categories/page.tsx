@@ -39,7 +39,7 @@ export default async function CategoriesPage() {
             <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {categories.map((category) => (
                 <li key={category.id}>
-                  <CategoryCard category={category} />
+                  <CategoryCard category={category} showDescription />
                 </li>
               ))}
             </ul>
