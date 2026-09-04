@@ -3,8 +3,10 @@ import { BrandNav } from "@/components/brand-nav";
 import { ConnectionStatus } from "@/components/connection-status";
 import { StoreFooter } from "@/components/store-footer";
 import { StoreHeader } from "@/components/store-header";
+import { StaffBar } from "@/components/staff-bar";
 import { StoreSidebar } from "@/components/store-sidebar";
 import { getCustomerPrincipal } from "@/server/customer-session";
+import { staffViewerName } from "@/server/staff-viewer";
 
 /**
  * `getCustomerPrincipal` is request-cached, so the header and the sidebar
@@ -14,11 +16,22 @@ import { getCustomerPrincipal } from "@/server/customer-session";
  * every page of the shop.
  */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [principal, brands] = await Promise.all([getCustomerPrincipal(), listBrandsWithProducts()]);
+  const [principal, brands, staffName] = await Promise.all([
+    getCustomerPrincipal(),
+    listBrandsWithProducts(),
+    staffViewerName(),
+  ]);
   const signedIn = principal !== null;
 
   return (
     <>
+      {/*
+        Above everything, including the header, because it is a statement about
+        the session rather than part of the shop. It renders nothing for a
+        shopper — see `server/staff-viewer` for why it is a name and not a
+        principal.
+      */}
+      <StaffBar name={staffName} />
       <ConnectionStatus />
       <StoreHeader />
       {/*
