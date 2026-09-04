@@ -98,12 +98,27 @@
  * The footer is a deliberately inverted band in BOTH themes, so its colours are
  * fixed rather than swapped. Without this it inherits the theme and, in dark
  * mode, paints near-black text on a near-black ground.
+ *
+ * Brand red rather than the near-black it used to be. The client's brand is red
+ * and white and asked for less black, and the footer is the largest single field
+ * of colour on the site — changing it here changes the impression of the whole
+ * page for the cost of four tokens.
+ *
+ * A deep red, not `--pv-red` itself. The brand red carries white at 4.9:1, which
+ * clears AA for body text and nothing else; this one carries it at 9.8:1, so the
+ * quieter greys the footer needs — link rows, the copyright line — are still
+ * legible rather than only technically present. Every value below was measured
+ * against this ground:
+ *
+ *   ink    #ffffff on #8c0510 → 9.8:1
+ *   soft   #fbe9ea            → 8.9:1
+ *   muted  #eec3c6            → 6.2:1
  */
 :root {
-  --pv-footer-bg: #09090b;
+  --pv-footer-bg: #8c0510;
   --pv-footer-ink: #ffffff;
-  --pv-footer-soft: #d4d4d8;
-  --pv-footer-muted: #8b8b93;
+  --pv-footer-soft: #fbe9ea;
+  --pv-footer-muted: #eec3c6;
 }
 
 * {
@@ -298,13 +313,22 @@ textarea {
   border-color: var(--pv-red-dark);
   transform: translateY(-1px);
 }
+/*
+ * The second-strongest action, drawn in the brand rather than in near-black.
+ *
+ * It used to be a solid `--pv-ink` slab, which put a second filled button beside
+ * the red one and made black read as a brand colour it is not. Outlined red on
+ * the page's own ground keeps the hierarchy — filled beats outlined — while the
+ * only two colours on screen are the two the client actually has. It stays
+ * distinct from `.button-ghost`, which is outlined in the neutral line colour.
+ */
 .button-secondary {
-  border: 1px solid var(--pv-ink);
-  background: var(--pv-ink);
-  color: var(--pv-on-brand);
+  border: 1px solid var(--pv-red);
+  background: var(--pv-page);
+  color: var(--pv-red);
 }
 .button-secondary:hover {
-  background: color-mix(in srgb, var(--pv-ink) 82%, var(--pv-page));
+  background: color-mix(in srgb, var(--pv-red) 8%, var(--pv-page));
   transform: translateY(-1px);
 }
 .button-ghost {
