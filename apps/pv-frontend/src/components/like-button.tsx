@@ -23,6 +23,7 @@ export function LikeButton({
   initialLiked,
   initialCount,
   size = "card",
+  onMedia = false,
 }: {
   productId: string;
   productName: string;
@@ -30,6 +31,19 @@ export function LikeButton({
   initialCount: number;
   /** `card` sits on a product tile; `detail` is the larger control on its page. */
   size?: "card" | "detail";
+  /**
+   * Whether the control is drawn straight onto a product photograph.
+   *
+   * It changes two things and nothing else. The glyph goes white, because the
+   * muted grey it uses on a surface disappears into half the photographs a shop
+   * uploads; and it takes the `on-media` shadow, which is what makes a light
+   * glyph readable on a light image now that there is no plate behind it.
+   *
+   * Liked and unliked stay apart by the heart being filled or hollow rather than
+   * by its colour, so the state survives both a white glyph and a shopper who
+   * cannot distinguish the two colours.
+   */
+  onMedia?: boolean;
 }) {
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
@@ -72,11 +86,17 @@ export function LikeButton({
         // The product name is in the accessible name because a grid of hearts is
         // otherwise a list of identically-labelled buttons to a screen reader.
         aria-label={liked ? `Unlike ${productName}` : `Like ${productName}`}
+        // 44px either way, per §2. On a card that target is now invisible —
+        // what was visible about it was the plate, not the control.
         className={cn(
-          "grid place-items-center rounded-full transition-colors",
+          "grid h-11 w-11 place-items-center rounded-full transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
-          detail ? "h-11 w-11 border border-(--pv-line)" : "h-11 w-11",
-          liked ? "text-(--pv-red)" : "text-(--pv-muted) hover:text-(--pv-red)",
+          detail ? "border border-(--pv-line)" : "",
+          onMedia
+            ? "on-media text-white"
+            : liked
+              ? "text-(--pv-red)"
+              : "text-(--pv-muted) hover:text-(--pv-red)",
           pending ? "opacity-60" : "",
         )}
       >
@@ -92,7 +112,8 @@ export function LikeButton({
         <span
           className={cn(
             "tabular-nums",
-            detail ? "text-sm font-semibold" : "text-xs font-semibold text-(--pv-muted)",
+            detail ? "text-sm font-semibold" : "text-xs font-semibold",
+            onMedia ? "on-media text-white" : detail ? "" : "text-(--pv-muted)",
           )}
         >
           {count}

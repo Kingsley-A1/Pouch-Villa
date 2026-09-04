@@ -213,12 +213,27 @@ export function ProductCard({
       </Link>
 
       {like ? (
-        <span className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--pv-surface)_86%,transparent)] pr-2 shadow-[0_2px_8px_-4px_var(--pv-shadow)] backdrop-blur-sm">
+        /*
+          The heart sits on the photograph with nothing behind it.
+
+          It used to sit on a translucent plate, and the plate was sized to the
+          44px touch target rather than to the 20px glyph — so every card
+          carried a large coloured blob in its corner, and the smallest control
+          on the card looked like the most important thing on it. `on-media`
+          gives the glyph its own shadow instead, which is what the plate was
+          really for: staying legible over an image nobody controls.
+
+          The 44px target is untouched and is simply invisible now. Pulled in to
+          `top-1 right-1` because a target with no plate no longer needs to clear
+          the card's own corner radius.
+        */
+        <span className="absolute top-1 right-1 flex items-center gap-1">
           <LikeButton
             productId={product.id}
             productName={product.name}
             initialLiked={like.liked}
             initialCount={like.count}
+            onMedia
           />
         </span>
       ) : null}
