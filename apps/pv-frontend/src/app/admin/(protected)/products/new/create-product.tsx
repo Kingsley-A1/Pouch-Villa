@@ -6,27 +6,41 @@ import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import type { AdminDevice } from "@pv/backend/services/devices";
 import type { ActionState } from "@/lib/action-state";
-import { CheckCircle, Plus } from "@phosphor-icons/react";
+import { CheckCircle, Plus, Warning } from "@phosphor-icons/react";
 import { LoadingLine } from "@/components/loading-line";
 import { ProductForm } from "../product-form";
 import type { PickedFile } from "../media-picker";
+import { setProductStatusAction } from "../actions";
 import { uploadProductImage } from "../upload-image";
 
 type CreateResult = ActionState & { productId?: string };
 
+/** What the screen has to report once the whole sequence has run. */
+type Outcome = {
+  productId: string;
+  /** Whether the product actually reached the shop, not whether it was asked to. */
+  published: boolean;
+  /** Why it did not, when publishing was asked for and refused. */
+  publishError: string | null;
+  /** One entry per image that did not upload, with the reason. */
+  failures: string[];
+};
+
 /**
- * Creates the product, then uploads the images that were chosen alongside it.
+ * Creates the product, uploads the images chosen alongside it, then publishes.
  *
- * The two cannot be one request: an R2 key is scoped by product id, so there is
- * nothing to upload to until the row exists. Rather than exposing that ordering
- * to staff as "save, then come back for pictures", it is sequenced here — the
- * product is created, its pictures follow, and only then does the screen move on.
+ * The three cannot be one request. An R2 key is scoped by product id, so there
+ * is nothing to upload to until the row exists; and publishing has to come last,
+ * because a product that reaches the shop before its pictures do is a card with
+ * an empty box in it. Rather than exposing that ordering to staff as three
+ * screens, it is sequenced here behind one button.
  *
- * If an upload fails the product is *not* rolled back. It exists as a draft with
- * fewer pictures than intended, which is recoverable on the edit screen, whereas
+ * If an upload fails the product is *not* rolled back. It exists with fewer
+ * pictures than intended, which is recoverable on the edit screen, whereas
  * discarding a product because the fourth photo timed out on mobile data would
  * throw away everything already typed. What matters is that the person is told
- * exactly which files did not make it.
+ * exactly which files did not make it — and, now, whether the thing is actually
+ * in the shop.
  */
 export function CreateProduct({
   action,
@@ -45,20 +59,22 @@ export function CreateProduct({
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
   /**
-   * The finished result, set once and only once the uploads have run.
+   * The finished result, set once and only once the whole sequence has run.
    *
-   * One piece of state rather than three, because the three had an order they
-   * had to be written in and no way to express it. In particular the id was set
-   * the moment the row existed — before the images were sent — so anything
-   * keyed on "was it created" was briefly true while uploads were still going.
+   * One piece of state rather than four, because they had an order they had to
+   * be written in and no way to express it. In particular the id was set the
+   * moment the row existed — before the images were sent and before anything was
+   * published — so anything keyed on "was it created" was briefly true while the
+   * rest was still going.
    *
    * Until this is set the form is on screen. After it, the form is gone: the
    * product exists, and leaving it submittable would make the obvious next
    * action ("press it again") quietly create a duplicate.
    */
-  const [outcome, setOutcome] = useState<{ productId: string; failures: string[] } | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  async function createThenUpload(prev: ActionState, formData: FormData): Promise<CreateResult> {
+  async function createUploadPublish(prev: ActionState, formData: FormData): Promise<CreateResult> {
+    const wantsPublish = formData.get("publish") === "now";
     const created = await action(prev, formData);
     if (created.productId === undefined) return created;
 
@@ -73,24 +89,34 @@ export function CreateProduct({
       // Every failure mode is a returned value — see `uploadProductImage`. The
       // reason is kept rather than only the filename: "storage refused it" and
       // "that file is 30MB" need different things done about them.
-      const outcome = await uploadProductImage(productId, picked.file);
-      if (!outcome.ok) failed.push(outcome.error);
+      const uploaded = await uploadProductImage(productId, picked.file);
+      if (!uploaded.ok) failed.push(uploaded.error);
       setUploading({ done: index + 1, total: files.length });
     }
 
     setUploading(null);
 
     /**
-     * Written after the uploads, whether they worked or not.
+     * Publishing last, and only if it was asked for.
      *
-     * The confirmation below replaces the form. It used to redirect straight to
-     * the edit screen instead, which answered the wrong question: somebody who
-     * has just filled in a product wants to know it saved and to start the next
-     * one, and instead landed on a screen that looks like the form they were on
-     * and had to work out whether they were creating or editing. Uploading a
-     * batch meant navigating back for every single one.
+     * `setProductStatusAction` is the same action the edit screen's publish
+     * button calls, so there is one publish path with one authorisation check
+     * and one audit record, rather than a second one that only creates.
+     *
+     * It can still refuse — a product with no price has no active variant to
+     * sell — and that refusal is carried into the confirmation rather than
+     * swallowed. The product goes back to being a draft, which is the state the
+     * client kept landing in without ever being told why.
      */
-    setOutcome({ productId, failures: failed });
+    let published = false;
+    let publishError: string | null = null;
+    if (wantsPublish) {
+      const result = await setProductStatusAction(productId, "published");
+      published = result.error === null;
+      publishError = result.error;
+    }
+
+    setOutcome({ productId, published, publishError, failures: failed });
 
     if (failed.length > 0) {
       return {
@@ -99,7 +125,7 @@ export function CreateProduct({
         } did not upload. Add ${failed.length === 1 ? "it" : "them"} again on the edit screen.`,
       };
     }
-    return { error: null, message: "Product created." };
+    return { error: null, message: published ? "Product published." : "Product saved as a draft." };
   }
 
   /** Clears everything this screen holds, so the next product starts empty. */
@@ -112,76 +138,14 @@ export function CreateProduct({
     router.refresh();
   }
 
-  // Everything worked. The form is replaced rather than left on screen: it has
-  // already done its job, and the next thing this person does is either open
-  // what they made or make another.
-  if (outcome !== null && outcome.failures.length === 0) {
-    return (
-      <div className="panel-bracket grid gap-4 p-5 text-center">
-        <CheckCircle
-          size={44}
-          weight="fill"
-          aria-hidden="true"
-          className="justify-self-center text-(--pv-success)"
-        />
-        {/* `role="status"` so the outcome is announced, not just drawn. */}
-        <div role="status">
-          <h2 className="text-lg font-bold">Product created</h2>
-          <p className="mt-1 text-sm text-(--pv-muted)">
-            Saved as a <strong>draft</strong>. Nothing is public until you publish it, and you can
-            add prices, stock and more pictures on the product itself.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-3">
-          <button type="button" className="button-primary" onClick={startAnother}>
-            <Plus size={17} weight="bold" aria-hidden="true" />
-            Add another product
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => router.push(`/admin/products/${outcome.productId}/edit`)}
-          >
-            Open this product
-          </button>
-          <button
-            type="button"
-            className="button-ghost"
-            onClick={() => router.push("/admin/products")}
-          >
-            All products
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // The product exists but some images did not make it. Re-submitting would
-  // create a second product, so the form is gone and the only way on is the
-  // edit screen, where the missing images can be added to the row that exists.
   if (outcome !== null) {
     return (
-      <div className="panel-bracket grid gap-4 p-5">
-        <h2 className="text-lg font-bold">Product created, but some images did not upload</h2>
-        <p className="text-sm text-(--pv-muted)">
-          The product was saved as a draft. Nothing is public yet. These did not upload:
-        </p>
-        <ul className="grid gap-1 text-sm text-(--pv-danger)">
-          {outcome.failures.map((reason) => (
-            <li key={reason}>{reason}</li>
-          ))}
-        </ul>
-        <p className="text-sm text-(--pv-muted)">
-          Open the product to add them again, along with prices and stock.
-        </p>
-        <button
-          type="button"
-          className="button-primary justify-self-start"
-          onClick={() => router.push(`/admin/products/${outcome.productId}/edit`)}
-        >
-          Open the product
-        </button>
-      </div>
+      <Confirmation
+        outcome={outcome}
+        onAddAnother={startAnother}
+        onOpenProduct={() => router.push(`/admin/products/${outcome.productId}/edit`)}
+        onAllProducts={() => router.push("/admin/products")}
+      />
     );
   }
 
@@ -197,15 +161,93 @@ export function CreateProduct({
       ) : null}
 
       <ProductForm
-        action={createThenUpload}
+        action={createUploadPublish}
         brands={brands}
         categories={categories}
         devices={devices}
         collections={collections}
-        submitLabel="Create product"
         pickedFiles={files}
         onPickedFilesChange={setFiles}
       />
+    </div>
+  );
+}
+
+/**
+ * The one screen that answers "is it in the shop?".
+ *
+ * It replaces the form rather than sitting above it, because the form has done
+ * its job and re-submitting would create a second product. Three outcomes are
+ * possible and each is stated in the heading, not buried in a paragraph: live,
+ * saved as a draft, or live-but-missing-pictures. The old version said "Saved as
+ * a draft" in every case, including the cases it was wrong about.
+ */
+function Confirmation({
+  outcome,
+  onAddAnother,
+  onOpenProduct,
+  onAllProducts,
+}: {
+  outcome: Outcome;
+  onAddAnother: () => void;
+  onOpenProduct: () => void;
+  onAllProducts: () => void;
+}) {
+  const clean = outcome.failures.length === 0;
+  const heading = outcome.published
+    ? clean
+      ? "Published — it is in the shop"
+      : "Published, but some pictures did not upload"
+    : clean
+      ? "Saved as a draft"
+      : "Saved as a draft, and some pictures did not upload";
+
+  return (
+    <div className="panel-bracket grid gap-4 p-5">
+      <span className="justify-self-center">
+        {outcome.published && clean ? (
+          <CheckCircle size={44} weight="fill" aria-hidden="true" className="text-(--pv-success)" />
+        ) : (
+          <Warning size={44} weight="fill" aria-hidden="true" className="text-(--pv-warning)" />
+        )}
+      </span>
+
+      {/* `role="status"` so the outcome is announced, not just drawn. */}
+      <div role="status" className="grid gap-2 text-center">
+        <h2 className="text-lg font-bold">{heading}</h2>
+        <p className="text-sm text-(--pv-muted)">
+          {outcome.published
+            ? "Customers can see and buy it now."
+            : outcome.publishError === null
+              ? "Only staff can see it. Publish it from the product when you are ready."
+              : outcome.publishError}
+        </p>
+      </div>
+
+      {outcome.failures.length > 0 ? (
+        <div className="grid gap-1">
+          <p className="text-sm font-bold">These pictures did not upload:</p>
+          <ul className="grid gap-1 text-sm text-(--pv-danger)">
+            {outcome.failures.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+          <p className="text-sm text-(--pv-muted)">Open the product to add them again.</p>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap justify-center gap-3">
+        <button type="button" className="button-primary" onClick={onAddAnother}>
+          <Plus size={17} weight="bold" aria-hidden="true" />
+          Add another product
+        </button>
+        <button type="button" className="button-secondary" onClick={onOpenProduct}>
+          Open this product
+        </button>
+        <button type="button" className="button-ghost" onClick={onAllProducts}>
+          All products
+        </button>
+      </div>
     </div>
   );
 }

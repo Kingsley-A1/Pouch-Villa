@@ -132,6 +132,11 @@ export async function setProductStatusAction(
   }
   revalidatePath(`/admin/products/${id}/edit`);
   revalidatePath("/admin/products");
+  // Publishing and unpublishing are the two changes a *customer* sees, so the
+  // storefront entry points are revalidated too. Without this the admin agreed
+  // the product was live while the shop still had the cached page without it.
+  revalidatePath("/");
+  revalidatePath("/shop");
   return { error: null };
 }
 

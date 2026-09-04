@@ -289,7 +289,7 @@ export async function updateProduct(id: string, input: ProductInput, actor: { st
 
 export class CannotPublishEmptyProductError extends Error {
   constructor() {
-    super("A product needs at least one active, priced variant before it can be published.");
+    super("Add a price before publishing — a product with no price cannot be sold.");
     this.name = "CannotPublishEmptyProductError";
   }
 }
@@ -301,8 +301,14 @@ export async function setProductStatus(
 ) {
   return withTransaction(async (tx) => {
     if (status === "published") {
+      // `price_kobo > 0` as well as active, matching what the admin already
+      // tells staff and what the storefront needs. The check used to pass on a
+      // variant priced at zero, so a product could be published into the shop
+      // with no price on it.
       const active = await tx.query(
-        "SELECT id FROM product_variant WHERE product_id = $1 AND deleted_at IS NULL AND is_active LIMIT 1",
+        `SELECT id FROM product_variant
+          WHERE product_id = $1 AND deleted_at IS NULL AND is_active AND price_kobo > 0
+          LIMIT 1`,
         [id],
       );
       if (active.rows.length === 0) throw new CannotPublishEmptyProductError();
