@@ -170,9 +170,15 @@ jobs:
           DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
           AUTH_SECRET: ci-only-never-used-to-sign-anything-real
 
+      # `.lighthouseci/` is a dot-directory, and upload-artifact@v4 skips hidden
+      # files unless told not to — so the first run that ever reached Lighthouse
+      # wrote twelve reports and uploaded none of them, with only a warning to
+      # say so. The budgets are allowed to be missed; the evidence of by how much
+      # is the whole point of collecting them.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lighthouse-reports
           path: .lighthouseci/
+          include-hidden-files: true
           retention-days: 14
