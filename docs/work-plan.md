@@ -366,6 +366,22 @@ No migration.
 > now also asserts that two different lengths give two different signatures, so
 > a regression back to signing a constant fails.
 
+**Product image sharpness, added 2026-09-03.** Recorded in
+[`decisions/0012-image-derivative-widths.md`](decisions/0012-image-derivative-widths.md).
+No migration.
+
+- **The `card` and `hero` derivatives were narrower than the boxes they fill**
+  at 2x device pixels — an ordinary retina laptop or mid-range phone, not an
+  edge case — so `next/image` handed back the narrowest file it had and the
+  browser stretched it. `card` 600px → 960px, `hero` 1400px → 1600px, and a
+  feature-size product tile now reads `hero` rather than stretching `card`
+  further than even the new width covers.
+- **Existing products are not automatically sharper.** The source photo is
+  deleted once its derivatives are generated, by design, so there is no
+  server-side backfill — a product uploaded before this ships keeps its old,
+  narrower images until someone re-uploads the photo, which the Replace
+  control from the upload-manager repair above is built for.
+
 Still outstanding for Phase 4: nothing beyond what real operation surfaces.
 
 **Gate:** the client runs a full day of simulated operations entirely from a phone.
@@ -438,6 +454,27 @@ Security review against §5 with a written report. Load testing. WCAG 2.2 AA aud
 **Test databases are separate.** Writing integration tests require `TEST_DATABASE_URL` and refuse to run if it matches `DATABASE_URL`. This exists because an early run left twenty-six live role codes in the production database.
 
 > **Correction, 2026-08-31, resolved 2026-09-01.** This table previously claimed _"every protected admin route 307s to `/admin/login`"_ when [`verify-routes.mjs`](../apps/pv-frontend/scripts/verify-routes.mjs) checked no admin route at all. The script now genuinely asserts it, for all thirteen, plus two API contract checks. Output pasted in the Phase 3 gate below.
+
+### Production defects found and fixed, 2026-09-04
+
+Three, all live on `www.pouchvilla.com.ng` and none caught by any existing gate.
+
+| Defect                                                                                        | Effect                                                                                                                                      | Gate added                                                                                      |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `jsonb_object_agg` over a correlated subquery fails on CockroachDB for a variant with no axes | Every product page, cart read and checkout for such a product threw. Since variants became optional, that was every product.                | An integration test against a live cluster, plus the route check now visits a real product page |
+| `style-src-attr` listed one of the two style attributes `next/image` emits                    | Every image using `fill` was blocked by the browser; the picture collapsed                                                                  | The route check hashes every inline style attribute and fails the build on an unlisted one      |
+| `form-action 'self'` blocked the Google sign-in post                                          | Sign-in could not start. The directive is checked against the whole redirect chain, so a same-origin post redirecting to Google was refused | A unit test pinning `form-action` to `'self'` plus Google and nothing else                      |
+
+The first hid behind a `200`: the throw was inside a Suspense boundary, so the
+shell streamed and the browser replaced it with the error boundary. Every route
+check passed while the product page was unusable. That is why the route list is
+no longer fixed — it follows the first product link on the home page.
+
+Both new gates were **proven by breaking them**: a hash removed from the policy
+made the route check name the exact blocked declaration, and reverting the SQL
+fix made all three new integration tests fail with the production error.
+
+---
 
 ---
 

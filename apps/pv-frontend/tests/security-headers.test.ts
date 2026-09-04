@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildContentSecurityPolicy, staticSecurityHeaders } from "@/lib/security-headers";
+import {
+  buildContentSecurityPolicy,
+  NEXT_IMAGE_STYLE_HASHES,
+  staticSecurityHeaders,
+} from "@/lib/security-headers";
 
 /**
  * The policy is the kind of thing that gets loosened under deadline, one
@@ -46,10 +50,13 @@ describe("content security policy", () => {
     expect(scriptSrc).toContain("'strict-dynamic'");
   });
 
-  it("permits exactly one style attribute, by hash", () => {
+  it("permits the framework's own style attributes, by hash, and nothing else", () => {
     const attr = directive(policy, "style-src-attr");
     expect(attr).toContain("'unsafe-hashes'");
-    expect(attr).toContain("sha256-");
+    // Both of them. Listing only the first left every `fill` image blocked,
+    // which is what took the product page down: the picture collapsed and the
+    // browser reported `<svg> attribute height: Expected length, "auto"`.
+    for (const hash of NEXT_IMAGE_STYLE_HASHES) expect(attr).toContain(hash);
     // `unsafe-hashes` must never appear where it could apply to script.
     expect(directive(policy, "script-src")).not.toContain("'unsafe-hashes'");
   });
@@ -62,30 +69,29 @@ describe("content security policy", () => {
     expect(connect).toContain("https://*.abc123.r2.cloudflarestorage.com");
   });
 
-  it("allows Google sign-in to load and frame itself", () => {
-    expect(directive(policy, "connect-src")).toContain("https://accounts.google.com");
-    expect(directive(policy, "frame-src")).toContain("https://accounts.google.com");
+  it("lets a sign-in form end up at Google, and nowhere else off-origin", () => {
+    // Regression test. `form-action` is checked against the whole redirect
+    // chain, so `'self'` alone blocked a same-origin POST whose 303 pointed at
+    // Google — and Chrome reported the violation against our own URL, which
+    // reads like nonsense until you know the rule.
+    expect(directive(policy, "form-action")).toBe(`form-action 'self' ${GOOGLE_ORIGIN_FOR_TEST}`);
   });
 
-  it("lets Google's sign-in button load its own stylesheet", () => {
-    // Regression test. Production served a giant unstyled logo and a visible
-    // duplicate accessibility label, because style-src-elem was unset and fell
-    // back to the nonce-only style-src — which blocked the stylesheet Google's
-    // button loads from its own origin to size and hide those elements.
-    // Verified against a live Chrome pointed at the deployed policy: the
-    // console named accounts.google.com/gsi/style as the blocked request.
-    const styleElem = directive(policy, "style-src-elem");
-    expect(styleElem).toContain(GOOGLE_ORIGIN_FOR_TEST);
-    expect(styleElem).toContain("'nonce-test-nonce'");
-    // This directive governs a loaded stylesheet, never a script.
-    expect(directive(policy, "script-src")).not.toContain(GOOGLE_ORIGIN_FOR_TEST);
+  it("no longer admits Google anywhere a script, style, frame or fetch could come from", () => {
+    // ADR 0011 removed the sign-in widget, so these four allowances buy nothing
+    // and are gone. Re-adding one means Google code runs in the page again.
+    for (const name of ["script-src", "style-src", "style-src-elem", "connect-src", "img-src"]) {
+      expect(directive(policy, name)).not.toContain(GOOGLE_ORIGIN_FOR_TEST);
+    }
+    // Nothing is framed at all, so the directive is absent and `default-src`
+    // refuses on its behalf.
+    expect(directive(policy, "frame-src")).toBe("");
   });
 
   it("refuses to be framed, and forbids plugins and base tag injection", () => {
     expect(directive(policy, "frame-ancestors")).toBe("frame-ancestors 'none'");
     expect(directive(policy, "object-src")).toBe("object-src 'none'");
     expect(directive(policy, "base-uri")).toBe("base-uri 'self'");
-    expect(directive(policy, "form-action")).toBe("form-action 'self'");
   });
 
   it("omits an unconfigured media origin rather than emitting an empty token", () => {
@@ -95,7 +101,7 @@ describe("content security policy", () => {
       mediaBaseUrl: undefined,
     });
     expect(directive(bare, "img-src")).toBe("img-src 'self' blob: data:");
-    expect(directive(bare, "connect-src")).toBe("connect-src 'self' https://accounts.google.com");
+    expect(directive(bare, "connect-src")).toBe("connect-src 'self'");
   });
 
   it("upgrades insecure requests only where there is HTTPS to upgrade to", () => {
@@ -107,11 +113,10 @@ describe("content security policy", () => {
 });
 
 describe("static security headers", () => {
-  it("allows the Google sign-in popup to talk back to its opener", () => {
-    // `same-origin` severs that and the button fails with nothing useful said.
-    expect(staticSecurityHeaders(false)["Cross-Origin-Opener-Policy"]).toBe(
-      "same-origin-allow-popups",
-    );
+  it("isolates the page from any opener, with no popup exemption", () => {
+    // Relaxed to `same-origin-allow-popups` while Google's sign-in popup needed
+    // to talk back to its opener. The redirect flow opens no popup.
+    expect(staticSecurityHeaders(false)["Cross-Origin-Opener-Policy"]).toBe("same-origin");
   });
 
   it("sends HSTS in production and never in development", () => {

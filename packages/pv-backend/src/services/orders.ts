@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { query, queryOne, type Queryable } from "../db/client";
+import { axesFromPairs, VARIANT_AXES_SELECT, type VariantAxisPairs } from "../db/variant-axes";
 import { withTransaction } from "../db/transaction";
 import { addKobo, kobo, multiplyKobo, type Kobo } from "../domain/money";
 import {
@@ -124,7 +125,7 @@ type CartLineForOrder = {
   price_kobo: string;
   quantity: string;
   in_stock: string;
-  axes: Record<string, string> | null;
+  axes: VariantAxisPairs;
   content_hash: string | null;
   r2_key: string | null;
 };
@@ -214,8 +215,7 @@ export async function placeOrder(
               ci.quantity::STRING AS quantity,
               coalesce((SELECT sum(se.delta) FROM stock_entry se WHERE se.variant_id = v.id), 0)::STRING
                 AS in_stock,
-              (SELECT jsonb_object_agg(vv.axis_code, vv.value)
-                 FROM variant_value vv WHERE vv.variant_id = v.id) AS axes,
+              ${VARIANT_AXES_SELECT} AS axes,
               (SELECT pm.content_hash FROM product_media pm
                 WHERE pm.product_id = p.id ORDER BY pm.sort_order LIMIT 1) AS content_hash,
               (SELECT pm.r2_key FROM product_media pm
@@ -333,7 +333,7 @@ export async function placeOrder(
           line.product_name,
           line.product_slug,
           line.variant_sku,
-          JSON.stringify(line.axes ?? {}),
+          JSON.stringify(axesFromPairs(line.axes)),
           line.brand_name,
           line.r2_key,
           unitPriceKobo,

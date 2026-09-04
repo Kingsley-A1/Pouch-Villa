@@ -265,7 +265,14 @@ someone new:
 - **A strict CSP with no `unsafe-inline`.** Scripts are trusted by nonce plus
   `'strict-dynamic'`. Two consequences: never add a `style` attribute (a nonce
   cannot address `style-src-attr`; use classes), and a hand-written `<script>`
-  must ask for the nonce itself — Next only nonces what Next emits.
+  must ask for the nonce itself — Next only nonces what Next emits. The route
+  check hashes every inline style attribute in the rendered HTML and fails the
+  build on one the policy does not permit.
+- **CockroachDB is not PostgreSQL, and the difference bites on empty sets.**
+  Never put `jsonb_object_agg` in a correlated subquery: the optimiser
+  decorrelates it and feeds a NULL key into the aggregate, failing the whole
+  statement. [ADR 0013](docs/decisions/0013-variant-axes-and-cockroachdb-decorrelation.md)
+  has the measurements and the shape that works.
 - **Never interpolate an identifier into SQL**, even behind an enum guard. Where
   a shared helper needs to work across tables, it takes a callback holding that
   table's own literal statement. `domain/slug.ts` is the worked example.

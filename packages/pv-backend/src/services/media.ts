@@ -109,7 +109,6 @@ export type FinalisedMedia = { mediaId: string; width: number; height: number };
  */
 export async function finaliseUpload(
   uploadId: string,
-  alt: string | null,
   actor: { staffId: string },
   options: { replacesMediaId?: string } = {},
 ): Promise<FinalisedMedia> {
@@ -193,13 +192,12 @@ export async function finaliseUpload(
 
     const inserted = await tx.query(
       `INSERT INTO product_media
-         (product_id, r2_key, kind, alt, width, height, sort_order, content_hash, byte_size, uploaded_by)
-       VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9)
+         (product_id, r2_key, kind, width, height, sort_order, content_hash, byte_size, uploaded_by)
+       VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8)
        RETURNING id`,
       [
         upload.product_id,
         mediaKey(upload.product_id, processed.hash, "card"),
-        alt,
         processed.width,
         processed.height,
         sortOrder,
@@ -270,36 +268,6 @@ export async function deleteMedia(mediaId: string, actor: { staffId: string }) {
   return true;
 }
 
-/**
- * The alternative text a screen reader will read for this image.
- *
- * Editable after upload because it is a sentence about the photograph, and
- * nobody writes a good one while waiting for five files to upload. Stored as
- * `null` when cleared rather than as an empty string: the two mean different
- * things to a screen reader, and only one of them is "this image is decorative".
- */
-export async function updateMediaAlt(
-  mediaId: string,
-  alt: string | null,
-  actor: { staffId: string },
-): Promise<void> {
-  const trimmed = alt?.trim() ?? "";
-  const rows = await query<{ id: string }>(
-    "UPDATE product_media SET alt = $2 WHERE id = $1 RETURNING id",
-    [mediaId, trimmed === "" ? null : trimmed],
-  );
-  if (rows[0] === undefined) throw new MediaNotFoundError();
-
-  await recordAudit(getPool(), {
-    actorType: "staff",
-    actorId: actor.staffId,
-    action: "media.alt_changed",
-    entityType: "product_media",
-    entityId: mediaId,
-    after: { alt: trimmed === "" ? null : trimmed },
-  });
-}
-
 export async function reorderMedia(
   productId: string,
   orderedIds: string[],
@@ -326,7 +294,6 @@ export async function reorderMedia(
 
 export type AdminMedia = {
   id: string;
-  alt: string | null;
   width: number | null;
   height: number | null;
   sortOrder: number;
@@ -336,14 +303,13 @@ export type AdminMedia = {
 export async function listProductMedia(productId: string): Promise<AdminMedia[]> {
   const rows = await query<{
     id: string;
-    alt: string | null;
     width: number | null;
     height: number | null;
     sort_order: number;
     content_hash: string | null;
     r2_key: string;
   }>(
-    `SELECT id, alt, width, height, sort_order, content_hash, r2_key
+    `SELECT id, width, height, sort_order, content_hash, r2_key
        FROM product_media
       WHERE product_id = $1 AND kind = 'image'
       ORDER BY sort_order`,
@@ -352,7 +318,6 @@ export async function listProductMedia(productId: string): Promise<AdminMedia[]>
 
   return rows.map((row) => ({
     id: row.id,
-    alt: row.alt,
     width: row.width,
     height: row.height,
     sortOrder: row.sort_order,

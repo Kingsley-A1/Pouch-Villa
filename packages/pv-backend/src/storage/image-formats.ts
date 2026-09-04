@@ -73,11 +73,27 @@ export const MIME_BY_FORMAT: Record<ImageFormat, string> = {
  * Derivative widths. Generated once on upload rather than per request, so a
  * product page costs no transformation work and every image can be cached
  * immutably.
+ *
+ * Each width is chosen against the CSS box it actually fills, at 2x device
+ * pixels — not 1x, because a browser upscaling a too-small source to cover its
+ * box is exactly what "the product images look soft" turns out to mean, and 2x
+ * is now the ordinary case rather than the exception (any retina laptop
+ * display, most current phones). `next/image` never serves more than the
+ * source has: ask it for 960px from a 600px file and it hands back 600px,
+ * which the `<img>` element then stretches to fill its box.
+ *
+ * `card` fills a grid tile at up to 25vw on desktop and up to 100vw on a
+ * feature tile's mobile width — at 2x that is up to roughly 900px for a grid
+ * tile; a feature tile at 100vw is wide enough that `ProductCard` reaches for
+ * `hero` instead rather than pushing `card` to cover it too.
+ *
+ * `hero` fills the product page's main image at up to 50vw on desktop; at 2x
+ * on a 1600px viewport that is 1600px.
  */
 export const DERIVATIVES = [
   { name: "thumb", width: 200 },
-  { name: "card", width: 600 },
-  { name: "hero", width: 1400 },
+  { name: "card", width: 960 },
+  { name: "hero", width: 1600 },
 ] as const;
 
 export type DerivativeName = (typeof DERIVATIVES)[number]["name"];

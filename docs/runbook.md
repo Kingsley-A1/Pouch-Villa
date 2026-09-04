@@ -117,12 +117,22 @@ triggered it. Confirm it is set.
 ### A page renders but is visibly unstyled, or a button does nothing
 
 Look at the browser console for a Content Security Policy violation. The policy
-is strict and carries a per-request nonce. Two ways to break it:
+is strict and carries a per-request nonce. Three ways to break it:
 
 - Somebody added a `style` attribute. A nonce cannot address `style-src-attr`;
   use classes.
 - Somebody added a hand-written `<script>` without the nonce. Next only nonces
   what Next emits; read `x-nonce` from `headers()`.
+- A framework upgrade changed the style attribute `next/image` emits. The
+  console names the hash it wanted; add it to `NEXT_IMAGE_STYLE_HASHES` in
+  `src/lib/security-headers.ts`. `pnpm run verify` catches this before a
+  deploy — the route check hashes every inline style attribute it finds.
+
+**A form submission blocked by `form-action 'self'` on a same-origin URL** is
+not the contradiction it looks like. That directive is checked against the whole
+redirect chain, so a post to one of our own routes that redirects off-origin is
+refused and the violation is reported against our URL. Google sign-in is the one
+case, and its destination is allowed by name.
 
 ### A customer says they paid but the order still says awaiting payment
 

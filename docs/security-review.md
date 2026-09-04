@@ -139,41 +139,53 @@ object we construct, for breadcrumb structured data.
 Added 2026-09-03. **There were no security headers at all before that**, which
 was the most serious gap against §5 in the system.
 
+**Tightened 2026-09-04**, after the widget it had been loosened for was removed.
+
 ```
 default-src 'self';
 script-src 'self' 'nonce-…' 'strict-dynamic';
 style-src 'self' 'nonce-…';
-style-src-attr 'unsafe-hashes' 'sha256-…';
+style-src-elem 'self' 'nonce-…';
+style-src-attr 'unsafe-hashes' 'sha256-…' 'sha256-…';
 img-src 'self' blob: data: <media origin>;
 font-src 'self';
-connect-src 'self' https://accounts.google.com <r2 origins>;
-frame-src https://accounts.google.com;
-object-src 'none'; base-uri 'self'; form-action 'self';
+connect-src 'self' <r2 origins>;
+object-src 'none'; base-uri 'self';
+form-action 'self' https://accounts.google.com;
 frame-ancestors 'none'; upgrade-insecure-requests
 ```
 
 Plus `Strict-Transport-Security` (two years, subdomains, preload),
 `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`,
 `Permissions-Policy` denying camera, microphone, geolocation and payment, and
-`Cross-Origin-Opener-Policy: same-origin-allow-popups`.
+`Cross-Origin-Opener-Policy: same-origin`.
 
 **No `unsafe-inline`, anywhere.** Scripts are trusted by a per-request nonce
-minted in `proxy.ts`. Verified against a real build: all 29 script tags in the
-rendered home page carry the nonce, and there are no un-nonced inline styles.
+minted in `proxy.ts`. Verified against a real build: every one of the 449 script
+tags across the checked routes carries the nonce.
 
-**One documented exception.** `next/image` emits `style="color:transparent"` on
-every image. Rather than allow inline styles wholesale, exactly that declaration
-is permitted by SHA-256 hash under `style-src-attr`. `'unsafe-hashes'` applies a
-hash to an attribute; it grants no ability to run script, and it appears nowhere
-near `script-src`.
+**Google now appears in exactly one directive, and it is not a source
+directive.** The sign-in widget needed Google's origin in `script-src`,
+`style-src-elem`, `connect-src` and `frame-src`; ADR 0011 replaced it with a
+server-side redirect and all four are gone, along with the popup exemption on
+COOP. What remains is `form-action`, because that directive is checked against
+**every URL in a submission's redirect chain** — the sign-in form posts to our
+own start route, which answers 303 to Google, and a bare `'self'` blocked it
+while reporting the violation against our own URL.
 
-**COOP is `same-origin-allow-popups`, not `same-origin`.** The stricter value
-severs Google sign-in's popup from its opener and the button fails with nothing
-useful said. The weaker value still isolates this page from any site that opens
-it. This is a deliberate, narrow trade.
+**Two documented exceptions, both from the framework.** `next/image` emits
+`style="color:transparent"` on every image, and a second, longer declaration on
+every image using `fill`. Rather than allow inline styles wholesale, exactly
+those two declarations are permitted by SHA-256 hash under `style-src-attr`.
+`'unsafe-hashes'` applies a hash to an attribute; it grants no ability to run
+script, and it appears nowhere near `script-src`.
 
-A unit test pins the policy and fails if `'unsafe-inline'` reappears; the route
-check asserts the header is actually served and that every script is nonced.
+Listing only the first of those two is what took the product page down in
+production, so **the route check now hashes every inline style attribute on every
+route it visits and fails the build on one that is not on the list.** Proven by
+removing a hash and watching the check name the exact declaration and the hash to
+add. A unit test pins the policy and fails if `'unsafe-inline'` reappears or if
+Google returns to a source directive.
 
 ---
 

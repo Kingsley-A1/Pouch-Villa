@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -8,6 +9,22 @@ import { resolve } from "node:path";
 for (const name of [".env", ".env.local"]) {
   const path = resolve(import.meta.dirname, "../../..", name);
   if (existsSync(path)) process.loadEnvFile(path);
+}
+
+/**
+ * The style attributes `style-src-attr` permits, kept in sync with the policy by
+ * importing it rather than by restating it.
+ *
+ * The policy listed one hash and Next emits two, so every `fill` image in
+ * production was blocked and the product page collapsed. Reading the hashes
+ * from the same module the proxy uses means the gate below cannot drift from
+ * what the browser is actually sent.
+ */
+const { NEXT_IMAGE_STYLE_HASHES } = await import("../src/lib/security-headers.ts");
+const allowedStyleHashes = new Set(NEXT_IMAGE_STYLE_HASHES);
+
+function styleAttributeHash(declaration) {
+  return `sha256-${createHash("sha256").update(declaration).digest("base64")}`;
 }
 
 /**
@@ -68,6 +85,7 @@ const protectedAccountRoutes = [
  */
 const protectedAdminRoutes = [
   "/admin",
+  "/admin/profile",
   "/admin/products",
   "/admin/storefront",
   "/admin/categories",
@@ -99,6 +117,21 @@ const routes = process.env.DATABASE_URL?.trim()
   ? [...databaseRoutes, ...staticRoutes]
   : staticRoutes;
 
+/**
+ * A product page, found by following the first product link on the home page.
+ *
+ * It cannot be a fixed path — the slug depends on what is published — and
+ * leaving it out is why a product page that threw on every request shipped:
+ * every route in the list above still answered 200. A shop with nothing
+ * published has no link to follow, and the check is skipped rather than failed.
+ */
+async function findProductRoute() {
+  const response = await fetch(`${origin}/`, { redirect: "manual" });
+  if (!response.ok) return null;
+  const match = (await response.text()).match(/href="(\/products\/[^"?#]+)"/);
+  return match?.[1] ?? null;
+}
+
 const server = spawn(
   process.execPath,
   ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
@@ -126,7 +159,8 @@ try {
   await waitForServer();
   const results = [];
   let nonced = 0;
-  for (const route of routes) {
+  const productRoute = process.env.DATABASE_URL?.trim() ? await findProductRoute() : null;
+  for (const route of productRoute === null ? routes : [...routes, productRoute]) {
     const response = await fetch(`${origin}${route}`, { redirect: "manual" });
     if (response.status < 200 || response.status >= 400) {
       throw new Error(`${route} returned HTTP ${response.status}\n${serverOutput}`);
@@ -155,6 +189,27 @@ try {
       );
     }
     nonced += body.match(/<script\b/g)?.length ?? 0;
+
+    /*
+      And every inline style attribute must be one `style-src-attr` permits.
+      This is the gate that was missing when the policy listed one of the two
+      declarations `next/image` emits: the build passed, the route answered 200,
+      and every `fill` image in production was blocked by the browser.
+    */
+    for (const [, declaration] of body.matchAll(/ style="([^"]*)"/g)) {
+      const unescaped = declaration.replace(/&#x27;/g, "'").replace(/&quot;/g, '"');
+      if (!allowedStyleHashes.has(styleAttributeHash(unescaped))) {
+        throw new Error(
+          `${route} carries a style attribute the Content-Security-Policy blocks:
+` +
+            `  ${unescaped}
+  ${styleAttributeHash(unescaped)}
+` +
+            "Prefer a class. If it comes from the framework, add its hash to " +
+            "NEXT_IMAGE_STYLE_HASHES in src/lib/security-headers.ts.",
+        );
+      }
+    }
 
     results.push(`${response.status} ${route}`);
   }

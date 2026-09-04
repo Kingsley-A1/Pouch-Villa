@@ -206,14 +206,20 @@ textarea {
 /*
  * The home page's opening line.
  *
- * `.section-title` was doing this job and doing it badly: 800-weight Plus Jakarta
- * at -0.028em tracking and 1.12 leading is correct for a section heading and
- * cramped for a sentence someone is meant to read as a promise. This is the same
- * scale with room to breathe — a taller face, near-neutral tracking, and leading
- * that lets the descenders clear the line below.
+ * Set in the display sans, not the brand serif. Playfair carried it for a while
+ * and read as a book jacket rather than a shop: a high-contrast serif at display
+ * size sets an editorial tone, and its thin strokes are the first thing to go
+ * soft on the mid-range Android screens §2 designs for. The serif keeps the
+ * wordmark, where a logotype's job is to be distinctive rather than read fast.
+ *
+ * A display sans is not simply the heading style at a bigger size. Weight goes
+ * up to 800 so the line still has presence without the serif's stroke contrast,
+ * tracking tightens as the size grows — optical sizing that a variable face does
+ * not do on its own — and the leading stays open enough for two lines to read as
+ * a sentence rather than a stack.
  */
 .hero-title {
-  font-family: var(--pv-font-hero-stack);
+  font-family: var(--pv-font-display), var(--pv-font-sans), system-ui, sans-serif;
   /*
     Brought down from clamp(2.4rem, 7.6vw, 4.6rem). At the old size the headline
     filled most of a desktop viewport on its own and pushed the device finder and
@@ -223,10 +229,22 @@ textarea {
     short — how many lines it takes still depends on the wording the CEO chooses.
   */
   font-size: clamp(1.85rem, 4.4vw, 3.2rem);
-  line-height: 1.16;
-  letter-spacing: -0.014em;
-  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.032em;
+  font-weight: 800;
   text-wrap: balance;
+}
+/*
+ * The hero's own vertical rhythm.
+ *
+ * `.section-space` pads every section equally, which is right between two
+ * sections and wrong directly under the header: it left a band of empty page
+ * above the first words on the site, and on a phone that band costs most of what
+ * is visible before a scroll. The bottom stays at the section rhythm so the hero
+ * still separates cleanly from what follows.
+ */
+.hero-space {
+  padding-block: clamp(1.5rem, 3vw, 2.75rem) clamp(3.75rem, 7vw, 7rem);
 }
 .section-title {
   font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;

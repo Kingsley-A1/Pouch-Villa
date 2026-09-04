@@ -53,7 +53,7 @@ export function rejectionReason(file: File): string | null {
 export async function uploadProductImage(
   productId: string,
   file: File,
-  options: { replacesMediaId?: string; alt?: string | null } = {},
+  options: { replacesMediaId?: string } = {},
 ): Promise<UploadOutcome> {
   const refusal = rejectionReason(file);
   if (refusal !== null) return { ok: false, error: refusal };
@@ -82,11 +82,10 @@ export async function uploadProductImage(
     return { ok: false, error: `${file.name}: ${describeUploadFailure(error)}` };
   }
 
-  const alt = options.alt ?? null;
   const finalised =
     options.replacesMediaId === undefined
-      ? await finaliseUploadAction(productId, began.upload.uploadId, alt)
-      : await replaceMediaAction(productId, options.replacesMediaId, began.upload.uploadId, alt);
+      ? await finaliseUploadAction(productId, began.upload.uploadId)
+      : await replaceMediaAction(productId, options.replacesMediaId, began.upload.uploadId);
 
   if (finalised.error !== null) return { ok: false, error: `${file.name}: ${finalised.error}` };
   return { ok: true, message: finalised.message ?? null };

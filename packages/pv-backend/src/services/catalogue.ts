@@ -1,4 +1,5 @@
 import { query, queryOne } from "../db/client";
+import { axesFromPairs, VARIANT_AXES_SELECT, type VariantAxisPairs } from "../db/variant-axes";
 import { kobo, type Kobo } from "../domain/money";
 import { isStorageConfigured } from "../storage/r2";
 import { urlsForHash } from "./media-urls";
@@ -25,12 +26,16 @@ export type CatalogueVariant = {
  * caller build the URL is how a storefront ends up rendering a broken image.
  * `width`/`height` are the original's intrinsic dimensions so every render can
  * reserve its box and contribute nothing to CLS.
+ *
+ * There is no `alt`. Staff were asked to write one per image and the admin no
+ * longer collects it: what got written was rarely better than the product's own
+ * name, and what got left blank was worse. Every caller names the picture after
+ * the product it belongs to, which is always true and always present.
  */
 export type CatalogueImage = {
   thumbUrl: string;
   cardUrl: string;
   heroUrl: string;
-  alt: string | null;
   width: number | null;
   height: number | null;
 };
@@ -88,9 +93,8 @@ type ProductRow = {
   from_kobo: string | null;
   in_stock: string | null;
   image_key: string | null;
-  image_alt: string | null;
-  image_width: number | null;
-  image_height: number | null;
+  image_width: string | null;
+  image_height: string | null;
   image_hash: string | null;
 };
 
@@ -103,13 +107,22 @@ function toImage(
   productId: string,
   key: string | null,
   contentHash: string | null,
-  alt: string | null,
-  width: number | null,
-  height: number | null,
+  /** `INT` columns, so strings off the wire. See the coercion below. */
+  width: string | null,
+  height: string | null,
 ): CatalogueImage | null {
   if (key === null || !isStorageConfigured()) return null;
   const urls = urlsForHash(productId, contentHash, key);
-  return { thumbUrl: urls.thumb, cardUrl: urls.card, heroUrl: urls.hero, alt, width, height };
+  return {
+    thumbUrl: urls.thumb,
+    cardUrl: urls.card,
+    heroUrl: urls.hero,
+    // `width` and `height` are INT columns, which this driver hands back as
+    // strings. Left alone the declared `number` is a lie the compiler cannot
+    // see, and the first caller to do arithmetic on it gets "447447".
+    width: width === null ? null : Number(width),
+    height: height === null ? null : Number(height),
+  };
 }
 
 function toListItem(row: ProductRow): CatalogueListItem {
@@ -120,14 +133,7 @@ function toListItem(row: ProductRow): CatalogueListItem {
     brandName: row.brand_name,
     fromKobo: row.from_kobo === null ? null : kobo(Number(row.from_kobo)),
     inStock: Number(row.in_stock ?? 0),
-    primaryImage: toImage(
-      row.id,
-      row.image_key,
-      row.image_hash,
-      row.image_alt,
-      row.image_width,
-      row.image_height,
-    ),
+    primaryImage: toImage(row.id, row.image_key, row.image_hash, row.image_width, row.image_height),
   };
 }
 
@@ -159,12 +165,12 @@ const PRODUCT_SELECT = `
             FROM stock_entry se
             JOIN product_variant v2 ON v2.id = se.variant_id
            WHERE v2.product_id = p.id AND v2.deleted_at IS NULL) AS in_stock,
-         m.r2_key AS image_key, m.alt AS image_alt, m.width AS image_width,
+         m.r2_key AS image_key, m.width AS image_width,
          m.height AS image_height, m.content_hash AS image_hash
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN LATERAL (
-      SELECT r2_key, alt, width, height, content_hash
+      SELECT r2_key, width, height, content_hash
         FROM product_media
        WHERE product_id = p.id AND kind = 'image'
        ORDER BY sort_order
@@ -270,14 +276,13 @@ export async function listVariants(productId: string): Promise<CatalogueVariant[
     price_kobo: string;
     compare_at_kobo: string | null;
     in_stock: string | null;
-    axes: Record<string, string> | null;
+    axes: VariantAxisPairs;
   }>(
     `SELECT v.id, v.sku, v.price_kobo::STRING AS price_kobo,
             v.compare_at_kobo::STRING AS compare_at_kobo,
             (SELECT coalesce(sum(se.delta), 0)::STRING
                FROM stock_entry se WHERE se.variant_id = v.id) AS in_stock,
-            (SELECT jsonb_object_agg(vv.axis_code, vv.value)
-               FROM variant_value vv WHERE vv.variant_id = v.id) AS axes
+            ${VARIANT_AXES_SELECT} AS axes
        FROM product_variant v
       WHERE v.product_id = $1 AND v.deleted_at IS NULL AND v.is_active
       ORDER BY v.sort_order, v.sku`,
@@ -289,26 +294,25 @@ export async function listVariants(productId: string): Promise<CatalogueVariant[
     priceKobo: kobo(Number(row.price_kobo)),
     compareAtKobo: row.compare_at_kobo === null ? null : kobo(Number(row.compare_at_kobo)),
     inStock: Number(row.in_stock ?? 0),
-    axes: row.axes ?? {},
+    axes: axesFromPairs(row.axes),
   }));
 }
 
 export async function listImages(productId: string): Promise<CatalogueImage[]> {
   const rows = await query<{
     r2_key: string;
-    alt: string | null;
-    width: number | null;
-    height: number | null;
+    width: string | null;
+    height: string | null;
     content_hash: string | null;
   }>(
-    `SELECT r2_key, alt, width, height, content_hash
+    `SELECT r2_key, width, height, content_hash
        FROM product_media
       WHERE product_id = $1 AND kind = 'image'
       ORDER BY sort_order`,
     [productId],
   );
   return rows
-    .map((row) => toImage(productId, row.r2_key, row.content_hash, row.alt, row.width, row.height))
+    .map((row) => toImage(productId, row.r2_key, row.content_hash, row.width, row.height))
     .filter((image): image is CatalogueImage => image !== null);
 }
 
@@ -388,6 +392,125 @@ export async function listBrands() {
       WHERE deleted_at IS NULL AND is_active
       ORDER BY sort_order, name`,
   );
+}
+
+/**
+ * A category as a card: its name, and a photograph of something actually in it.
+ *
+ * The picture is the primary image of the most recently published product in the
+ * category, rather than an image uploaded against the category itself. That is a
+ * deliberate choice and not only the cheaper one:
+ *
+ *   - There is nothing to invent and nothing to go stale. §0 rule 2 rules out a
+ *     stock photograph standing in for a category the shop has not stocked yet;
+ *     a category with no products returns no image and the card says so.
+ *   - It stays true on its own. Staff never have to remember to change a
+ *     category picture after the range behind it changes.
+ *
+ * If the client later wants to choose the picture themselves, that is a column
+ * on `category` and a field in the admin — this is the honest default until then.
+ */
+export type CategoryCard = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  /** The parent's name where this is a sub-category, so a flat grid keeps the tier. */
+  parentName: string | null;
+  productCount: number;
+  image: CatalogueImage | null;
+};
+
+export async function listCategoryCards(): Promise<CategoryCard[]> {
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    parent_name: string | null;
+    product_count: string;
+    image_product_id: string | null;
+    image_key: string | null;
+    image_width: string | null;
+    image_height: string | null;
+    image_hash: string | null;
+  }>(
+    `SELECT c.id, c.slug, c.name, c.description, parent.name AS parent_name,
+            (SELECT count(*)::STRING
+               FROM product_category pc
+               JOIN product p ON p.id = pc.product_id
+              WHERE pc.category_id = c.id
+                AND p.deleted_at IS NULL AND p.status = 'published') AS product_count,
+            m.product_id AS image_product_id,
+            m.r2_key AS image_key, m.width AS image_width,
+            m.height AS image_height, m.content_hash AS image_hash
+       FROM category c
+       LEFT JOIN category parent ON parent.id = c.parent_id AND parent.deleted_at IS NULL
+       LEFT JOIN LATERAL (
+         SELECT pm.product_id, pm.r2_key, pm.width, pm.height, pm.content_hash
+           FROM product_category pc
+           JOIN product p ON p.id = pc.product_id
+           JOIN product_media pm ON pm.product_id = p.id AND pm.kind = 'image'
+          WHERE pc.category_id = c.id
+            AND p.deleted_at IS NULL AND p.status = 'published'
+          ORDER BY p.published_at DESC, pm.sort_order
+          LIMIT 1
+       ) m ON true
+      WHERE c.deleted_at IS NULL AND c.is_active
+      ORDER BY c.sort_order, c.name`,
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    parentName: row.parent_name,
+    productCount: Number(row.product_count),
+    image:
+      row.image_product_id === null
+        ? null
+        : toImage(
+            row.image_product_id,
+            row.image_key,
+            row.image_hash,
+            row.image_width,
+            row.image_height,
+          ),
+  }));
+}
+
+/**
+ * The brands worth putting in front of a customer: the ones with something to
+ * buy behind them.
+ *
+ * A brand staff have created but not yet stocked is a pill that leads to an
+ * empty shop page, which reads as a broken shop rather than an honest one. The
+ * admin's own brand list is unfiltered and remains the place to see every brand.
+ */
+export type StorefrontBrand = { id: string; slug: string; name: string; productCount: number };
+
+export async function listBrandsWithProducts(): Promise<StorefrontBrand[]> {
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    product_count: string;
+  }>(
+    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count
+       FROM brand b
+       JOIN product p ON p.brand_id = b.id
+        AND p.deleted_at IS NULL AND p.status = 'published'
+      WHERE b.deleted_at IS NULL AND b.is_active
+      GROUP BY b.id, b.slug, b.name, b.sort_order
+      ORDER BY b.sort_order, b.name`,
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    productCount: Number(row.product_count),
+  }));
 }
 
 /**

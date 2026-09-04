@@ -1,10 +1,9 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const uploadProductImage = vi.fn();
 const deleteMediaAction = vi.fn();
 const reorderMediaAction = vi.fn();
-const updateMediaAltAction = vi.fn();
 
 vi.mock("@/app/admin/(protected)/products/upload-image", async () => {
   const actual = await vi.importActual<
@@ -15,7 +14,6 @@ vi.mock("@/app/admin/(protected)/products/upload-image", async () => {
 vi.mock("@/app/admin/(protected)/products/media-actions", () => ({
   deleteMediaAction,
   reorderMediaAction,
-  updateMediaAltAction,
 }));
 
 const { MediaSection } = await import("@/app/admin/(protected)/products/media-section");
@@ -29,7 +27,6 @@ const { MediaSection } = await import("@/app/admin/(protected)/products/media-se
 const media = [
   {
     id: "m1",
-    alt: "Red pouch, front",
     width: 800,
     height: 800,
     sortOrder: 0,
@@ -37,7 +34,6 @@ const media = [
   },
   {
     id: "m2",
-    alt: null,
     width: 800,
     height: 800,
     sortOrder: 1,
@@ -55,7 +51,6 @@ beforeEach(() => {
   uploadProductImage.mockResolvedValue({ ok: true, message: "Image added." });
   deleteMediaAction.mockResolvedValue({ error: null });
   reorderMediaAction.mockResolvedValue({ error: null });
-  updateMediaAltAction.mockResolvedValue({ error: null });
 });
 
 afterEach(() => {
@@ -64,7 +59,9 @@ afterEach(() => {
 });
 
 function renderSection(items = media) {
-  return render(<MediaSection productId="p1" media={items} storageConfigured />);
+  return render(
+    <MediaSection productId="p1" productName="Red Pouch" media={items} storageConfigured />,
+  );
 }
 
 describe("product media section", () => {
@@ -106,56 +103,50 @@ describe("product media section", () => {
    * better shot should not send it to the back of the gallery, which is what
    * delete-then-add does.
    */
-  it("replaces an image in place, carrying its description over", async () => {
+  it("replaces an image in place rather than deleting and re-adding it", async () => {
     renderSection(media);
 
-    fireEvent.change(screen.getByLabelText(/Replace image 1/, { selector: "input" }), {
-      target: { files: [fileOf("better.jpg")] },
-    });
+    fireEvent.change(
+      screen.getByLabelText(/Replace Red Pouch image 1 of 2/, {
+        selector: "input",
+      }),
+      {
+        target: { files: [fileOf("better.jpg")] },
+      },
+    );
 
     await waitFor(() => expect(uploadProductImage).toHaveBeenCalledTimes(1));
     expect(uploadProductImage).toHaveBeenCalledWith("p1", expect.any(File), {
       replacesMediaId: "m1",
-      alt: "Red pouch, front",
     });
     expect(deleteMediaAction).not.toHaveBeenCalled();
   });
 
-  it("removes an image on a confirmed press, never on the first", async () => {
-    const { container } = renderSection(media);
-    // Scoped to the first card: once its trigger is pressed the confirm button
-    // shares the same label, and the second card still has a trigger of its own.
-    const firstCard = within(container.querySelectorAll("li")[0] as HTMLElement);
+  it("removes the image whose control was pressed", async () => {
+    renderSection(media);
 
-    fireEvent.click(firstCard.getByRole("button", { name: "Remove" }));
-    expect(deleteMediaAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Red Pouch image 1 of 2" }));
 
-    fireEvent.click(firstCard.getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(deleteMediaAction).toHaveBeenCalledWith("p1", "m1"));
   });
 
-  it("saves an edited description when the field is left", async () => {
+  /**
+   * Alt text is no longer asked for. Staff were being made to write a sentence
+   * about a photograph for every image, and what they wrote — when they wrote
+   * anything — was rarely better than the product's own name, which the
+   * storefront falls back to on its own.
+   */
+  it("asks for no screen-reader description", () => {
     renderSection(media);
 
-    const field = screen.getAllByLabelText(/Description, for screen readers/)[1]!;
-    fireEvent.change(field, { target: { value: "Black pouch, side view" } });
-    fireEvent.blur(field);
-
-    await waitFor(() =>
-      expect(updateMediaAltAction).toHaveBeenCalledWith("p1", "m2", "Black pouch, side view"),
-    );
-  });
-
-  it("does not save a description that was not touched", () => {
-    renderSection(media);
-
-    fireEvent.blur(screen.getAllByLabelText(/Description, for screen readers/)[0]!);
-
-    expect(updateMediaAltAction).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Description, for screen readers/)).toBeNull();
+    expect(screen.queryByPlaceholderText(/front view/)).toBeNull();
   });
 
   it("says so, and offers nothing, when storage is not configured", () => {
-    render(<MediaSection productId="p1" media={[]} storageConfigured={false} />);
+    render(
+      <MediaSection productId="p1" productName="Red Pouch" media={[]} storageConfigured={false} />,
+    );
 
     expect(screen.getByText(/Object storage is not configured/)).toBeVisible();
     expect(screen.queryByLabelText("Add images", { selector: "input" })).toBeNull();

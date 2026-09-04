@@ -24,18 +24,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           <AdminSearch sections={sections} />
           <div className="flex shrink-0 items-center gap-2 justify-self-end sm:gap-3">
-            <div className="hidden items-center gap-2.5 sm:flex">
-              <span
-                aria-hidden="true"
-                className="grid h-10 w-10 place-items-center rounded-full bg-(--pv-red) text-xs font-extrabold text-(--pv-on-brand)"
-              >
-                {initialsForName(principal.fullName)}
-              </span>
-              <div className="text-right">
-                <p className="text-sm font-bold">{principal.fullName}</p>
-                <p className="text-xs text-(--pv-muted)">{principal.role}</p>
-              </div>
-            </div>
+            {/*
+              The monogram alone, and it is now a link to your own profile.
+
+              The name and role sat beside it as static text, which took the room
+              two more controls could have used on a phone and led nowhere. An
+              avatar is where people already look for their own account, so it
+              is the door to it — and the accessible name carries the name and
+              role the sighted text used to, so nothing is lost to a screen
+              reader by the words going.
+            */}
+            <Link
+              href="/admin/profile"
+              aria-label={`Your profile — ${principal.fullName}, ${principal.role}`}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-(--pv-red) text-xs font-extrabold text-(--pv-on-brand) hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)"
+            >
+              <span aria-hidden="true">{initialsForName(principal.fullName)}</span>
+            </Link>
             <LogoutButton />
             <AdminMobileNav sections={sections} />
           </div>

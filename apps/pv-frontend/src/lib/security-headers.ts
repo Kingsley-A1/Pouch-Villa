@@ -23,10 +23,17 @@
  *     nonce itself. Next only nonces what Next emits.
  *
  * `'strict-dynamic'` means a script this policy already trusts may load others.
- * That is what lets Google's sign-in client load: `next/script` injects it from
- * an already-trusted bundle. Browsers that honour `strict-dynamic` ignore host
- * allowlists in `script-src`, so listing Google there would achieve nothing;
- * `'self'` stays for older browsers that ignore `strict-dynamic` instead.
+ * Browsers that honour it ignore host allowlists in `script-src` entirely;
+ * `'self'` stays for older browsers that ignore `'strict-dynamic'` instead.
+ *
+ * ## Google appears in exactly one directive
+ *
+ * Sign-in used to load Google Identity Services into the page, which needed
+ * Google's origin in `script-src`, `style-src-elem`, `connect-src` and
+ * `frame-src`. ADR 0011 replaced it with a server-side redirect, so no Google
+ * code, stylesheet, frame or fetch touches the browser any more and all four
+ * allowances are gone. What remains is `form-action`, because the sign-in form
+ * posts to our own route and that route redirects to Google.
  */
 
 export type CspEnvironment = {
@@ -37,14 +44,30 @@ export type CspEnvironment = {
   mediaBaseUrl: string | undefined;
 };
 
-/** Google Identity Services: the script, its iframe, and the calls it makes. */
+/** Google's authorization endpoint, the one off-origin place a form may land. */
 const GOOGLE_ORIGIN = "https://accounts.google.com";
 
 /**
- * SHA-256 of `color:transparent`, the one style attribute `next/image` emits.
- * Verified against the built output rather than assumed — see `style-src-attr`.
+ * The style *attributes* `next/image` emits, by hash. There are two, and missing
+ * the second took the product page down in production.
+ *
+ * A plain image gets `color:transparent`, to stop alt text flashing before the
+ * file loads. An image with `fill` gets that plus the absolute positioning that
+ * makes `fill` work — and without it the picture collapses and the browser
+ * reports `<svg> attribute height: Expected length, "auto"` from the placeholder
+ * it falls back to.
+ *
+ * Extracted from rendered HTML rather than guessed: `scripts/verify-routes.mjs`
+ * hashes every style attribute on every route it visits and fails the build on
+ * one that is not listed here, so a future Next release that changes the
+ * declaration is caught before it ships rather than by a customer.
  */
-const NEXT_IMAGE_STYLE_HASH = "sha256-zlqnbDt84zf1iSefLU/ImC54isoprH/MRiVZGskwexk=";
+export const NEXT_IMAGE_STYLE_HASHES = [
+  // color:transparent
+  "sha256-zlqnbDt84zf1iSefLU/ImC54isoprH/MRiVZGskwexk=",
+  // position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent
+  "sha256-ZDrxqUOB4m/L0JWL/+gS52g1CRH0l/qwMhjTw5Z/Fsc=",
+] as const;
 
 function originOf(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -92,30 +115,18 @@ export function buildContentSecurityPolicy(nonce: string, env: CspEnvironment): 
     // nonce. No `unsafe-inline`, which is the whole point.
     ["style-src", "'self'", `'nonce-${nonce}'`],
 
-    // `style-src-elem` governs a loaded <link rel="stylesheet"> or <style>
-    // block, and falls back to `style-src` above when unset — which is exactly
-    // what broke Google's sign-in button in production: it loads its own
-    // stylesheet from accounts.google.com/gsi/style to size the logo and hide a
-    // duplicate accessibility label, that request was blocked outright, and
-    // without it the raw SVG rendered at full size next to visible fallback
-    // text. Verified against a live Chrome pointed at the deployed policy, not
-    // assumed: the console named the exact blocked URL.
-    ["style-src-elem", "'self'", `'nonce-${nonce}'`, GOOGLE_ORIGIN],
+    // `style-src-elem` governs a loaded <link rel="stylesheet"> or a <style>
+    // block. It once had to admit accounts.google.com, for a stylesheet the
+    // sign-in widget pulled; with the widget gone, nothing off-origin remains.
+    ["style-src-elem", "'self'", `'nonce-${nonce}'`],
 
     // Style *attributes* are governed separately, and a nonce cannot address
-    // them. `next/image` puts `style="color:transparent"` on every image it
-    // renders, to stop alt text flashing before the file loads. That is one
-    // declaration, from the framework, on markup we do not write.
-    //
-    // Rather than allow inline styles wholesale — which §5 forbids and which
-    // would also permit anything an injection managed to write — this permits
-    // exactly that string by hash and nothing else. `'unsafe-hashes'` is what
-    // makes a hash apply to an attribute rather than an element; it grants no
-    // ability to run script.
-    //
-    // If a future Next release changes the declaration, images lose a cosmetic
-    // rule and the browser console names the hash it wanted. Nothing breaks.
-    ["style-src-attr", "'unsafe-hashes'", `'${NEXT_IMAGE_STYLE_HASH}'`],
+    // them. Rather than allow inline styles wholesale — which §5 forbids and
+    // which would also permit anything an injection managed to write — this
+    // permits exactly the framework's own declarations by hash and nothing
+    // else. `'unsafe-hashes'` is what makes a hash apply to an attribute rather
+    // than an element; it grants no ability to run script.
+    ["style-src-attr", "'unsafe-hashes'", ...NEXT_IMAGE_STYLE_HASHES.map((hash) => `'${hash}'`)],
 
     // `blob:` is the media picker previewing a file before it is uploaded, and
     // `data:` covers the inline SVG placeholders.
@@ -124,12 +135,26 @@ export function buildContentSecurityPolicy(nonce: string, env: CspEnvironment): 
     // `next/font` self-hosts at build time, so no third-party font origin.
     ["font-src", "'self'"],
 
-    ["connect-src", "'self'", GOOGLE_ORIGIN, ...uploads],
-    ["frame-src", GOOGLE_ORIGIN],
+    // Uploads go straight from the browser to R2, so its origin is the only
+    // one a fetch may reach. There is no `frame-src`: nothing is framed, and
+    // omitting it leaves `default-src 'self'` to refuse anything that tries.
+    ["connect-src", "'self'", ...uploads],
 
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
-    ["form-action", "'self'"],
+
+    // `form-action` is checked against every URL in the submission's redirect
+    // chain, not just the one on the `action` attribute. The Google button posts
+    // to our own start route, which answers 303 to Google — so a bare `'self'`
+    // blocked it, and reported the violation against our own URL, which reads
+    // like a same-origin post being refused for no reason:
+    //
+    //   Sending form data to 'https://…/api/v1/auth/google/start' violates the
+    //   following Content Security Policy directive: "form-action 'self'"
+    //
+    // Naming Google here is narrow: it permits a form to end up at Google's
+    // authorization endpoint and nowhere else off-origin.
+    ["form-action", "'self'", GOOGLE_ORIGIN],
     ["frame-ancestors", "'none'"],
   ];
 
@@ -143,10 +168,10 @@ export function buildContentSecurityPolicy(nonce: string, env: CspEnvironment): 
 /**
  * The headers that do not depend on the request.
  *
- * `Cross-Origin-Opener-Policy` is `same-origin-allow-popups`, not `same-origin`.
- * Google sign-in opens a popup and talks back to the opener; the stricter value
- * severs that and the button fails with nothing useful said. The weaker value
- * still isolates this page from any other site that opens it.
+ * `Cross-Origin-Opener-Policy` is the full `same-origin`. It was relaxed to
+ * `same-origin-allow-popups` for Google's sign-in popup, which needed to talk
+ * back to the page that opened it. The redirect flow of ADR 0011 opens no popup,
+ * so the exemption bought nothing and is gone.
  */
 export function staticSecurityHeaders(isDevelopment: boolean): Record<string, string> {
   return {
@@ -155,7 +180,7 @@ export function staticSecurityHeaders(isDevelopment: boolean): Record<string, st
     // `frame-ancestors` above is the modern control; this covers browsers too
     // old to honour it, and costs one header.
     "X-Frame-Options": "DENY",
-    "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    "Cross-Origin-Opener-Policy": "same-origin",
     // Nothing in this shop uses a camera, a microphone, location or the Payment
     // Request API. Denying them means a future dependency cannot start.
     "Permissions-Policy":

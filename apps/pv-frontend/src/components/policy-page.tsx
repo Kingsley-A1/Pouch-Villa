@@ -23,6 +23,7 @@ export function PolicyPage({
   content,
   what,
   intro,
+  media,
 }: {
   title: string;
   /** The stored wording, or null where the client has not supplied it. */
@@ -30,6 +31,15 @@ export function PolicyPage({
   /** Named in the awaiting-confirmation notice, e.g. "privacy policy". */
   what: string;
   intro?: string;
+  /**
+   * An optional photograph, rendered between the intro and the prose.
+   *
+   * A `ReactNode` rather than a `src` string, so this component never imports
+   * `next/image` on behalf of a page that has nothing to show — only About
+   * uses it today. The image itself is checked-in brand photography, not
+   * policy wording, so it does not go through the settings store §4 governs.
+   */
+  media?: ReactNode;
 }) {
   return (
     <>
@@ -38,6 +48,7 @@ export function PolicyPage({
         <div className="container-shell max-w-3xl">
           <h1 className="section-title">{title}</h1>
           {intro ? <p className="mt-3 text-(--pv-muted)">{intro}</p> : null}
+          {media ? <div className="mt-8">{media}</div> : null}
 
           {content === null ? (
             <div className="mt-8">

@@ -1,11 +1,13 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   listPublishedProducts,
-  listCategoryTree,
+  listCategoryCards,
   listDevices,
 } from "@pv/backend/services/catalogue";
 import { listHomeSections } from "@pv/backend/services/home-sections";
 import { pick, readSettings } from "@pv/backend/services/settings";
+import { CategoryCard } from "@/components/category-card";
 import { ProductGrid } from "@/components/product-grid";
 import { StorefrontSection } from "@/components/storefront-section";
 import { DeviceFinder } from "@/components/device-finder";
@@ -33,7 +35,7 @@ const DEFAULT_SUBTITLE = "Browse the range, pick your options, and order with pa
 export default async function HomePage() {
   const [{ products: latest }, categories, devices, sections, settings] = await Promise.all([
     listPublishedProducts({ limit: 8 }),
-    listCategoryTree(),
+    listCategoryCards(),
     listDevices(),
     listHomeSections(),
     readSettings([
@@ -64,13 +66,17 @@ export default async function HomePage() {
   return (
     <>
       {/*
-        The opening line, set in the brand serif at display scale.
-        
+        The opening line, set in the display sans at display scale.
+
+        `hero-space` rather than `section-space`: the section rhythm is right
+        between two sections and too generous directly under the header, where it
+        left a band of empty page above the first words on the site.
+
         The staggered entrance is applied to the text only, and the delays are
         utility classes rather than inline `style` attributes — a `style` attr
         needs `style-src-attr 'unsafe-inline'`, which §5 rules out.
       */}
-      <section className="section-space">
+      <section className="hero-space">
         <div className="container-shell">
           <p className="eyebrow rise-in">Welcome to Pouch Villa</p>
           <h1 className="hero-title rise-in mt-4 max-w-[24ch] [animation-delay:90ms] sm:max-w-[34ch]">
@@ -103,16 +109,21 @@ export default async function HomePage() {
       {categories.length > 0 ? (
         <section className="section-space">
           <div className="container-shell">
-            <h2 className="section-title">Categories</h2>
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="section-title">Categories</h2>
+              <Link href="/categories" className="text-sm font-bold text-(--pv-red)">
+                See all
+              </Link>
+            </div>
+            {/*
+              Two columns at 360 px rather than one. A single column of cards
+              with pictures pushes the products themselves a full screen down,
+              and a category card does not need the width a product card does.
+            */}
+            <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {categories.map((category) => (
                 <li key={category.id}>
-                  <Link
-                    href={`/shop?category=${category.slug}`}
-                    className="flex min-h-11 items-center rounded-xl border border-(--pv-line) px-4 font-semibold"
-                  >
-                    {category.name}
-                  </Link>
+                  <CategoryCard category={category} />
                 </li>
               ))}
             </ul>
@@ -139,23 +150,42 @@ export default async function HomePage() {
         </section>
       ) : null}
 
+      {/*
+        A real photo beside the address, rather than the address on its own.
+        An unfamiliar name and a street address are abstract; what the door
+        actually looks like is what someone glances at from a bike or a bus to
+        confirm they have arrived. `fill` is right here — unlike the About
+        photo, this box has a shape of its own (`aspect-video`) that the source
+        image is cropped to fit, rather than the image dictating the box.
+      */}
       <section className="section-space">
-        <div className="container-shell grid gap-6 sm:grid-cols-2">
-          <div>
-            <h2 className="text-lg font-bold">Store address</h2>
-            {address.present ? (
-              <p className="mt-2 text-(--pv-muted)">{address.value}</p>
-            ) : (
-              <AwaitingConfirmation what="store address" />
-            )}
+        <div className="container-shell grid gap-8 lg:grid-cols-2 lg:items-center">
+          <div className="relative aspect-video overflow-hidden rounded-3xl bg-(--pv-wash)">
+            <Image
+              src="/images/storefront-display-wall.jpg"
+              alt="Phone cases and pouches on display inside Pouch Villa."
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
           </div>
-          <div>
-            <h2 className="text-lg font-bold">Opening hours</h2>
-            {hours.present ? (
-              <p className="mt-2 text-(--pv-muted)">{hours.value}</p>
-            ) : (
-              <AwaitingConfirmation what="opening hours" />
-            )}
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <h2 className="text-lg font-bold">Store address</h2>
+              {address.present ? (
+                <p className="mt-2 text-(--pv-muted)">{address.value}</p>
+              ) : (
+                <AwaitingConfirmation what="store address" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Opening hours</h2>
+              {hours.present ? (
+                <p className="mt-2 text-(--pv-muted)">{hours.value}</p>
+              ) : (
+                <AwaitingConfirmation what="opening hours" />
+              )}
+            </div>
           </div>
         </div>
       </section>

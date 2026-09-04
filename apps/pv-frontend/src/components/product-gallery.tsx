@@ -49,7 +49,9 @@ export function ProductGallery({
           // src on one node, which browsers paint as a flash of the old picture.
           key={current.heroUrl}
           src={current.heroUrl}
-          alt={current.alt ?? productName}
+          // Named after the product. Every photograph on this page is of the
+          // same thing, and the live region below announces which one this is.
+          alt={productName}
           fill
           priority={index === 0}
           sizes="(max-width: 1024px) 100vw, 50vw"

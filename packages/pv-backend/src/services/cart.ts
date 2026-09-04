@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { query, type Queryable } from "../db/client";
+import { axesFromPairs, VARIANT_AXES_SELECT, type VariantAxisPairs } from "../db/variant-axes";
 import { withTransaction } from "../db/transaction";
 import { addKobo, kobo, multiplyKobo, type Kobo } from "../domain/money";
 import { isStorageConfigured } from "../storage/r2";
@@ -138,7 +139,7 @@ type CartLineRow = {
   price_kobo: string;
   quantity: string;
   in_stock: string;
-  axes: Record<string, string> | null;
+  axes: VariantAxisPairs;
   content_hash: string | null;
   r2_key: string | null;
 };
@@ -164,8 +165,7 @@ export async function readCart(cartId: string): Promise<Cart> {
             ci.quantity::STRING AS quantity,
             coalesce((SELECT sum(se.delta) FROM stock_entry se WHERE se.variant_id = v.id), 0)::STRING
               AS in_stock,
-            (SELECT jsonb_object_agg(vv.axis_code, vv.value)
-               FROM variant_value vv WHERE vv.variant_id = v.id) AS axes,
+            ${VARIANT_AXES_SELECT} AS axes,
             (SELECT pm.content_hash FROM product_media pm
               WHERE pm.product_id = p.id ORDER BY pm.sort_order LIMIT 1) AS content_hash,
             (SELECT pm.r2_key FROM product_media pm
@@ -190,7 +190,7 @@ export async function readCart(cartId: string): Promise<Cart> {
       productSlug: row.product_slug,
       brandName: row.brand_name,
       variantSku: row.variant_sku,
-      axes: row.axes ?? {},
+      axes: axesFromPairs(row.axes),
       unitPriceKobo,
       quantity,
       lineTotalKobo: multiplyKobo(unitPriceKobo, quantity),

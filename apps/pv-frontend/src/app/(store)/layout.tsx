@@ -1,3 +1,5 @@
+import { listBrandsWithProducts } from "@pv/backend/services/catalogue";
+import { BrandNav } from "@/components/brand-nav";
 import { ConnectionStatus } from "@/components/connection-status";
 import { StoreFooter } from "@/components/store-footer";
 import { StoreHeader } from "@/components/store-header";
@@ -6,15 +8,24 @@ import { getCustomerPrincipal } from "@/server/customer-session";
 
 /**
  * `getCustomerPrincipal` is request-cached, so the header and the sidebar
- * asking for it separately costs one lookup, not two.
+ * asking for it separately costs one lookup, not two. The brand strip is a
+ * second query, fetched alongside rather than after it — latency on this
+ * cluster is per statement, so two sequential awaits here would be paid on
+ * every page of the shop.
  */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const signedIn = (await getCustomerPrincipal()) !== null;
+  const [principal, brands] = await Promise.all([getCustomerPrincipal(), listBrandsWithProducts()]);
+  const signedIn = principal !== null;
 
   return (
     <>
       <ConnectionStatus />
       <StoreHeader />
+      {/*
+        Directly under the header and above the sidebar split, so the strip runs
+        the full width of the page rather than starting after a 240 px column.
+      */}
+      <BrandNav brands={brands} />
       {/*
         The sidebar is a sibling of `main`, not inside it, so a screen reader's
         landmark list reads navigation and main content as separate regions. It

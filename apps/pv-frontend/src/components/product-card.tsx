@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import type { CatalogueListItem } from "@pv/backend/services/catalogue";
 import { formatKobo } from "@pv/backend/domain/money";
 import { LikeButton } from "@/components/like-button";
@@ -62,6 +63,14 @@ export function ProductCardFace({
         ) : null}
       </div>
 
+      {/*
+        A slim rule between the picture and the words. Without it a card whose
+        photograph has a pale background runs straight into the product name and
+        the card loses its two halves — most visible on the white-backed product
+        shots this shop actually uploads.
+      */}
+      <div className="border-t border-(--pv-line)" />
+
       <div className={cn("grid gap-1", feature ? "p-5" : "p-3.5")}>
         {brandName ? (
           <p className="text-[11px] font-bold tracking-[.1em] text-(--pv-muted) uppercase">
@@ -91,6 +100,31 @@ export function ProductCardFace({
         >
           {priceLabel}
         </p>
+
+        {/*
+          "View" as an affordance, not a control.
+
+          The whole card is already the link; a real <button> or <a> in here
+          would be a control nested inside one, which is invalid HTML and which
+          browsers resolve by following the outer link anyway. So this is a
+          styled span, hidden from assistive technology — a screen reader
+          already hears the card's link named by the product.
+
+          It stays visible on touch, where there is no hover to reveal it, and
+          only picks up the brand tint on a pointer that can hover.
+        */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "mt-2 inline-flex w-fit items-center gap-1 rounded-full border border-(--pv-line)",
+            "px-2.5 py-1 text-[11px] font-bold text-(--pv-muted)",
+            "transition-colors duration-200 motion-reduce:transition-none",
+            "group-hover:border-(--pv-red) group-hover:text-(--pv-red)",
+          )}
+        >
+          View
+          <ArrowRight size={11} weight="bold" />
+        </span>
       </div>
     </>
   );
@@ -135,6 +169,14 @@ export function ProductCard({
   const image = product.primaryImage;
   const feature = size === "feature";
 
+  /**
+   * A feature tile spans up to the full viewport width on a phone — see
+   * `FEATURE_IMAGE_SIZES` — which at 2x device pixels needs more than the
+   * `card` derivative has. `hero` is the same file already generated for the
+   * product page, so this costs nothing extra to store.
+   */
+  const imageUrl = image === null ? null : feature ? image.heroUrl : image.cardUrl;
+
   return (
     <div className="relative h-full">
       <Link href={`/products/${product.slug}`} className={cn(CARD_SHELL_CLASS, "h-full")}>
@@ -145,10 +187,12 @@ export function ProductCard({
           outOfStock={product.inStock <= 0}
           size={size}
           imageSlot={
-            image ? (
+            image !== null && imageUrl !== null ? (
               <Image
-                src={image.cardUrl}
-                alt={image.alt ?? product.name}
+                src={imageUrl}
+                // The product's own name, always. There is no per-image
+                // description any more — see `CatalogueImage`.
+                alt={product.name}
                 fill
                 sizes={feature ? FEATURE_IMAGE_SIZES : CARD_IMAGE_SIZES}
                 className={cn(

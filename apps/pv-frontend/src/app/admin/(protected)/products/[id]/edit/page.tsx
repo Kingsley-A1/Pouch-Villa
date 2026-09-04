@@ -64,6 +64,12 @@ export default async function EditProductPage({ params }: Params) {
         canPublish={product.variants.some((variant) => variant.isActive && variant.priceKobo > 0)}
       />
 
+      {/*
+        The same order as the create screen — details, then pictures, then
+        prices and stock. It used to run details, variants, pictures, so someone
+        who had learnt to add a product met the steps in a different sequence the
+        first time they came back to change one.
+      */}
       <ProductForm
         action={boundUpdate}
         brands={brands}
@@ -75,9 +81,14 @@ export default async function EditProductPage({ params }: Params) {
         submitLabel="Save changes"
       />
 
-      <VariantsSection productId={product.id} variants={product.variants} />
+      <MediaSection
+        productId={product.id}
+        productName={product.name}
+        media={media}
+        storageConfigured={storageConfigured}
+      />
 
-      <MediaSection productId={product.id} media={media} storageConfigured={storageConfigured} />
+      <VariantsSection productId={product.id} variants={product.variants} />
     </div>
   );
 }
