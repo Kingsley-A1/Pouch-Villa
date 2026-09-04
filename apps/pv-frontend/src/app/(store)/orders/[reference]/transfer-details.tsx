@@ -17,10 +17,14 @@ import { cn } from "@/lib/utils";
  *   - **Copy, not retype.** A tap puts the number on the clipboard, which is the
  *     only reliable fix for a transposed digit. The amount and the reference
  *     copy too, because both are typed into the same transfer form.
- *   - **Grouped digits.** `0123 4567 89` is checkable against a banking app at a
- *     glance in a way `0123456789` is not. The grouping is presentation only;
- *     what is copied is the number itself, with no spaces to paste into a field
- *     that would reject them.
+ *   - **Grouped digits.** Ten digits in one unbroken run cannot be checked
+ *     against a banking app at a glance; the same ten in threes can. The
+ *     grouping is presentation only — what is copied is the number itself, with
+ *     no spaces to paste into a field that would reject them.
+ *
+ *     (Written out rather than illustrated: the §4 check greps source for a
+ *     ten-digit run and cannot tell an example in a comment from a real account
+ *     number, so a sample here fails the build.)
  *   - **The amount, exactly.** A transfer for the wrong figure is a reconciliation
  *     problem for staff and a delay for the buyer.
  *   - **The reference as the narration.** It is what ties the money to the order.
