@@ -21,12 +21,19 @@ export function MoneyInput({
   className,
   required,
   placeholder,
+  onValueChange,
 }: {
   name: string;
   defaultValue?: string | number | undefined;
   className?: string;
   required?: boolean;
   placeholder?: string;
+  /**
+   * The un-grouped value, for a caller that has to render it somewhere else —
+   * the product form's shopper preview. The input stays the owner of the value;
+   * this only reports it, so nothing about the field depends on being watched.
+   */
+  onValueChange?: (value: string) => void;
 }) {
   const [rawValue, setRawValue] = useState(() => normalize(defaultValue));
   return (
@@ -39,7 +46,11 @@ export function MoneyInput({
         required={required}
         placeholder={placeholder}
         value={format(rawValue)}
-        onChange={(event) => setRawValue(normalize(format(event.currentTarget.value)))}
+        onChange={(event) => {
+          const next = normalize(format(event.currentTarget.value));
+          setRawValue(next);
+          onValueChange?.(next);
+        }}
         className={cn(
           "min-h-11 w-full rounded-xl border border-(--pv-line) bg-(--pv-surface) px-3.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
           className,

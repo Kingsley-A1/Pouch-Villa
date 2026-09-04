@@ -1,16 +1,13 @@
 /**
- * Matching what someone typed against the devices the catalogue knows about.
+ * Recognising a device inside something a shopper typed into search.
  *
- * Two different jobs, deliberately two functions, because they answer two
- * different questions and a single "search devices" helper would do one of them
- * badly:
+ * Pure, and run over the device list the catalogue already loads, so the search
+ * page gets device matching without a second query.
  *
- *   `filterDevices`      — "I am typing a model name, narrow the list."
- *   `findDeviceInPhrase` — "This is a shopping query. Is a model hiding in it?"
- *
- * Both are pure and run over the device list the catalogue already loads, so the
- * storefront gets device matching without a new query, and the same rules apply
- * in the browser (the finder) and on the server (the search page).
+ * There used to be a second function here, `filterDevices`, backing a typeahead
+ * in the device finder. The finder is now a brand select and a model select, so
+ * nothing narrows a device list by typed text any more and the function went
+ * with it.
  */
 
 export type DeviceLike = { slug: string; name: string; brandName: string };
@@ -32,42 +29,6 @@ export function tokenise(value: string): string[] {
     .replace(/(\d)([a-z])/g, "$1 $2")
     .split(" ")
     .filter((token) => token !== "");
-}
-
-/** Brand first, because that is how a device is spoken: "Samsung Galaxy A54". */
-function labelTokens(device: DeviceLike): string[] {
-  return tokenise(`${device.brandName} ${device.name}`);
-}
-
-/**
- * Typeahead. Every token typed must be the start of some token in the device's
- * brand-and-model label, in any order — so "sam a5" reaches "Samsung Galaxy A54"
- * without the shopper having to know the series name sits in between.
- *
- * Ranked by how complete the match is: a token typed in full outranks a prefix,
- * and among equals the shorter label wins, so "iPhone 13" sorts above
- * "iPhone 13 Pro Max" for someone still typing.
- */
-export function filterDevices<T extends DeviceLike>(term: string, devices: readonly T[]): T[] {
-  const typed = tokenise(term);
-  if (typed.length === 0) return [...devices];
-
-  const scored: { device: T; score: number; length: number }[] = [];
-  for (const device of devices) {
-    const tokens = labelTokens(device);
-    let score = 0;
-    const matchedAll = typed.every((piece) => {
-      const whole = tokens.some((token) => token === piece);
-      const prefix = whole || tokens.some((token) => token.startsWith(piece));
-      if (whole) score += 2;
-      else if (prefix) score += 1;
-      return prefix;
-    });
-    if (matchedAll) scored.push({ device, score, length: tokens.join(" ").length });
-  }
-
-  scored.sort((a, b) => b.score - a.score || a.length - b.length);
-  return scored.map((entry) => entry.device);
 }
 
 /**

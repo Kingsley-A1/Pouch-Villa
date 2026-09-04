@@ -19,6 +19,7 @@ import { useFormDraft } from "@/lib/use-form-draft";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { MAX_MEDIA, MIN_MEDIA, MediaPicker, type PickedFile } from "./media-picker";
 import { MoneyInput } from "@/components/admin/money-input";
+import { formatKobo, parseNairaToKobo } from "@pv/backend/domain/money";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -57,7 +58,8 @@ export function ProductForm({
   collections: { id: string; title: string }[];
   memberOfCollectionIds?: string[];
   editing?: AdminProduct;
-  submitLabel: string;
+  /** The edit screen's button label. On create the label follows the publish choice. */
+  submitLabel?: string;
   /** Present only on create, where images are collected before the product exists. */
   pickedFiles?: PickedFile[];
   onPickedFilesChange?: (next: PickedFile[]) => void;
@@ -74,6 +76,24 @@ export function ProductForm({
     description: editing?.description ?? "",
     brandId: editing?.brandId ?? "",
   });
+  /**
+   * What pressing the button actually does.
+   *
+   * This used to have no answer on this screen: creating a product always left
+   * it a draft, and nothing on the way through said so until a confirmation
+   * screen after the fact. Staff filled in a product, saw it save, and found
+   * nothing in the shop — the single loudest complaint about the admin.
+   *
+   * Publishing is the default because it is what "add a product" means to a
+   * shopkeeper. Saving a draft is still one tap away for the half-finished one.
+   */
+  const [publishNow, setPublishNow] = useState(true);
+  /**
+   * Mirrored out of `MoneyInput` for the preview only. The field still owns the
+   * value and still submits it; without this the preview said "Price on request"
+   * over a product whose price had just been typed two fields above it.
+   */
+  const [priceNaira, setPriceNaira] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   // Until someone types, an unfinished draft is offered rather than applied.
   const [touched, setTouched] = useState(false);
@@ -181,9 +201,24 @@ export function ProductForm({
             <Field
               label="Price (₦)"
               name="priceNaira"
-              hint="Leave blank to set it later. A product needs a price before it can be published."
+              hint={
+                publishNow
+                  ? "Required to go live — a shop cannot sell something with no price."
+                  : "Leave blank to set it later. A price is needed before it can go live."
+              }
             >
-              <MoneyInput name="priceNaira" placeholder="e.g. 25,000" />
+              {/*
+                Required only when publishing, so the browser blocks the one
+                submission that would otherwise fail on the server. Choosing to
+                save a draft lifts it again — an unpriced draft is a legitimate
+                thing to save.
+              */}
+              <MoneyInput
+                name="priceNaira"
+                placeholder="e.g. 25,000"
+                required={publishNow}
+                onValueChange={setPriceNaira}
+              />
             </Field>
             <Field label="Opening stock" name="openingStock" hint="How many you have right now.">
               <TextInput name="openingStock" type="number" min={0} placeholder="e.g. 10" />
@@ -313,6 +348,7 @@ export function ProductForm({
           name={values.name}
           brandName={brandName}
           description={values.description}
+          priceLabel={priceLabelFor(priceNaira)}
           previewUrl={pickedFiles?.[0]?.previewUrl ?? null}
           onEdit={() => setShowPreview(false)}
         />
@@ -327,6 +363,8 @@ export function ProductForm({
         </p>
       ) : null}
 
+      {creating ? <PublishChoice value={publishNow} onChange={setPublishNow} /> : null}
+
       <div className="flex flex-wrap items-center gap-3">
         {collectsMedia && !showPreview ? (
           <button
@@ -339,8 +377,11 @@ export function ProductForm({
           </button>
         ) : null}
 
-        <SubmitButton pendingLabel="Saving…" disabled={mediaMissing}>
-          {submitLabel}
+        <SubmitButton
+          pendingLabel={creating && publishNow ? "Publishing…" : "Saving…"}
+          disabled={mediaMissing}
+        >
+          {creating ? (publishNow ? "Publish product" : "Save as draft") : (submitLabel ?? "Save")}
         </SubmitButton>
 
         {creating && touched && stored !== null ? (
@@ -354,21 +395,92 @@ export function ProductForm({
 }
 
 /**
+ * What happens when the button is pressed, decided before it is pressed.
+ *
+ * Two radios rather than a checkbox: a checkbox states one outcome and leaves
+ * the other implied, and the implied one here — "it will not be in the shop" —
+ * is exactly the thing that went unsaid and cost the client sales. Both
+ * outcomes are written out, and the button below repeats the chosen one.
+ *
+ * The value is read from the submitted `FormData` by the create screen, so the
+ * choice survives without a second piece of state crossing the boundary.
+ */
+function PublishChoice({ value, onChange }: { value: boolean; onChange: (next: boolean) => void }) {
+  const options = [
+    {
+      publish: true,
+      label: "Publish it now",
+      detail: "Customers can see and buy it as soon as the pictures finish uploading.",
+    },
+    {
+      publish: false,
+      label: "Save as a draft",
+      detail: "Only staff can see it. Publish it later from the product itself.",
+    },
+  ];
+
+  return (
+    <fieldset className="grid gap-2 rounded-2xl border border-(--pv-line) p-4">
+      <legend className="px-1 text-sm font-bold text-(--pv-ink)">When you press the button</legend>
+      {options.map((option) => (
+        <label
+          key={option.label}
+          className="flex min-h-11 items-start gap-3 rounded-xl px-1 py-1.5 hover:bg-(--pv-wash)"
+        >
+          <input
+            type="radio"
+            name="publish"
+            value={option.publish ? "now" : "later"}
+            checked={value === option.publish}
+            onChange={() => onChange(option.publish)}
+            className="mt-1 h-5 w-5 shrink-0 accent-(--pv-red)"
+          />
+          <span className="text-sm">
+            <span className="block font-bold">{option.label}</span>
+            <span className="block text-(--pv-muted)">{option.detail}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * What the price on the preview card should read.
+ *
+ * "Price on request" is what a shopper genuinely sees for a product with no
+ * priced variant, so it is the honest empty state rather than a placeholder —
+ * but it was shown unconditionally, including over a price that had just been
+ * typed. A half-typed or malformed figure falls back to it too: `parseNairaToKobo`
+ * is strict by design, and guessing at what somebody meant by "25." on a preview
+ * is how a preview stops being worth trusting.
+ */
+function priceLabelFor(naira: string): string {
+  if (naira.trim() === "") return "Price on request";
+  try {
+    return formatKobo(parseNairaToKobo(naira));
+  } catch {
+    return "Price on request";
+  }
+}
+
+/**
  * The pre-publish preview. Uses `ProductCardFace` — the same component the
  * storefront grid renders — so what is shown here is the card, not a mock-up of
- * one. Price says "Price on request" because variants and their prices are added
- * after the product exists, which is exactly what a shopper would see meanwhile.
+ * one.
  */
 function PreviewPanel({
   name,
   brandName,
   description,
+  priceLabel,
   previewUrl,
   onEdit,
 }: {
   name: string;
   brandName: string | null;
   description: string;
+  priceLabel: string;
   previewUrl: string | null;
   onEdit: () => void;
 }) {
@@ -389,7 +501,7 @@ function PreviewPanel({
           <div className={CARD_SHELL_CLASS}>
             <ProductCardFace
               name={name || "Untitled product"}
-              priceLabel="Price on request"
+              priceLabel={priceLabel}
               outOfStock={false}
               imageSlot={
                 previewUrl ? (
@@ -416,8 +528,7 @@ function PreviewPanel({
       </div>
 
       <p className="text-xs text-(--pv-muted)">
-        Creating it saves a <strong>draft</strong> — nothing is public yet. Add prices and stock on
-        the next screen, then publish when you are ready.
+        Colours, sizes and extra pictures are added on the product itself, once it exists.
       </p>
     </section>
   );

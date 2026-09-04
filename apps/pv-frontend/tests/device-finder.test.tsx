@@ -12,8 +12,12 @@ const devices = [
   { id: "3", slug: "galaxy-a54", name: "Galaxy A54", brandName: "Samsung" },
 ];
 
-function type(value: string) {
-  fireEvent.change(screen.getByRole("combobox"), { target: { value } });
+function choose(label: string, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+}
+
+function find() {
+  fireEvent.click(screen.getByRole("button", { name: "Show what fits" }));
 }
 
 describe("device finder", () => {
@@ -27,70 +31,70 @@ describe("device finder", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("narrows the list as a model is typed", () => {
+  it("takes the shopper to what fits the brand and model they picked", () => {
     render(<DeviceFinder devices={devices} />);
-    type("iphone 13 pro");
-
-    const options = screen.getAllByRole("option");
-    expect(options).toHaveLength(1);
-    expect(options[0]).toHaveTextContent("iPhone 13 Pro");
-  });
-
-  it("takes the shopper to what fits the device they pick", () => {
-    render(<DeviceFinder devices={devices} />);
-    type("a54");
-    fireEvent.click(screen.getByRole("option", { name: /Galaxy A54/ }));
+    choose("Brand", "Samsung");
+    choose("Model", "galaxy-a54");
+    find();
 
     expect(push).toHaveBeenCalledWith("/shop?device=galaxy-a54");
   });
 
-  it("keeps the category a shopper was already browsing", () => {
-    render(<DeviceFinder devices={devices} categorySlug="pouches" />);
-    type("a54");
-    fireEvent.click(screen.getByRole("option", { name: /Galaxy A54/ }));
+  it("narrows the models to the brand that was chosen", () => {
+    render(<DeviceFinder devices={devices} />);
+    choose("Brand", "Apple");
 
-    expect(push).toHaveBeenCalledWith("/shop?category=pouches&device=galaxy-a54");
+    const models = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(models).toContain("iPhone 13");
+    expect(models).not.toContain("Galaxy A54");
   });
 
   /**
-   * Free text must never navigate. Guessing would send someone to an empty shop
-   * and present it as a result about their phone.
+   * The brand select is an accelerant, not a gate. Without a script it does
+   * nothing, so every model has to be reachable from the model select alone.
    */
-  it("does not navigate on Enter when nothing matches", () => {
+  it("offers every model, grouped by brand, before a brand is chosen", () => {
     render(<DeviceFinder devices={devices} />);
-    type("nokia 3310");
-    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    const model = screen.getByLabelText("Model");
 
-    expect(push).not.toHaveBeenCalled();
-    expect(screen.getByText(/No match for/)).toBeVisible();
+    expect(model).not.toBeDisabled();
+    expect(model.querySelectorAll("optgroup")).toHaveLength(2);
+    expect(model.querySelectorAll("option[value]:not([value=''])")).toHaveLength(3);
   });
 
-  it("is drivable from the keyboard alone", () => {
+  /** The device is the only thing this form is allowed to say about the shop. */
+  it("never submits the phone's maker as a product brand filter", () => {
     render(<DeviceFinder devices={devices} />);
-    const field = screen.getByRole("combobox");
-    type("iphone");
-    fireEvent.keyDown(field, { key: "ArrowDown" });
-    fireEvent.keyDown(field, { key: "Enter" });
+    expect(screen.getByLabelText("Brand")).not.toHaveAttribute("name");
+  });
 
-    expect(push).toHaveBeenCalledWith("/shop?device=iphone-13-pro");
+  it("keeps the category a shopper was already browsing", () => {
+    render(<DeviceFinder devices={devices} categorySlug="pouches" />);
+    choose("Model", "galaxy-a54");
+    find();
+
+    expect(push).toHaveBeenCalledWith("/shop?category=pouches&device=galaxy-a54");
   });
 
   it("says which device is filtering, and offers a way out", () => {
     render(<DeviceFinder devices={devices} activeSlug="galaxy-a54" />);
     expect(screen.getByText(/Showing what fits your Samsung Galaxy A54/)).toBeVisible();
-
-    fireEvent.click(screen.getByRole("button", { name: "Show every device" }));
-    expect(push).toHaveBeenCalledWith("/shop");
+    expect(screen.getByRole("link", { name: "Show everything" })).toHaveAttribute("href", "/shop");
   });
 
-  it("has no automated accessibility violations with the list open", async () => {
+  it("starts on the device the URL is already filtered by", () => {
+    render(<DeviceFinder devices={devices} activeSlug="galaxy-a54" />);
+    expect(screen.getByLabelText("Brand")).toHaveValue("Samsung");
+    expect(screen.getByLabelText("Model")).toHaveValue("galaxy-a54");
+  });
+
+  it("has no automated accessibility violations", async () => {
     render(
       <main>
         <h1>Shop</h1>
         <DeviceFinder devices={devices} />
       </main>,
     );
-    type("iphone");
 
     const result = await axe.run(document.body, {
       rules: { "color-contrast": { enabled: false } },

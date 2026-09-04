@@ -131,7 +131,22 @@ Until this is answered, **stock is modelled as a single authoritative quantity o
 
 ---
 
-## 6. Not yet supplied
+## 6. Review feedback — 2026-09-04
+
+Verbal review with the client. Four items, transcribed as given, with what was done about each.
+
+| #   | What the client said                                                                    | Reading                                                                                                                    | Action                                                                                                   |
+| --- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 1   | "The product goes back to draft even though the screen says it was uploaded"            | Creating a product always wrote a draft, and nothing published it. The confirmation said so in small text, after the fact. | Create now publishes by default. The choice is on the form and the confirmation states the real outcome. |
+| 2   | "The device finder works like a search bar. It should be brand, then model"             | The typeahead read as a second search box. The client wants the counter conversation: what phone? which model?             | Rebuilt as a brand select and a model select over the same `/shop?device=` contract.                     |
+| 3   | "Take the Bespoke Technologies banner out of the footer"                                | Withdraws the delivery attribution recorded in `archive/pouchhub-prototype/assumptions-and-confirmations.md`.              | Partner credit and its assets removed from the storefront footer.                                        |
+| 4   | "There is a lot of text, especially on the home page. Less black — brand red and white" | Copy volume above the fold, and the near-black footer band and secondary buttons reading as a second brand colour.         | Home copy cut to a headline and the finder; footer and secondary buttons moved onto brand red and white. |
+
+**Still outstanding from this review:** no exact brand hex was supplied, so the red in use remains the sampled `#E30613` flagged in §2 and [`open-questions.md`](open-questions.md) Q7. Every change above uses the existing token, so the real value lands in one file when it arrives.
+
+---
+
+## 7. Not yet supplied
 
 Blocking or near-blocking, in rough priority order:
 

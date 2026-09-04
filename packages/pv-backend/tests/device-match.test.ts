@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterDevices, findDeviceInPhrase, tokenise } from "../src/domain/device-match";
+import { findDeviceInPhrase, tokenise } from "../src/domain/device-match";
 
 /**
  * A catalogue shaped like a real one: two brands, overlapping model names, and a
@@ -27,35 +27,6 @@ describe("tokenise", () => {
 
   it("is empty for a string with nothing in it", () => {
     expect(tokenise("   -- ")).toEqual([]);
-  });
-});
-
-describe("filterDevices", () => {
-  it("returns everything when nothing has been typed", () => {
-    expect(filterDevices("", devices)).toHaveLength(devices.length);
-  });
-
-  it("matches across the words a shopper leaves out", () => {
-    const found = filterDevices("sam a54", devices);
-    expect(found[0]?.slug).toBe("galaxy-a54");
-  });
-
-  it("finds a model typed without its space", () => {
-    expect(filterDevices("iphone13", devices).map((device) => device.slug)).toContain("iphone-13");
-  });
-
-  it("puts the shortest complete match first, for someone still typing", () => {
-    expect(filterDevices("iphone 13", devices)[0]?.slug).toBe("iphone-13");
-  });
-
-  it("narrows as more is typed", () => {
-    expect(filterDevices("iphone 13 pro", devices).map((device) => device.slug)).toEqual([
-      "iphone-13-pro",
-    ]);
-  });
-
-  it("returns nothing rather than guessing when there is no match", () => {
-    expect(filterDevices("nokia 3310", devices)).toEqual([]);
   });
 });
 

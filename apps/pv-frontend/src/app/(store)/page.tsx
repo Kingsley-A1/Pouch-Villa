@@ -28,9 +28,13 @@ export const dynamic = "force-dynamic";
  * rule protects facts that are *wrong* if invented, and there is no truth about
  * the business for a headline to contradict. The page must still say something
  * above the fold on the day it launches.
+ *
+ * There is no default subtitle any more. The client's note on this review was
+ * that the home page carries too much text, and a second sentence nobody wrote
+ * is the easiest one to lose: a supporting line is worth reading when the CEO
+ * has something to say, and is filler when it is ours.
  */
-const DEFAULT_HEADLINE = "Great pouches and gadget accessories, exactly when you want them.";
-const DEFAULT_SUBTITLE = "Browse the range, pick your options, and order with payment by transfer.";
+const DEFAULT_HEADLINE = "Pouches and gadget accessories that fit your phone.";
 
 export default async function HomePage() {
   const [{ products: latest }, categories, devices, sections, settings] = await Promise.all([
@@ -72,37 +76,55 @@ export default async function HomePage() {
         between two sections and too generous directly under the header, where it
         left a band of empty page above the first words on the site.
 
+        Cut back on the client's review. It carried an eyebrow, a headline, a
+        supporting sentence and two buttons before the first useful control, and
+        on a 360 px screen that was the whole of the first view spent on prose.
+        What is left is the headline, whatever the CEO chose to add to it, and
+        the one thing a shopper actually came to do.
+
         The staggered entrance is applied to the text only, and the delays are
         utility classes rather than inline `style` attributes — a `style` attr
         needs `style-src-attr 'unsafe-inline'`, which §5 rules out.
       */}
       <section className="hero-space">
         <div className="container-shell">
-          <p className="eyebrow rise-in">Welcome to Pouch Villa</p>
-          <h1 className="hero-title rise-in mt-4 max-w-[24ch] [animation-delay:90ms] sm:max-w-[34ch]">
+          <h1 className="hero-title rise-in max-w-[24ch] sm:max-w-[34ch]">
             {headline.present ? headline.value : DEFAULT_HEADLINE}
           </h1>
-          <p className="rise-in mt-6 max-w-2xl text-lg leading-8 text-(--pv-muted) [animation-delay:180ms]">
-            {subtitle.present ? subtitle.value : DEFAULT_SUBTITLE}
-          </p>
-          <div className="rise-in mt-9 flex flex-wrap gap-3 [animation-delay:270ms]">
-            <Link href="/shop" className="button-primary">
-              Shop the range
-            </Link>
-            <Link href="/categories" className="button-ghost">
-              Browse categories
-            </Link>
-          </div>
+          {subtitle.present ? (
+            <p className="rise-in mt-5 max-w-2xl text-lg leading-8 text-(--pv-muted) [animation-delay:90ms]">
+              {subtitle.value}
+            </p>
+          ) : null}
 
           {/*
-            The finder sits in the hero because it is the shortest path from
-            "I need a case" to a page of cases that actually fit. It renders
-            nothing until staff have entered a device, so a shop that has not
-            been set up yet shows a promise it cannot keep.
+            The finder is the hero's action, not an extra beside one. It is the
+            shortest path from "I need a case" to a page of cases that fit, and
+            it carries its own button — so the pair of buttons that used to sit
+            above it were a second and third call to action competing with it.
+
+            It renders nothing until staff have entered a device, so where the
+            shop has none the plain way into the catalogue takes its place rather
+            than leaving the hero with no way forward at all.
           */}
-          <div className="rise-in mt-10 max-w-md [animation-delay:340ms]">
-            <DeviceFinder devices={devices} />
+          <div className="rise-in mt-8 max-w-md [animation-delay:150ms]">
+            {devices.length > 0 ? (
+              <DeviceFinder devices={devices} />
+            ) : (
+              <Link href="/shop" className="button-primary">
+                Shop the range
+              </Link>
+            )}
           </div>
+
+          {devices.length > 0 ? (
+            <Link
+              href="/shop"
+              className="rise-in mt-4 inline-flex min-h-11 items-center text-sm font-bold text-(--pv-red) [animation-delay:220ms]"
+            >
+              Or browse the whole shop
+            </Link>
+          ) : null}
         </div>
       </section>
 

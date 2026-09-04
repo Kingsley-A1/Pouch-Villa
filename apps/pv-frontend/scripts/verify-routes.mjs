@@ -40,9 +40,20 @@ function styleAttributeHash(declaration) {
 const port = 4187;
 const origin = `http://127.0.0.1:${port}`;
 
-const staticRoutes = ["/track"];
+/**
+ * Nothing is genuinely database-free any more.
+ *
+ * `/track` was here because its own page reads nothing — but it renders inside
+ * the storefront layout, which loads the brand strip and the customer session on
+ * every route beneath it. So without a `DATABASE_URL` this suite booted a server
+ * and asserted one route that was always going to 500, which is worse than
+ * asserting nothing: it failed the gate for a reason unrelated to the change
+ * being verified. A layout dependency belongs to every route under it.
+ */
+const staticRoutes = [];
 const databaseRoutes = [
   "/",
+  "/track",
   "/shop",
   "/categories",
   "/search",

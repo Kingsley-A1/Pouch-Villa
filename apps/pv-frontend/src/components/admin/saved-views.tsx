@@ -37,7 +37,7 @@ export async function SavedViews({
             aria-current={active ? "page" : undefined}
             className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${
               active
-                ? "border-(--pv-ink) bg-(--pv-ink) text-(--pv-page)"
+                ? "border-(--pv-red) bg-(--pv-red) text-(--pv-on-brand)"
                 : "border-(--pv-line) bg-(--pv-surface) hover:border-(--pv-muted)"
             }`}
           >

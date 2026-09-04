@@ -20,7 +20,22 @@ import { cn } from "@/lib/utils";
  * for stock that does not exist is a lie the client discovers in front of a
  * customer.
  */
-export function CategoryCard({ category }: { category: Category }) {
+export function CategoryCard({
+  category,
+  /**
+   * Off by default, and on only where categories are the point of the page.
+   *
+   * On the home page these cards sit between a hero and the products, and a
+   * two-line description on each of twelve of them is two dozen lines of small
+   * grey prose in the middle of the shop — the specific thing the client called
+   * "a lot of text". On `/categories`, where choosing between them *is* the
+   * task, the same sentence is the reason someone picks one.
+   */
+  showDescription = false,
+}: {
+  category: Category;
+  showDescription?: boolean;
+}) {
   const { image, productCount } = category;
 
   return (
@@ -91,7 +106,7 @@ export function CategoryCard({ category }: { category: Category }) {
           />
         </span>
 
-        {category.description ? (
+        {showDescription && category.description ? (
           <span className="line-clamp-2 text-xs leading-snug text-(--pv-muted)">
             {category.description}
           </span>
