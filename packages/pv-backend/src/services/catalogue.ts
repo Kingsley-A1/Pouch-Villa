@@ -488,29 +488,27 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
  * empty shop page, which reads as a broken shop rather than an honest one. The
  * admin's own brand list is unfiltered and remains the place to see every brand.
  */
-export type StorefrontBrand = { id: string; slug: string; name: string; productCount: number };
+export type StorefrontBrand = { id: string; slug: string; name: string };
 
+/**
+ * The brands worth offering as a filter: those with something published behind
+ * them. A pill leading to an empty shop is worse than no pill.
+ *
+ * `EXISTS` rather than the join-and-group this used to be. The count it grouped
+ * for is no longer rendered, and once nothing reads the number the question is
+ * simply "is there at least one" — which stops at the first matching row instead
+ * of counting every product in the catalogue to answer a yes or no.
+ */
 export async function listBrandsWithProducts(): Promise<StorefrontBrand[]> {
-  const rows = await query<{
-    id: string;
-    slug: string;
-    name: string;
-    product_count: string;
-  }>(
-    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count
+  const rows = await query<{ id: string; slug: string; name: string }>(
+    `SELECT b.id, b.slug, b.name
        FROM brand b
-       JOIN product p ON p.brand_id = b.id
-        AND p.deleted_at IS NULL AND p.status = 'published'
       WHERE b.deleted_at IS NULL AND b.is_active
-      GROUP BY b.id, b.slug, b.name, b.sort_order
+        AND EXISTS (SELECT 1 FROM product p
+                     WHERE p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published')
       ORDER BY b.sort_order, b.name`,
   );
-  return rows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    name: row.name,
-    productCount: Number(row.product_count),
-  }));
+  return rows.map((row) => ({ id: row.id, slug: row.slug, name: row.name }));
 }
 
 /**
