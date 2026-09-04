@@ -1,5 +1,3 @@
-import { listBrandsWithProducts } from "@pv/backend/services/catalogue";
-import { BrandNav } from "@/components/brand-nav";
 import { ConnectionStatus } from "@/components/connection-status";
 import { StoreFooter } from "@/components/store-footer";
 import { StoreHeader } from "@/components/store-header";
@@ -9,22 +7,28 @@ import { getCustomerPrincipal } from "@/server/customer-session";
 import { staffViewerName } from "@/server/staff-viewer";
 
 /**
- * `getCustomerPrincipal` is request-cached, so the header and the sidebar
- * asking for it separately costs one lookup, not two. The brand strip is a
- * second query, fetched alongside rather than after it — latency on this
- * cluster is per statement, so two sequential awaits here would be paid on
- * every page of the shop.
+ * The storefront shell.
+ *
+ * `.storefront` is what makes the shop red. The class is here rather than on
+ * `body` so the admin — same stylesheet, same tokens — stays on paper. See the
+ * block of the same name in `globals.css` for the palette and its measurements.
+ *
+ * `min-h-dvh` matters now that the ground is coloured: without it a short page
+ * paints red down to the last element and white below it.
+ *
+ * The brand strip that used to sit under the header is gone. It listed every
+ * brand with stock, which on a shop carrying both phone makers and accessory
+ * makers was a row of names with no shared meaning — and the brands now have a
+ * place where they mean something, one step inside a category (§6 of the CEO
+ * direction plan). Removing it also takes a database query off every single
+ * storefront page.
  */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [principal, brands, staffName] = await Promise.all([
-    getCustomerPrincipal(),
-    listBrandsWithProducts(),
-    staffViewerName(),
-  ]);
+  const [principal, staffName] = await Promise.all([getCustomerPrincipal(), staffViewerName()]);
   const signedIn = principal !== null;
 
   return (
-    <>
+    <div className="storefront flex min-h-dvh flex-col">
       {/*
         Above everything, including the header, because it is a statement about
         the session rather than part of the shop. It renders nothing for a
@@ -35,11 +39,6 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <ConnectionStatus />
       <StoreHeader />
       {/*
-        Directly under the header and above the sidebar split, so the strip runs
-        the full width of the page rather than starting after a 240 px column.
-      */}
-      <BrandNav brands={brands} />
-      {/*
         The sidebar is a sibling of `main`, not inside it, so a screen reader's
         landmark list reads navigation and main content as separate regions. It
         renders nothing below `lg`, where the drawer takes over.
@@ -48,11 +47,11 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         shrink below its content, and one wide table or code block would push the
         whole page into a horizontal scroll — which §2 forbids at any width.
       */}
-      <div className="lg:flex">
+      <div className="flex-1 lg:flex">
         <StoreSidebar signedIn={signedIn} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <StoreFooter />
-    </>
+    </div>
   );
 }

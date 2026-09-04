@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandMark } from "@/components/brand-mark";
 
 /**
@@ -50,9 +49,14 @@ export function StoreFooter() {
 
       <div className="border-t border-white/10">
         <div className="container-shell flex flex-col gap-5 py-5 text-xs text-(--pv-footer-muted) sm:flex-row sm:items-center sm:justify-between">
+          {/*
+            No theme toggle. The storefront is brand red in both themes — a
+            brand is not a preference — so the control had two settings that
+            looked identical, which is worse than not offering it. The tokens
+            for light and dark are still defined and still drive the admin.
+          */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <span>&copy; {new Date().getFullYear()} Pouch Villa</span>
-            <ThemeToggle />
           </div>
         </div>
       </div>

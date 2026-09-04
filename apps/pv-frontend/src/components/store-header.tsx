@@ -28,7 +28,7 @@ export async function StoreHeader() {
     <header className="sticky top-0 z-40 border-b border-(--pv-line) bg-[color-mix(in_srgb,var(--pv-page)_92%,transparent)] backdrop-blur-sm">
       <div className="container-shell flex h-[76px] items-center justify-between gap-5">
         <Link href="/" aria-label="Pouch Villa home">
-          <BrandMark compact />
+          <BrandMark compact inverse />
         </Link>
         <div className="flex items-center gap-1.5">
           <Link

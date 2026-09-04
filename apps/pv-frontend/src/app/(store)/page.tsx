@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   listPublishedProducts,
-  listCategoryCards,
+  listTopCategoryCards,
   listDevices,
 } from "@pv/backend/services/catalogue";
 import { listHomeSections } from "@pv/backend/services/home-sections";
@@ -39,7 +39,7 @@ const DEFAULT_HEADLINE = "Pouches and gadget accessories that fit your phone.";
 export default async function HomePage() {
   const [{ products: latest }, categories, devices, sections, settings] = await Promise.all([
     listPublishedProducts({ limit: 8 }),
-    listCategoryCards(),
+    listTopCategoryCards(),
     listDevices(),
     listHomeSections(),
     readSettings([
@@ -98,16 +98,38 @@ export default async function HomePage() {
           ) : null}
 
           {/*
-            The finder is the hero's action, not an extra beside one. It is the
-            shortest path from "I need a case" to a page of cases that fit, and
-            it carries its own button — so the pair of buttons that used to sit
-            above it were a second and third call to action competing with it.
+            The two ways into the shop, side by side, directly under the opening
+            line — the first thing a customer is asked to choose, before anything
+            else competes for the tap.
+
+            `grid-cols-2` at every width, so they stay on one line at 360 px.
+            Two cards is the point: each one is a whole half of the catalogue,
+            and giving them a full row each would push the finder below the fold
+            on the phones this shop is actually used on.
+
+            Only top-level categories. A sub-category standing beside its own
+            parent would make "which way in" unanswerable, which is the one
+            question this row exists to ask.
+          */}
+          {categories.length > 0 ? (
+            <ul className="rise-in mt-9 grid grid-cols-2 gap-3 [animation-delay:150ms] sm:max-w-2xl sm:gap-4">
+              {categories.map((category) => (
+                <li key={category.id}>
+                  <CategoryCard category={category} href={`/browse/${category.slug}`} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {/*
+            The finder sits under them, as the shortcut for somebody who already
+            knows their phone and does not want to browse at all.
 
             It renders nothing until staff have entered a device, so where the
             shop has none the plain way into the catalogue takes its place rather
-            than leaving the hero with no way forward at all.
+            than leaving the hero with no way forward.
           */}
-          <div className="rise-in mt-8 max-w-md [animation-delay:150ms]">
+          <div className="rise-in mt-8 max-w-md [animation-delay:230ms]">
             {devices.length > 0 ? (
               <DeviceFinder devices={devices} />
             ) : (
@@ -117,48 +139,21 @@ export default async function HomePage() {
             )}
           </div>
 
-          {devices.length > 0 ? (
-            <Link
-              href="/shop"
-              className="rise-in mt-4 inline-flex min-h-11 items-center text-sm font-bold text-(--pv-red) [animation-delay:220ms]"
-            >
-              Or browse the whole shop
-            </Link>
-          ) : null}
+          <Link
+            href="/shop"
+            className="rise-in mt-4 inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-4 [animation-delay:300ms]"
+          >
+            Or browse everything
+          </Link>
         </div>
       </section>
 
-      {categories.length > 0 ? (
-        <section className="section-space">
-          <div className="container-shell">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="section-title">Categories</h2>
-              <Link href="/categories" className="text-sm font-bold text-(--pv-red)">
-                See all
-              </Link>
-            </div>
-            {/*
-              Two columns at 360 px rather than one. A single column of cards
-              with pictures pushes the products themselves a full screen down,
-              and a category card does not need the width a product card does.
-            */}
-            <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <CategoryCard category={category} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
-
-      {sections.map((section) => (
-        <StorefrontSection key={section.id} section={section} likes={likes} />
+      {sections.map((section, position) => (
+        <StorefrontSection key={section.id} section={section} likes={likes} index={position} />
       ))}
 
       {showLatest ? (
-        <section className="section-space">
+        <section className="band-raised section-space">
           <div className="container-shell">
             <h2 className="section-title">Latest</h2>
             <div className="mt-6">
@@ -180,9 +175,9 @@ export default async function HomePage() {
         photo, this box has a shape of its own (`aspect-video`) that the source
         image is cropped to fit, rather than the image dictating the box.
       */}
-      <section className="section-space">
+      <section className="band-deep section-space">
         <div className="container-shell grid gap-8 lg:grid-cols-2 lg:items-center">
-          <div className="relative aspect-video overflow-hidden rounded-3xl bg-(--pv-wash)">
+          <div className="relative aspect-video overflow-hidden rounded-3xl bg-(--pv-surface)">
             <Image
               src="/images/storefront-display-wall.jpg"
               alt="Phone cases and pouches on display inside Pouch Villa."

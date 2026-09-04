@@ -178,6 +178,29 @@ const PRODUCT_SELECT = `
     ) m ON true
 `;
 
+/**
+ * The ids of a category and everything filed beneath it, as a subquery.
+ *
+ * Categories are two tiers — "Pouch" holds "Luxury" and "Protective" — and a
+ * shopper asking for the parent means the whole branch. Written as a recursive
+ * CTE inside the subquery rather than a fixed two-level join so a third tier,
+ * if the shop ever grows one, needs no change here.
+ *
+ * `placeholder` is a `$n` produced by the caller's own parameter list — never a
+ * value. §5 forbids interpolating anything else into SQL, and this function
+ * takes no other argument for exactly that reason.
+ */
+function categorySubtreeIds(placeholder: string): string {
+  return `WITH RECURSIVE subtree AS (
+            SELECT id FROM category WHERE slug = ${placeholder} AND deleted_at IS NULL
+            UNION ALL
+            SELECT child.id FROM category child
+              JOIN subtree ON child.parent_id = subtree.id
+             WHERE child.deleted_at IS NULL
+          )
+          SELECT id FROM subtree`;
+}
+
 export type ProductListFilters = {
   categorySlug?: string;
   brandSlug?: string;
@@ -198,10 +221,13 @@ export async function listPublishedProducts(filters: ProductListFilters = {}) {
 
   if (filters.categorySlug) {
     values.push(filters.categorySlug);
+    // The whole subtree, not the one row. Asking for "pouches" must return the
+    // luxury and protective cases filed under it, or a parent category is a
+    // heading that leads to an empty shop.
     conditions.push(`EXISTS (
       SELECT 1 FROM product_category pc
-        JOIN category c ON c.id = pc.category_id
-       WHERE pc.product_id = p.id AND c.slug = $${values.length} AND c.deleted_at IS NULL
+       WHERE pc.product_id = p.id
+         AND pc.category_id IN (${categorySubtreeIds(`$${values.length}`)})
     )`);
   }
   if (filters.brandSlug) {
@@ -410,6 +436,94 @@ export async function listBrands() {
  * If the client later wants to choose the picture themselves, that is a column
  * on `category` and a field in the admin — this is the honest default until then.
  */
+/**
+ * The top of the catalogue: root categories only, each with everything filed
+ * beneath it counted and a photograph taken from anything inside the branch.
+ *
+ * This is what the home page shows. `listCategoryCards` below still lists every
+ * category flat for the browse-all page; this one answers the different question
+ * "what are the two or three ways into this shop", and a sub-category appearing
+ * beside its own parent would make that question unanswerable.
+ *
+ * The count and the image both walk the subtree, so a parent that holds no
+ * products directly — which is the normal case once kinds are filed under it —
+ * still shows a real number and a real picture rather than an empty card.
+ */
+export async function listTopCategoryCards(): Promise<CategoryCard[]> {
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    product_count: string;
+    image_product_id: string | null;
+    image_key: string | null;
+    image_width: string | null;
+    image_height: string | null;
+    image_hash: string | null;
+  }>(
+    `SELECT c.id, c.slug, c.name, c.description,
+            (SELECT count(DISTINCT p.id)::STRING
+               FROM product_category pc
+               JOIN product p ON p.id = pc.product_id
+              WHERE p.deleted_at IS NULL AND p.status = 'published'
+                AND pc.category_id IN (
+                  WITH RECURSIVE branch AS (
+                    SELECT c.id AS id
+                    UNION ALL
+                    SELECT child.id FROM category child
+                      JOIN branch ON child.parent_id = branch.id
+                     WHERE child.deleted_at IS NULL
+                  )
+                  SELECT id FROM branch
+                )) AS product_count,
+            m.product_id AS image_product_id,
+            m.r2_key AS image_key, m.width AS image_width,
+            m.height AS image_height, m.content_hash AS image_hash
+       FROM category c
+       LEFT JOIN LATERAL (
+         SELECT pm.product_id, pm.r2_key, pm.width, pm.height, pm.content_hash
+           FROM product_category pc
+           JOIN product p ON p.id = pc.product_id
+           JOIN product_media pm ON pm.product_id = p.id AND pm.kind = 'image'
+          WHERE p.deleted_at IS NULL AND p.status = 'published'
+            AND pc.category_id IN (
+              WITH RECURSIVE branch AS (
+                SELECT c.id AS id
+                UNION ALL
+                SELECT child.id FROM category child
+                  JOIN branch ON child.parent_id = branch.id
+                 WHERE child.deleted_at IS NULL
+              )
+              SELECT id FROM branch
+            )
+          ORDER BY p.published_at DESC, pm.sort_order
+          LIMIT 1
+       ) m ON true
+      WHERE c.deleted_at IS NULL AND c.is_active AND c.parent_id IS NULL
+      ORDER BY c.sort_order, c.name`,
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    parentName: null,
+    productCount: Number(row.product_count),
+    image:
+      row.image_product_id === null
+        ? null
+        : toImage(
+            row.image_product_id,
+            row.image_key,
+            row.image_hash,
+            row.image_width,
+            row.image_height,
+          ),
+  }));
+}
+
 export type CategoryCard = {
   id: string;
   slug: string;
@@ -480,35 +594,101 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
   }));
 }
 
-/**
- * The brands worth putting in front of a customer: the ones with something to
- * buy behind them.
- *
- * A brand staff have created but not yet stocked is a pill that leads to an
- * empty shop page, which reads as a broken shop rather than an honest one. The
- * admin's own brand list is unfiltered and remains the place to see every brand.
- */
-export type StorefrontBrand = { id: string; slug: string; name: string };
+export type StorefrontBrand = { id: string; slug: string; name: string; productCount: number };
 
 /**
- * The brands worth offering as a filter: those with something published behind
- * them. A pill leading to an empty shop is worse than no pill.
+ * The brands with something published inside a category — step two of the shop's
+ * browse path: a category, then a brand, then the sub-category, then the product.
  *
- * `EXISTS` rather than the join-and-group this used to be. The count it grouped
- * for is no longer rendered, and once nothing reads the number the question is
- * simply "is there at least one" — which stops at the first matching row instead
- * of counting every product in the catalogue to answer a yes or no.
+ * Scoped to the category rather than listed globally, which is the whole point.
+ * A flat list of every brand mixes phone makers with accessory makers and offers
+ * combinations that do not exist; asked inside "Pouch" it can only answer with
+ * brands that really have pouches, so every choice on the screen leads somewhere.
+ *
+ * The count is rendered, so it is a count and not an `EXISTS`. It tells a
+ * shopper which way is worth going before they spend a tap finding out.
  */
-export async function listBrandsWithProducts(): Promise<StorefrontBrand[]> {
-  const rows = await query<{ id: string; slug: string; name: string }>(
-    `SELECT b.id, b.slug, b.name
+export async function listBrandsInCategory(categorySlug: string): Promise<StorefrontBrand[]> {
+  const rows = await query<{ id: string; slug: string; name: string; product_count: string }>(
+    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count
        FROM brand b
+       JOIN product p ON p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published'
       WHERE b.deleted_at IS NULL AND b.is_active
-        AND EXISTS (SELECT 1 FROM product p
-                     WHERE p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published')
+        AND EXISTS (
+          SELECT 1 FROM product_category pc
+           WHERE pc.product_id = p.id
+             AND pc.category_id IN (${categorySubtreeIds("$1")})
+        )
+      GROUP BY b.id, b.slug, b.name, b.sort_order
       ORDER BY b.sort_order, b.name`,
+    [categorySlug],
   );
-  return rows.map((row) => ({ id: row.id, slug: row.slug, name: row.name }));
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    productCount: Number(row.product_count),
+  }));
+}
+
+/**
+ * The sub-categories under a parent that hold something from a given brand —
+ * step three: having chosen Pouch and then a brand, what kinds are there.
+ *
+ * Both filters apply at once, so a kind with nothing from this brand behind it
+ * never appears. A shopper should not be able to reach an empty result by
+ * following the path the shop laid out for them.
+ *
+ * The parent itself is excluded. It is where they came from, and offering it
+ * again as a choice inside itself reads as a loop.
+ */
+export type CategoryChoice = { id: string; slug: string; name: string; productCount: number };
+
+export async function listChildCategoriesForBrand(
+  parentSlug: string,
+  brandSlug: string,
+): Promise<CategoryChoice[]> {
+  const rows = await query<{ id: string; slug: string; name: string; product_count: string }>(
+    `SELECT c.id, c.slug, c.name, count(DISTINCT p.id)::STRING AS product_count
+       FROM category c
+       JOIN category parent ON parent.id = c.parent_id
+       JOIN product_category pc ON pc.category_id = c.id
+       JOIN product p ON p.id = pc.product_id
+        AND p.deleted_at IS NULL AND p.status = 'published'
+       JOIN brand b ON b.id = p.brand_id AND b.slug = $2
+      WHERE c.deleted_at IS NULL AND c.is_active
+        AND parent.slug = $1 AND parent.deleted_at IS NULL
+      GROUP BY c.id, c.slug, c.name, c.sort_order
+      ORDER BY c.sort_order, c.name`,
+    [parentSlug, brandSlug],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    productCount: Number(row.product_count),
+  }));
+}
+
+/** One category by slug, for naming a page after the thing it is showing. */
+export async function getCategoryBySlug(
+  slug: string,
+): Promise<{ id: string; slug: string; name: string; description: string | null } | null> {
+  return queryOne(
+    `SELECT id, slug, name, description
+       FROM category WHERE slug = $1 AND deleted_at IS NULL AND is_active`,
+    [slug],
+  );
+}
+
+/** One brand by slug, for the same reason. */
+export async function getBrandBySlug(
+  slug: string,
+): Promise<{ id: string; slug: string; name: string } | null> {
+  return queryOne(
+    "SELECT id, slug, name FROM brand WHERE slug = $1 AND deleted_at IS NULL AND is_active",
+    [slug],
+  );
 }
 
 /**

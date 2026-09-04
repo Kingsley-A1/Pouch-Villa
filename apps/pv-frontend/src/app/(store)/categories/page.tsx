@@ -39,7 +39,13 @@ export default async function CategoriesPage() {
             <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {categories.map((category) => (
                 <li key={category.id}>
-                  <CategoryCard category={category} showDescription />
+                  <CategoryCard
+                    category={category}
+                    // Straight to the results. Someone reading every category has
+                    // already made the choice the browse path exists to help with.
+                    href={`/shop?category=${category.slug}`}
+                    showDescription
+                  />
                 </li>
               ))}
             </ul>

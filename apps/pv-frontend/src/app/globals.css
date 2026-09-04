@@ -121,6 +121,115 @@
   --pv-footer-muted: #eec3c6;
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * The storefront's own ground.
+ * ---------------------------------------------------------------------------
+ *
+ * The client asked for the background to be the brand red. That inverts the
+ * palette above: red stops being the accent that draws the eye to one thing and
+ * becomes the paper everything sits on, so every token layered on it is
+ * re-derived here rather than patched screen by screen.
+ *
+ * **Scoped, not global.** The admin is the same stylesheet and stays on paper —
+ * a red admin is not what was asked for and is worse to work in for hours at a
+ * time. Only `.storefront` is repainted.
+ *
+ * **Fixed in both themes.** A brand is not a preference, so there is no dark
+ * variant: the shop is red at three in the afternoon and at midnight.
+ * `color-scheme: dark` tells the browser to render form controls, scrollbars and
+ * autofill for a dark ground, which is what a deep red is to those defaults.
+ *
+ * **`--pv-red` becomes white here, and that is deliberate.** The token's job is
+ * "the accent that means actionable". On white paper that is the brand red; on
+ * red paper the brand red is invisible and white is the only thing that carries
+ * the role. Remapping it is what lets every existing button, focus ring and
+ * price render correctly without touching two hundred components — and it makes
+ * the primary button a white pill with deep red text, which is the most
+ * actionable pairing available on this ground.
+ *
+ * Three depths of red, not one. "Red for every section" reads as a wall; the
+ * page, the card and the raised band give sections rhythm while staying inside
+ * the brand. Black appears only where an icon needs a chip.
+ *
+ * Every value below was measured against the ground it sits on. Nothing here is
+ * under 4.5:1, so AA holds for body text on all three depths:
+ *
+ *                     page #8a0009   surface #a80510   raised #c2000f
+ *   white               10.07            7.79             6.36
+ *   muted   #f7d0d3      7.16            5.54             4.52
+ *   success #b8f2cf      7.98            6.18             5.04
+ *   warning #ffe08a      7.81            6.04             4.93
+ *   danger  #ffd0cb      7.26            5.62             4.59
+ *
+ *   deep red #8a0009 on a white button: 10.07
+ */
+.storefront {
+  color-scheme: dark;
+
+  /* The accent role, remapped. See the note above. */
+  --pv-red: #ffffff;
+  --pv-red-dark: #f7d0d3;
+  --pv-on-brand: #8a0009;
+
+  --pv-ink: #ffffff;
+  --pv-muted: #f7d0d3;
+  /* Borders are white at low alpha so they read as a lightening of the ground
+     rather than a line drawn in a fourth colour. */
+  --pv-line: rgba(255, 255, 255, 0.24);
+
+  --pv-page: #8a0009;
+  --pv-surface: #a80510;
+  --pv-surface-raised: #c2000f;
+  /* A well, not a lift: `--pv-wash` marks recessed areas, so it goes deeper. */
+  --pv-wash: #6b0007;
+  --pv-cream: #a80510;
+
+  --pv-success: #b8f2cf;
+  --pv-warning: #ffe08a;
+  --pv-danger: #ffd0cb;
+
+  /* Darker and heavier than on paper — a shadow on a saturated ground has to be
+     a shadow, not a grey haze. */
+  --pv-shadow: rgba(51, 0, 3, 0.45);
+
+  /* The footer is the deepest band, so the page has a floor. On paper it was a
+     deep red against white; against a red page it needs to go further or it
+     merges into the section above it. */
+  --pv-footer-bg: #5e0006;
+
+  background: var(--pv-page);
+  color: var(--pv-ink);
+}
+
+/*
+ * Section rhythm.
+ *
+ * The instruction was "not red for every section" — a single flat field of
+ * colour top to bottom reads as a wall rather than a shop. These change the
+ * depth of the ground under a full-bleed band while staying inside the brand,
+ * so the page has a beat without introducing a second hue.
+ *
+ * Applied to a `<section>`, not to `.container-shell` inside it, so the colour
+ * runs edge to edge and the content stays on the same measure as everything else.
+ */
+.storefront .band-raised {
+  background: var(--pv-surface);
+}
+.storefront .band-deep {
+  background: var(--pv-wash);
+}
+
+/*
+ * A chip for an icon, and the only place black earns its keep on the storefront.
+ * The client asked for black to stay minimal; this is small, deliberate, and
+ * gives a mono icon something to sit on that is neither white nor another red.
+ */
+.storefront .ink-chip {
+  background: #1a0d0e;
+  color: #ffffff;
+}
+
 * {
   box-sizing: border-box;
 }

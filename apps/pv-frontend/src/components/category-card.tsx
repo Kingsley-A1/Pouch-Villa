@@ -23,6 +23,13 @@ import { cn } from "@/lib/utils";
 export function CategoryCard({
   category,
   /**
+   * Where the card leads. A top-level card starts the browse path — category,
+   * then brand, then kind — while the flat list on `/categories` still goes
+   * straight to the filtered shop, because someone already looking at every
+   * category has made the choice the path exists to help them make.
+   */
+  href,
+  /**
    * Off by default, and on only where categories are the point of the page.
    *
    * On the home page these cards sit between a hero and the products, and a
@@ -34,13 +41,14 @@ export function CategoryCard({
   showDescription = false,
 }: {
   category: Category;
+  href: string;
   showDescription?: boolean;
 }) {
   const { image, productCount } = category;
 
   return (
     <Link
-      href={`/shop?category=${category.slug}`}
+      href={href}
       className={cn(
         "group flex h-full flex-col overflow-hidden rounded-2xl border bg-(--pv-surface)",
         "border-(--pv-line) transition-[border-color,box-shadow,transform] duration-200",

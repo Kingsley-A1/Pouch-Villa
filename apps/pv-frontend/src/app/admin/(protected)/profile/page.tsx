@@ -5,6 +5,7 @@ import { MINIMUM_PASSWORD_LENGTH } from "@pv/backend/auth/password";
 import { requireStaffPrincipal } from "@/server/session";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { initialsForName } from "@/lib/initials";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { StaffPasswordForm, StaffProfileForm } from "./profile-forms";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,25 @@ export default async function StaffProfilePage() {
           email={profile.email}
           role={profile.role}
         />
+      </section>
+
+      {/*
+        The theme control lives here now.
+        
+        It used to sit in the storefront footer, where it stopped meaning
+        anything the day the shop became brand red in both themes. The admin is
+        the surface that still has a light and a dark, and it is worked in for
+        hours at a time, so the preference belongs on the page about you rather
+        than at the bottom of a shop you are not looking at.
+      */}
+      <section className="grid gap-4">
+        <h2 className="text-lg font-bold">Appearance</h2>
+        <div className="panel-bracket flex flex-wrap items-center justify-between gap-4 p-5">
+          <p className="text-sm text-(--pv-muted)">
+            How the admin looks on this device. The storefront keeps its brand colours.
+          </p>
+          <ThemeToggle />
+        </div>
       </section>
 
       <section className="grid gap-4">

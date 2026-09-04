@@ -42,22 +42,38 @@ function BrowseLink({ section, className }: { section: HomeSection; className?: 
   );
 }
 
+/**
+ * Sections alternate their ground so a page of them has a beat.
+ *
+ * The client asked for the shop to be red without every section being the same
+ * flat red — one unbroken field of a saturated colour reads as a wall rather
+ * than a shop. The alternation is a depth change inside the brand, not a second
+ * hue, and it comes from position rather than from a per-section setting: the
+ * CEO arranges what a section *is*, and the page decides how it sits.
+ */
 export function StorefrontSection({
   section,
   likes,
+  index = 0,
 }: {
   section: HomeSection;
   likes: LikeSummary;
+  /** Position on the page. Odd-numbered sections lift onto a raised band. */
+  index?: number;
 }) {
-  if (section.layout === "feature") return <FeatureSection section={section} likes={likes} />;
-  if (section.layout === "band") return <BandSection section={section} likes={likes} />;
-  return <GridSection section={section} likes={likes} />;
+  const tone = index % 2 === 1 ? "band-raised" : "";
+  if (section.layout === "feature")
+    return <FeatureSection section={section} likes={likes} tone={tone} />;
+  if (section.layout === "band") return <BandSection section={section} likes={likes} tone={tone} />;
+  return <GridSection section={section} likes={likes} tone={tone} />;
 }
 
+type SectionProps = { section: HomeSection; likes: LikeSummary; tone: string };
+
 /** The default. Heading above, even grid below. */
-function GridSection({ section, likes }: { section: HomeSection; likes: LikeSummary }) {
+function GridSection({ section, likes, tone }: SectionProps) {
   return (
-    <section className="section-space">
+    <section className={cn("section-space", tone)}>
       <div className="container-shell">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
@@ -84,13 +100,13 @@ function GridSection({ section, likes }: { section: HomeSection; likes: LikeSumm
  * two-column grid: a "lead" tile only reads as a lead when something sits
  * beside it, and on a 360px screen nothing does.
  */
-function FeatureSection({ section, likes }: { section: HomeSection; likes: LikeSummary }) {
+function FeatureSection({ section, likes, tone }: SectionProps) {
   const [lead, ...rest] = section.products;
   if (lead === undefined) return null;
   const leadLike = likes.get(lead.id);
 
   return (
-    <section className="section-space">
+    <section className={cn("section-space", tone)}>
       <div className="container-shell">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
@@ -126,9 +142,13 @@ function FeatureSection({ section, likes }: { section: HomeSection; likes: LikeS
  * sections. The heading column sticks on desktop so it stays with the products
  * as they scroll past.
  */
-function BandSection({ section, likes }: { section: HomeSection; likes: LikeSummary }) {
+function BandSection({ section, likes, tone }: SectionProps) {
   return (
-    <section className="bg-(--pv-wash) py-14 md:py-20">
+    // A band already sets its own ground, so it takes the alternation as a
+    // second step deeper rather than as a class that would fight it.
+    <section
+      className={cn("py-14 md:py-20", tone === "" ? "bg-(--pv-wash)" : "bg-(--pv-surface-raised)")}
+    >
       <div className="container-shell grid gap-8 lg:grid-cols-[minmax(0,17rem)_1fr] lg:gap-12">
         <div className="lg:sticky lg:top-28 lg:self-start">
           <span aria-hidden="true" className="block h-1 w-12 rounded-full bg-(--pv-red)" />
