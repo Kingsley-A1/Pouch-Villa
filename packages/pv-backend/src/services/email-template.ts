@@ -1,3 +1,26 @@
+import { absoluteSiteUrl } from "../domain/site-origin";
+
+/**
+ * The client's own logo, as a hosted image.
+ *
+ * An email cannot carry a vector mark — no SVG, no web font, no CSS worth
+ * relying on — so this is the raster the client supplied
+ * (`docs/client/brand/logo-flat-red.jpg`), trimmed and served from the site at a
+ * fixed public path. It is referenced absolutely because an email has no page to
+ * be relative to.
+ *
+ * Deliberately not a `data:` URI. Gmail strips those from `<img src>`, which
+ * would leave the logo broken for the largest share of Nigerian consumer inboxes
+ * — the one place it most needs to work.
+ *
+ * Served at twice its rendered width so it stays sharp on a phone, and the
+ * rendered `width`/`height` are attributes rather than only CSS: Outlook ignores
+ * the style and would otherwise draw it at full size.
+ */
+const LOGO_PATH = "/images/pouch-villa-logo-email.png";
+const LOGO_WIDTH = 150;
+const LOGO_HEIGHT = 118;
+
 type DetailRow = { label: string; value: string };
 type ItemRow = { name: string; meta?: string; value: string };
 
@@ -82,6 +105,11 @@ function renderBlock(block: EmailBlock): { html: string; text: string } {
 /**
  * Renders the one transactional-email contract. All values are plain strings;
  * escaping happens here so callers cannot accidentally pass executable markup.
+ *
+ * The header is the logo, with the shop's name as its `alt`. Many clients block
+ * remote images by default, so the name still appears where the mark would be
+ * rather than leaving an anonymous gap at the top of an email about somebody's
+ * money — and the plain-text part below carries it regardless.
  */
 export function renderTransactionalEmail(input: TransactionalEmailInput): {
   html: string;
@@ -95,7 +123,7 @@ export function renderTransactionalEmail(input: TransactionalEmailInput): {
     ? `<p style="margin:20px 0 0;color:#8a817b;font-size:12px;line-height:19px;text-align:center">${escapeHtml(input.footer)}</p>`
     : "";
 
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f5f2f0;color:#171717;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(input.preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;background:#f5f2f0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;border-collapse:separate;background:#ffffff;border:1px solid #e3dcd7;border-radius:16px;overflow:hidden"><tr><td style="height:5px;background:#e30613;font-size:0;line-height:0">&nbsp;</td></tr><tr><td style="padding:24px 28px 10px;color:#e30613;font-size:14px;font-weight:800;letter-spacing:.04em">${escapeHtml(input.brandName)}</td></tr><tr><td style="padding:8px 28px 28px"><h1 style="margin:0 0 18px;color:#171717;font-size:26px;line-height:33px">${escapeHtml(input.title)}</h1>${greetingHtml}${blocks.map((block) => block.html).join("")}</td></tr></table>${footerHtml}</td></tr></table></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f5f2f0;color:#171717;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(input.preheader)}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;background:#f5f2f0"><tr><td align="center" style="padding:28px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;border-collapse:separate;background:#ffffff;border:1px solid #e3dcd7;border-radius:16px;overflow:hidden"><tr><td style="height:5px;background:#e30613;font-size:0;line-height:0">&nbsp;</td></tr><tr><td style="padding:24px 28px 10px"><img src="${escapeHtml(absoluteSiteUrl(LOGO_PATH))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="${escapeHtml(input.brandName)}" style="display:block;border:0;outline:none;width:${LOGO_WIDTH}px;height:auto;max-width:100%"></td></tr><tr><td style="padding:8px 28px 28px"><h1 style="margin:0 0 18px;color:#171717;font-size:26px;line-height:33px">${escapeHtml(input.title)}</h1>${greetingHtml}${blocks.map((block) => block.html).join("")}</td></tr></table>${footerHtml}</td></tr></table></body></html>`;
 
   const text = [
     input.brandName,

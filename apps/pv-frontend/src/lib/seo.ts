@@ -8,33 +8,20 @@
  *
  * This is infrastructure, not a business fact — which host we are is not something
  * a staff member edits in the admin.
+ *
+ * The origin itself is resolved in `@pv/backend/domain/site-origin`, because the
+ * email templates need the same answer and a backend module cannot import from
+ * this app. It is re-exported here so the storefront's callers keep reading one
+ * name, and so there is one set of rules about what counts as a valid origin.
  */
+import { absoluteSiteUrl, siteOrigin } from "@pv/backend/domain/site-origin";
 
-const DEVELOPMENT_ORIGIN = "http://localhost:3000";
-
-function asHttpOrigin(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  if (!trimmed) return undefined;
-
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const url = new URL(withProtocol);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export const siteUrl =
-  asHttpOrigin(process.env.NEXT_PUBLIC_SITE_URL) ||
-  asHttpOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
-  asHttpOrigin(process.env.VERCEL_URL) ||
-  DEVELOPMENT_ORIGIN;
+export const siteUrl = siteOrigin();
 
 export const isIndexable = process.env.NEXT_PUBLIC_SITE_INDEXABLE === "true";
 
 export function absoluteUrl(path: string) {
-  return new URL(path, siteUrl).toString();
+  return absoluteSiteUrl(path);
 }
 
 /**
