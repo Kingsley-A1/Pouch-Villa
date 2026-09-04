@@ -21,6 +21,13 @@ import { cn } from "@/lib/utils";
  * It renders nothing at all when no brand has a published product behind it — an
  * empty rail under the header is worse than no rail, and a pill leading to an
  * empty page is worse still.
+ *
+ * Each pill is a name and nothing else. It used to carry the number of products
+ * behind it, which the client asked to remove and which was doing no work: a
+ * shopper choosing a brand is asking "do you have anything for my phone", not
+ * comparing stock depth, and a small number next to a brand reads as a rank or a
+ * price before it reads as a count. The number the query produces still decides
+ * which brands appear at all — a brand with nothing published has no pill.
  */
 export function BrandNav({ brands }: { brands: StorefrontBrand[] }) {
   if (brands.length === 0) return null;
@@ -36,7 +43,7 @@ export function BrandNav({ brands }: { brands: StorefrontBrand[] }) {
                 className={cn(
                   // 44 px tall and 8 px apart, per §2. A pill rail is exactly
                   // where a thumb misses on a moving bus.
-                  "inline-flex min-h-11 items-center gap-2 rounded-full border border-(--pv-line)",
+                  "inline-flex min-h-11 items-center rounded-full border border-(--pv-line)",
                   "px-3.5 text-sm font-bold whitespace-nowrap text-(--pv-ink)",
                   "transition-colors duration-150 motion-reduce:transition-none",
                   "hover:border-(--pv-red) hover:bg-(--pv-cream) hover:text-(--pv-red)",
@@ -44,14 +51,6 @@ export function BrandNav({ brands }: { brands: StorefrontBrand[] }) {
                 )}
               >
                 {brand.name}
-                {/*
-                  The count is decoration beside a name that already carries the
-                  meaning, so it is hidden from assistive technology — "iPhone 4"
-                  read aloud sounds like a product, not a brand with four items.
-                */}
-                <span aria-hidden="true" className="text-xs font-semibold text-(--pv-muted)">
-                  {brand.productCount}
-                </span>
               </Link>
             </li>
           ))}

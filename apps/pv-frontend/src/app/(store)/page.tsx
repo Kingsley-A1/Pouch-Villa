@@ -88,7 +88,7 @@ export default async function HomePage() {
       */}
       <section className="hero-space">
         <div className="container-shell">
-          <h1 className="hero-title rise-in max-w-[24ch] sm:max-w-[34ch]">
+          <h1 className="hero-title rise-in sm:max-w-[34ch]">
             {headline.present ? headline.value : DEFAULT_HEADLINE}
           </h1>
           {subtitle.present ? (

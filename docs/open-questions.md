@@ -6,19 +6,20 @@ Decisions only Pouch Villa can make. Each one states what we do **in the meantim
 
 **Status key:** 🔴 blocking a foundational decision · 🟡 blocks a feature · 🟢 blocks content only
 
-| #   | Question                                           | Impact                  | Status             |
-| --- | -------------------------------------------------- | ----------------------- | ------------------ |
-| Q1  | Devices or accessories?                            | 🔴 Catalogue schema     | Open               |
-| Q2  | Two-tier category mapping sign-off                 | 🟡 Navigation, filters  | Open               |
-| Q3  | Is this platform or bizblock the system of record? | 🔴 Inventory, migration | Open               |
-| Q4  | Bank account for transfer payment                  | 🟡 Checkout             | Open               |
-| Q5  | Who is CEO / Manager / Employee?                   | 🟡 RBAC seeding         | Open               |
-| Q6  | Order status vocabulary                            | 🟡 Order state machine  | Open               |
-| Q7  | Vector logo + exact brand values                   | 🟡 Design sign-off      | Open               |
-| Q8  | Delivery zones, fees, timeframes                   | 🟡 Order totals         | Open               |
-| Q9  | Reviews: verified purchase only?                   | 🟢 Reviews              | Open               |
-| Q10 | Policy wording — returns, privacy, terms           | 🟢 Supporting pages     | Partially answered |
-| Q11 | Email staff when their access changes?             | 🟢 Staff notification   | Answered           |
+| #   | Question                                                | Impact                  | Status             |
+| --- | ------------------------------------------------------- | ----------------------- | ------------------ |
+| Q1  | Devices or accessories?                                 | 🔴 Catalogue schema     | Open               |
+| Q2  | Two-tier category mapping sign-off                      | 🟡 Navigation, filters  | Open               |
+| Q3  | Is this platform or bizblock the system of record?      | 🔴 Inventory, migration | Open               |
+| Q4  | Bank account for transfer payment                       | 🟡 Checkout             | Open               |
+| Q5  | Who is CEO / Manager / Employee?                        | 🟡 RBAC seeding         | Open               |
+| Q6  | Order status vocabulary                                 | 🟡 Order state machine  | Open               |
+| Q7  | Vector logo + exact brand values                        | 🟡 Design sign-off      | Open               |
+| Q8  | Delivery zones, fees, timeframes                        | 🟡 Order totals         | Open               |
+| Q9  | Reviews: verified purchase only?                        | 🟢 Reviews              | Open               |
+| Q10 | Policy wording — returns, privacy, terms                | 🟢 Supporting pages     | Partially answered |
+| Q11 | Email staff when their access changes?                  | 🟢 Staff notification   | Answered           |
+| Q12 | Should a staff sign-in also sign them in as a customer? | 🟡 Identity boundary    | Open               |
 
 ---
 
@@ -175,3 +176,43 @@ decisions rather than transcription:
 
 **The role-code half stands as recommended:** a minted code is still shown once
 on screen and carried out of band, never emailed.
+
+---
+
+### 🟡 Q12 — Should signing into the admin also sign a staff member in as a customer?
+
+Raised by us on 2026-09-04, from the client's review note: _"When an admin is
+signed in in the admin portal, it should still be signed in on the public side."_
+
+The report is fair — the CEO signs into the admin, opens the shop, and is shown
+a **Sign in** prompt. What they are seeing is [`AGENTS.md`](../AGENTS.md) §5
+working as specified: customers and staff share no session, cookie, table or code
+path, so a privilege bug in the storefront cannot reach the admin.
+
+**Ask them exactly this:** _"When you are signed into the admin and you open the
+shop, do you want it simply to show that you are signed in as staff — or do you
+want to be able to shop, add to a cart and place a real order without signing in
+again?"_
+
+**Done already, and enough for the first reading:** the storefront now recognises
+a staff session and says so, in a bar above the header with a link back to the
+admin. It grants nothing: no cart, no order history, no account pages. See
+[`decisions/0014-staff-visibility-on-the-storefront.md`](decisions/0014-staff-visibility-on-the-storefront.md).
+
+**What the second reading would cost.** It means linking a staff account to a
+customer account the same person owns, and a staff sign-in minting that customer
+session alongside the staff one. The boundary that matters survives — the
+storefront would still only ever see a customer session, so a storefront bug
+still could not reach the admin — but two things change, and the client should
+decide them rather than us:
+
+1. Compromising a staff sign-in would also yield that person's customer account.
+   Strictly less privileged than the admin, but no longer nothing.
+2. Redeeming a role code would implicitly create a second identity, which §5
+   forbids today. Answering yes here means amending §5 in writing, as
+   [`decisions/0002-access-and-verification.md`](decisions/0002-access-and-verification.md)
+   did for Google sign-in.
+
+**Meanwhile:** a staff member who wants to buy something signs into the shop with
+their own customer account, exactly as any other customer does. Nothing is
+blocked; it is one extra sign-in.
