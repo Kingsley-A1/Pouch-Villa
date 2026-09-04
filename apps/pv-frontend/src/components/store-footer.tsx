@@ -78,13 +78,20 @@ export function StoreFooter() {
  */
 function FooterWordmark() {
   return (
+    // Sized in CSS, not in attributes. `height` is an SVG *length*, and `auto`
+    // is not one — Chromium rejected it with `<svg> attribute height: Expected
+    // length, "auto"` on every page that renders this footer, which is every
+    // page of the shop. That single error is what scored Lighthouse's
+    // `errors-in-console` audit 0 on all four measured URLs.
+    //
+    // `h-auto` is the same intent expressed where it is legal: as CSS, `auto`
+    // resolves against the intrinsic ratio the `viewBox` already declares, so
+    // the wordmark still scales exactly as before.
     <svg
       viewBox="0 0 1000 100"
-      width="100%"
-      height="auto"
       aria-hidden="true"
       focusable="false"
-      className="block opacity-[0.09]"
+      className="block h-auto w-full opacity-[0.09]"
     >
       <text
         x="0"
