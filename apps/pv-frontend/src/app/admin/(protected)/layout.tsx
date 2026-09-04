@@ -25,24 +25,38 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <AdminSearch sections={sections} />
           <div className="flex shrink-0 items-center gap-2 justify-self-end sm:gap-3">
             {/*
-              The monogram alone, and it is now a link to your own profile.
+              The account controls, on desktop only.
 
-              The name and role sat beside it as static text, which took the room
-              two more controls could have used on a phone and led nowhere. An
-              avatar is where people already look for their own account, so it
-              is the door to it — and the accessible name carries the name and
-              role the sighted text used to, so nothing is lost to a screen
-              reader by the words going.
+              Below `lg` they crowded a 360 px bar that already carries a
+              wordmark, a search field and a menu button — the avatar, the words
+              "Sign out" and the hamburger sat in a row with nothing between
+              them, and "Sign out" is a destructive action a thumb should not
+              find by accident next to the menu it was reaching for. Both now
+              live in the drawer, where the storefront already puts the account
+              and where there is room to name them properly.
+
+              The monogram is a link to your own profile. The accessible name
+              carries the name and role that used to sit beside it as static
+              text, so nothing is lost to a screen reader by the words going.
             */}
             <Link
               href="/admin/profile"
               aria-label={`Your profile — ${principal.fullName}, ${principal.role}`}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-(--pv-red) text-xs font-extrabold text-(--pv-on-brand) hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)"
+              className="hidden h-11 w-11 shrink-0 place-items-center rounded-full bg-(--pv-red) text-xs font-extrabold text-(--pv-on-brand) hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red) lg:grid"
             >
               <span aria-hidden="true">{initialsForName(principal.fullName)}</span>
             </Link>
-            <LogoutButton />
-            <AdminMobileNav sections={sections} />
+            <span className="hidden lg:inline">
+              <LogoutButton />
+            </span>
+            <AdminMobileNav
+              sections={sections}
+              account={{
+                name: principal.fullName,
+                role: principal.role,
+                monogram: initialsForName(principal.fullName),
+              }}
+            />
           </div>
         </div>
       </header>
