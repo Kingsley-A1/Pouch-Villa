@@ -39,6 +39,16 @@
   /* Text that sits on a filled brand button, which stays light in both themes. */
   --pv-on-brand: #ffffff;
   --pv-shadow: rgba(23, 23, 23, 0.08);
+
+  /*
+   * Focus and selection are their own tokens rather than a literal mixed from
+   * the brand red, because the storefront repaints the ground *red*: a
+   * translucent red ring on a red page is a ring nobody can see, and §2's
+   * "focus is always visible" is not satisfied by an outline that technically
+   * renders. Each ground below states its own.
+   */
+  --pv-focus: rgba(227, 6, 19, 0.55);
+  --pv-selection: rgba(227, 6, 19, 0.16);
 }
 
 /*
@@ -69,6 +79,9 @@
     --pv-surface-raised: #232020;
     --pv-on-brand: #14100f;
     --pv-shadow: rgba(0, 0, 0, 0.4);
+
+    --pv-focus: rgba(255, 77, 87, 0.7);
+    --pv-selection: rgba(255, 77, 87, 0.24);
   }
 }
 
@@ -92,6 +105,9 @@
   --pv-surface-raised: #232020;
   --pv-on-brand: #14100f;
   --pv-shadow: rgba(0, 0, 0, 0.4);
+
+  --pv-focus: rgba(255, 77, 87, 0.7);
+  --pv-selection: rgba(255, 77, 87, 0.24);
 }
 
 /*
@@ -193,6 +209,11 @@
      a shadow, not a grey haze. */
   --pv-shadow: rgba(51, 0, 3, 0.45);
 
+  /* White, for the same reason `--pv-red` is: it is the only thing that reads as
+     a ring against every one of the three reds this ground is built from. */
+  --pv-focus: rgba(255, 255, 255, 0.85);
+  --pv-selection: rgba(255, 255, 255, 0.3);
+
   /* The footer is the deepest band, so the page has a floor. On paper it was a
      deep red against white; against a red page it needs to go further or it
      merges into the section above it. */
@@ -230,12 +251,38 @@
   color: #ffffff;
 }
 
-* {
-  box-sizing: border-box;
+/*
+ * ---------------------------------------------------------------------------
+ * Element defaults, and why they are in `@layer base`.
+ * ---------------------------------------------------------------------------
+ *
+ * `@import "tailwindcss"` declares `@layer theme, base, components, utilities`
+ * and puts every generated utility in the last of them. Anything written in this
+ * file outside a layer is *unlayered*, and in the cascade unlayered styles beat
+ * every layered style regardless of selector specificity.
+ *
+ * That is the whole reason the shop's category filter rendered a white pill with
+ * white text: the pill asked for `text-(--pv-on-brand)` — one class, specificity
+ * (0,1,0) — and lost to the unlayered `a { color: inherit }` below at (0,0,1),
+ * so it inherited `--pv-ink` (white on the red storefront) instead. The same
+ * mechanism silently swallowed `underline` on the home page's "browse
+ * everything" link, via `a { text-decoration: none }`.
+ *
+ * A reset must be the weakest thing on the page, so these live in `base`, below
+ * `utilities`, where a utility can override them. The component classes further
+ * down (`.button-primary`, `.field`, …) stay unlayered on purpose — those are
+ * deliberate, self-contained styles that should not be half-overridden by a
+ * stray utility, and `.field` in particular documents that it relies on it.
+ */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
 }
-html {
-  scroll-behavior: smooth;
-}
+
 /*
  * Face names come from the self-hosted @fontsource-variable packages imported in
  * layout.tsx. Namespaced --pv-* to avoid colliding with Tailwind v4's own
@@ -255,59 +302,84 @@ html {
   --pv-font-hero: "Playfair Display Variable", "Playfair Display";
   --pv-font-hero-stack: var(--pv-font-hero), "Iowan Old Style", Georgia, "Times New Roman", serif;
 }
-body {
-  margin: 0;
-  background: var(--pv-page);
-  color: var(--pv-ink);
-  font-family:
-    var(--pv-font-sans),
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 1rem;
-  line-height: 1.6;
-  letter-spacing: -0.005em;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--pv-font-display), var(--pv-font-sans), system-ui, sans-serif;
-}
-a {
-  color: inherit;
-  text-decoration: none;
-}
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-button,
-a,
-input,
-select,
-textarea {
-  -webkit-tap-highlight-color: transparent;
-}
-:focus-visible {
-  outline: 3px solid rgba(227, 6, 19, 0.35);
-  outline-offset: 3px;
-}
-::selection {
-  background: rgba(227, 6, 19, 0.16);
+@layer base {
+  body {
+    margin: 0;
+    background: var(--pv-page);
+    color: var(--pv-ink);
+    font-family:
+      var(--pv-font-sans),
+      "Segoe UI",
+      system-ui,
+      -apple-system,
+      sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--pv-font-display), var(--pv-font-sans), system-ui, sans-serif;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Tokenised, because a ring mixed from the brand red is invisible on the
+     storefront's red ground — the one place it matters most. */
+  :focus-visible {
+    outline: 3px solid var(--pv-focus);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--pv-selection);
+  }
 }
 
+/*
+ * The page measure, and the gutter it leaves at each edge.
+ *
+ * The gutter is published as a custom property because full-bleed rows need to
+ * know it. A row that guesses — `-mx-4` against a 0.625rem gutter — hangs 6 px
+ * off both edges of a 360 px screen and gives the whole document a horizontal
+ * scrollbar, which §2 rules out at every width.
+ */
 .container-shell {
+  --pv-gutter: 1rem;
   width: min(100% - 2rem, 1280px);
   margin-inline: auto;
+}
+
+/*
+ * A row that runs out to the container's edge and stops there.
+ *
+ * The padding is on the same element as the negative margin, and on the
+ * scrolling element itself, so the first and last item keep their inset while
+ * the row is scrolled rather than being clipped flush against the edge.
+ */
+.bleed-gutter {
+  margin-inline: calc(var(--pv-gutter, 1rem) * -1);
+  padding-inline: var(--pv-gutter, 1rem);
 }
 .section-space {
   padding-block: clamp(3.75rem, 7vw, 7rem);
@@ -482,7 +554,7 @@ textarea {
 }
 .field:focus {
   border-color: var(--pv-red);
-  box-shadow: 0 0 0 4px rgba(227, 6, 19, 0.09);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pv-focus) 35%, transparent);
   outline: none;
 }
 /* .field sets padding with a shorthand and is declared after Tailwind's utilities,
@@ -620,6 +692,7 @@ nav[aria-label="Breadcrumb"] + .section-space {
 
 @media (max-width: 767px) {
   .container-shell {
+    --pv-gutter: 0.625rem;
     width: min(100% - 1.25rem, 1280px);
   }
   .section-space {

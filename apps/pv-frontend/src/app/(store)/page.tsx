@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import {
   listPublishedProducts,
   listTopCategoryCards,
@@ -87,12 +88,26 @@ export default async function HomePage() {
         needs `style-src-attr 'unsafe-inline'`, which §5 rules out.
       */}
       <section className="hero-space">
-        <div className="container-shell">
-          <h1 className="hero-title rise-in sm:max-w-[34ch]">
+        {/*
+          One centred column, at every width.
+
+          `items-center` rather than `text-center` on the container: it centres
+          each block — the headline, the two category cards, the finder, the
+          button — as a unit, and leaves the text *inside* them alone. A blanket
+          `text-center` would have centred the finder's field labels and the
+          product counts on the cards too, which turns a form into a poster.
+
+          Every child that has a `max-w-*` also needs `w-full`, because
+          `items-center` makes a flex child shrink to its content rather than
+          stretch, and a two-up grid that shrinks to its content is not a
+          two-up grid on a 360 px screen.
+        */}
+        <div className="container-shell flex flex-col items-center">
+          <h1 className="hero-title rise-in text-center sm:max-w-[34ch]">
             {headline.present ? headline.value : DEFAULT_HEADLINE}
           </h1>
           {subtitle.present ? (
-            <p className="rise-in mt-5 max-w-2xl text-lg leading-8 text-(--pv-muted) [animation-delay:90ms]">
+            <p className="rise-in mt-5 max-w-2xl text-center text-lg leading-8 text-(--pv-muted) [animation-delay:90ms]">
               {subtitle.value}
             </p>
           ) : null}
@@ -112,7 +127,7 @@ export default async function HomePage() {
             question this row exists to ask.
           */}
           {categories.length > 0 ? (
-            <ul className="rise-in mt-9 grid grid-cols-2 gap-3 [animation-delay:150ms] sm:max-w-2xl sm:gap-4">
+            <ul className="rise-in mt-9 grid w-full grid-cols-2 gap-3 [animation-delay:150ms] sm:max-w-2xl sm:gap-4">
               {categories.map((category) => (
                 <li key={category.id}>
                   <CategoryCard category={category} href={`/browse/${category.slug}`} />
@@ -129,7 +144,7 @@ export default async function HomePage() {
             shop has none the plain way into the catalogue takes its place rather
             than leaving the hero with no way forward.
           */}
-          <div className="rise-in mt-8 max-w-md [animation-delay:230ms]">
+          <div className="rise-in mt-8 w-full max-w-md [animation-delay:230ms]">
             {devices.length > 0 ? (
               <DeviceFinder devices={devices} />
             ) : (
@@ -139,11 +154,19 @@ export default async function HomePage() {
             )}
           </div>
 
-          <Link
-            href="/shop"
-            className="rise-in mt-4 inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-4 [animation-delay:300ms]"
-          >
+          {/*
+            The way past the finder, for somebody who does not want to answer a
+            question before they can look at anything.
+
+            It was a bare underlined link, and on the red ground it read as a
+            stray line of text rather than a control — the shop's third route in
+            was the least visible thing in the hero. Drawn as the secondary
+            button it is: outlined, so the filled "Show what fits" above it still
+            wins the eye, but unmistakably something to press.
+          */}
+          <Link href="/shop" className="button-secondary rise-in mt-5 [animation-delay:300ms]">
             Or browse everything
+            <ArrowRight aria-hidden="true" size={16} weight="bold" />
           </Link>
         </div>
       </section>
