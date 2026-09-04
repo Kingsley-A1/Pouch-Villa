@@ -476,6 +476,18 @@ fix made all three new integration tests fail with the production error.
 
 ---
 
+### A change of direction, 2026-09-04
+
+The CEO has asked for a red-grounded storefront, two categories rather than six,
+no brand nav, and a Pouch → brand → sub-category drill-down — the shop should
+"feel more pouch-like and alive". Scoped separately in
+[`work-plan-ceo-direction.md`](work-plan-ceo-direction.md), including what it
+breaks, the measured contrast limits on a red ground, and the two things it is
+blocked on: the original logo file, and whether the second step of the drill-down
+is phone brands or accessory brands.
+
+---
+
 ---
 
 ## 6. Risks
