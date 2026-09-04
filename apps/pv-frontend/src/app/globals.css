@@ -236,14 +236,26 @@ textarea {
 .hero-title {
   font-family: var(--pv-font-display), var(--pv-font-sans), system-ui, sans-serif;
   /*
-    Brought down from clamp(2.4rem, 7.6vw, 4.6rem). At the old size the headline
-    filled most of a desktop viewport on its own and pushed the device finder and
-    the first product row below the fold, which is the opposite of what a hero is
-    for. `balance` spreads the words evenly across however many lines the measure
-    allows, so the two lines are of similar length rather than one long and one
-    short — how many lines it takes still depends on the wording the CEO chooses.
+    Sized so the headline lands on two lines, not three.
+
+    `balance` was already here and was not the problem: it evens out the lines
+    the browser has decided on, it does not reduce how many there are. At the
+    previous 1.85rem floor a 360 px screen fit roughly 23 characters per line, so
+    the client's own headline — 43 characters — needed a third line and arrived
+    as "Your Home of / Quality Gadgets / and Accessories".
+
+    The floor is now 1.55rem, which buys about 28 characters a line, so a
+    headline up to roughly 56 characters sets in two. Past that it will still
+    take a third line, because the text is the CEO's to write and the type must
+    not shrink without limit to hide a long one; the `vw` term means it grows
+    back immediately on any wider screen.
+
+    The measure is the viewport on a phone. A `ch` cap here is what forced the
+    break on wider screens, and it is applied at `sm` and up instead — where
+    there is room to spare and an unbroken line of display type would run past
+    the point it stays readable.
   */
-  font-size: clamp(1.85rem, 4.4vw, 3.2rem);
+  font-size: clamp(1.55rem, 4.4vw, 3.2rem);
   line-height: 1.12;
   letter-spacing: -0.032em;
   font-weight: 800;
