@@ -19,7 +19,17 @@ export function CategoryFilter({
   const entries = categories.flatMap((parent) => [parent, ...parent.children]);
 
   return (
-    <nav aria-label="Filter by category" className="-mx-4 mt-6 overflow-x-auto px-4">
+    /*
+      `pb-3` is what separates the pills from the scrollbar underneath them.
+
+      Without it the scroll control sits flush against the bottom edge of the
+      pills — on a desktop trackpad the bar appears over them, and on a phone the
+      overflow shadow reads as a line drawn through the row. The padding is on
+      the scrolling element so it scrolls with the content rather than clipping
+      it, and the section below gets its own margin so the two are not competing
+      for the same gap.
+    */
+    <nav aria-label="Filter by category" className="-mx-4 mt-6 mb-2 overflow-x-auto px-4 pb-3">
       <ul className="flex w-max gap-2">
         <li>
           <FilterLink href="/shop" active={!activeSlug}>

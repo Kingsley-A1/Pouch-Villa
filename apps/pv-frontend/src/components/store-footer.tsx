@@ -15,7 +15,7 @@ export function StoreFooter() {
     <footer className="mt-16 bg-(--pv-footer-bg) text-(--pv-footer-ink)">
       <div className="container-shell grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <BrandMark inverse />
+          <BrandMark />
           <p className="mt-5 max-w-md text-sm leading-6 text-(--pv-footer-soft)">
             Pouches, protection and gadget accessories. Order online and pay by transfer.
           </p>

@@ -28,7 +28,7 @@ export function ProductGrid({
         {/* Dimmed rather than full strength: it is decoration marking an empty
             shelf, not the shop announcing itself a second time on the page. */}
         <span className="opacity-40">
-          <BrandMark inverse compact decorative />
+          <BrandMark compact decorative />
         </span>
         <p className="text-sm text-(--pv-muted)">{emptyMessage}</p>
       </div>
