@@ -10,7 +10,7 @@ import {
   validateProof,
   type ProofFormat,
 } from "../storage/documents";
-import { deleteObject, getObjectBytes, presignRead, presignUpload, putObject } from "../storage/r2";
+import { deleteObject, getObjectBytes, presignUpload, putObject } from "../storage/r2";
 import { recordAudit } from "./audit";
 import { syncPaymentSearchDocumentsForOrder } from "./admin-search-index";
 import { assertWithinRateLimit, recordRateLimitHits } from "./rate-limit";
@@ -224,24 +224,40 @@ export async function finaliseProofUpload(
 }
 
 /**
- * Issues a short-lived signed URL for a staff member to view a proof, and
- * **audits the access**. §8 requires every read of a payment proof to be logged;
- * this is the only function that can produce a readable URL.
+ * Reads a proof's bytes for a staff member, and **audits the access**.
  *
- * The returned URL is the caller's to render and must never be logged, stored or
- * put into an error message.
+ * This replaced a function that minted a short-lived signed R2 URL, and the
+ * difference is where the document ends up.
+ *
+ * A signed URL has to be opened somewhere. Opened in a new tab it enters browser
+ * history and can be copied out and forwarded to anyone for the lifetime of the
+ * signature — a bank statement, loose. Rendered inside our own page it cannot,
+ * because §5's Content Security Policy will not load an image or a frame from
+ * `r2.cloudflarestorage.com`, and widening `img-src` to admit that origin would
+ * be a worse trade than moving the bytes.
+ *
+ * So the bytes come back through here and are served from our own path, where
+ * every request re-derives the reader's authority from their session instead of
+ * trusting possession of a URL.
+ *
+ * §8 says public product media must never be served from an app path. That rule
+ * is about scale: every visitor loads every product image, and a serverless
+ * function is the wrong thing in that path. A payment proof is read by one staff
+ * member, occasionally, at up to 8MB. The reasoning does not carry over, and the
+ * §5 rule that does — private bucket, authorised, audited, never public — is
+ * satisfied more strictly this way, not less.
  */
-export async function getProofViewUrl(
+export async function readProofDocument(
   proofId: string,
   actor: { staffId: string },
-): Promise<{ url: string; contentType: string }> {
+): Promise<{ bytes: Buffer; contentType: string; filename: string }> {
   const proof = await queryOne<{ r2_key: string; content_type: string; order_id: string }>(
     "SELECT r2_key, content_type, order_id FROM payment_proof WHERE id = $1",
     [proofId],
   );
   if (proof === null) throw new ProofNotFoundError();
 
-  const url = await presignRead("private", proof.r2_key);
+  const bytes = await getObjectBytes("private", proof.r2_key);
 
   await withTransaction(async (tx) => {
     await recordAudit(tx, {
@@ -254,7 +270,20 @@ export async function getProofViewUrl(
     });
   });
 
-  return { url, contentType: proof.content_type };
+  return {
+    bytes,
+    contentType: proof.content_type,
+    // Named after the proof, never after the bucket key. A key names the
+    // storage layout and belongs in no filename a person can see.
+    filename: `receipt-${proofId}${extensionFor(proof.content_type)}`,
+  };
+}
+
+function extensionFor(contentType: string): string {
+  if (contentType === "application/pdf") return ".pdf";
+  if (contentType === "image/png") return ".png";
+  if (contentType === "image/webp") return ".webp";
+  return ".jpg";
 }
 
 /**

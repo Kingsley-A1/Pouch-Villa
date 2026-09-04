@@ -1,58 +1,106 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { Eye } from "@phosphor-icons/react";
+import { useActionState, useState } from "react";
+import { DownloadSimple, Eye, X } from "@phosphor-icons/react";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { FormError, FormSuccess, SubmitButton } from "@/components/admin/form-controls";
 import { ProgressiveDisclosure } from "@/components/progressive-disclosure";
-import { acceptProofAction, rejectProofAction, viewProofAction } from "./actions";
+import { acceptProofAction, rejectProofAction } from "./actions";
 
 /**
  * Reviewing one transfer proof.
  *
- * The document is fetched **on demand**, not with the page: every signed URL is
- * an audited access, so minting one for every row on every render would fill the
- * audit trail with reads nobody performed and make the real ones impossible to
- * find (§8).
+ * The document opens **in place**, under the decision it informs. It used to
+ * open in a new tab from a signed R2 URL, which cost the reviewer the queue they
+ * were working through and put a bank statement into browser history where it
+ * could be copied out and forwarded for the lifetime of the signature.
  *
- * The URL that comes back is held in local state and opened in a new tab. It is
- * never written to the DOM as a link the browser might prefetch, never logged,
- * and expires in minutes.
+ * It is still fetched only on demand — every read is audited (§8), so loading
+ * one for every row on every render would fill the audit trail with reads nobody
+ * performed and bury the real ones. Nothing points at the document until
+ * somebody asks to see it.
  */
-export function ProofReview({ proofId, status }: { proofId: string; status: string }) {
+export function ProofReview({
+  proofId,
+  status,
+  contentType,
+}: {
+  proofId: string;
+  status: string;
+  /** Decides whether the document renders as a picture or a framed PDF. */
+  contentType: string;
+}) {
   const [acceptState, accept] = useActionState(acceptProofAction, INITIAL_ACTION_STATE);
   const [rejectState, reject] = useActionState(rejectProofAction, INITIAL_ACTION_STATE);
-  const [viewing, startViewing] = useTransition();
-  const [viewError, setViewError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
   const decided = status !== "pending";
+  const documentUrl = `/api/v1/payments/proofs/${proofId}/document`;
+  const isPdf = contentType === "application/pdf";
 
   return (
     <div className="grid gap-3">
       <button
         type="button"
+        aria-expanded={open}
+        aria-controls={`proof-${proofId}`}
         className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-(--pv-line) bg-(--pv-surface) px-4 text-sm font-bold"
-        disabled={viewing}
-        onClick={() =>
-          startViewing(async () => {
-            setViewError(null);
-            const result = await viewProofAction(proofId);
-            if ("error" in result) {
-              setViewError(result.error);
-              return;
-            }
-            window.open(result.url, "_blank", "noopener,noreferrer");
-          })
-        }
+        onClick={() => setOpen((current) => !current)}
       >
-        <Eye size={17} weight="bold" />
-        {viewing ? "Opening…" : "View receipt"}
+        {open ? <X size={17} weight="bold" /> : <Eye size={17} weight="bold" />}
+        {open ? "Close receipt" : "View receipt"}
       </button>
-      {viewError ? (
-        <p className="text-sm text-(--pv-danger)" role="alert">
-          {viewError}
-        </p>
+
+      {/*
+        Mounted only once opened, so the request that fetches the document — and
+        the audit row it writes — happens when a person actually looks.
+      */}
+      {open ? (
+        <div
+          id={`proof-${proofId}`}
+          className="overflow-hidden rounded-xl border border-(--pv-line) bg-(--pv-wash)"
+        >
+          {isPdf ? (
+            <iframe
+              src={documentUrl}
+              title="Payment receipt"
+              // Tall enough to read a transfer confirmation without scrolling
+              // inside a frame inside a page, which on a phone is unusable.
+              className="h-[28rem] w-full bg-white"
+            />
+          ) : (
+            /*
+              A plain <img>, not next/image: the optimiser would fetch and cache
+              a financial document through its own pipeline, and every render
+              must instead be an authorised, audited read of the original.
+            */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={documentUrl}
+              alt="The receipt uploaded for this payment"
+              className="max-h-[28rem] w-full bg-white object-contain"
+            />
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-(--pv-line) p-2">
+            <a
+              href={`${documentUrl}?download=1`}
+              download
+              className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-bold text-(--pv-ink) hover:text-(--pv-red)"
+            >
+              <DownloadSimple size={16} weight="bold" />
+              Download
+            </a>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="inline-flex min-h-11 items-center px-2 text-sm font-bold text-(--pv-muted) hover:text-(--pv-ink)"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {decided ? (

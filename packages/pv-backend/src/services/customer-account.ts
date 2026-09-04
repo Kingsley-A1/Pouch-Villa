@@ -244,10 +244,20 @@ export async function loginCustomerWithGoogle(
  * together or not at all. `consented_at` records that the box was ticked and
  * when — the distinction NDPR draws between a default and a silent creation.
  */
+/**
+ * Returns the account this order belongs to, and says whether it had to make it.
+ *
+ * `created` is not bookkeeping. It is the only safe basis for signing the buyer
+ * in afterwards: an account this checkout brought into existence had no owner a
+ * moment ago, so nobody is being displaced. Matching an **existing** account by
+ * email and issuing a session would hand a stranger somebody else's order
+ * history for the price of typing their address, which is why the two cases must
+ * stay distinguishable to the caller.
+ */
 export async function findOrCreateCustomerForOrder(
   tx: Queryable,
   input: { email: string; fullName: string; phone: string },
-): Promise<string> {
+): Promise<{ customerId: string; created: boolean }> {
   const email = input.email.trim().toLowerCase();
 
   const existing = await tx.query(
@@ -267,7 +277,7 @@ export async function findOrCreateCustomerForOrder(
       [found.id, input.phone],
     );
     await syncAdminSearchDocument(tx, "customer", found.id);
-    return found.id;
+    return { customerId: found.id, created: false };
   }
 
   const created = await tx.query(
@@ -278,7 +288,7 @@ export async function findOrCreateCustomerForOrder(
   );
   const customerId = (created.rows[0] as { id: string }).id;
   await syncAdminSearchDocument(tx, "customer", customerId);
-  return customerId;
+  return { customerId, created: true };
 }
 
 // ---------------------------------------------------------------------------

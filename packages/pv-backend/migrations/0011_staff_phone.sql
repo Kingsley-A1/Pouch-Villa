@@ -8,9 +8,9 @@
 --
 -- Stored twice, exactly as `customer` does it. `phone` keeps what was typed so
 -- it can be shown back to the person who typed it; `phone_normalised` is the
--- E.164 form the application compares and searches on, because +2348012345678,
--- 08012345678 and 0801 234 5678 are one number and only one of those shapes can
--- be matched reliably.
+-- E.164 form the application compares and searches on. The same number can be
+-- written with a country code, with a leading zero, or with spaces between the
+-- groups, and only one of those shapes can be matched reliably.
 --
 -- Nullable, and no default. §0 rule 2: an account with no number recorded has no
 -- number, and must not render an empty string where a phone number belongs.

@@ -6,6 +6,7 @@ import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import type { AdminDevice } from "@pv/backend/services/devices";
 import type { ActionState } from "@/lib/action-state";
+import { CheckCircle, Plus } from "@phosphor-icons/react";
 import { LoadingLine } from "@/components/loading-line";
 import { ProductForm } from "../product-form";
 import type { PickedFile } from "../media-picker";
@@ -43,25 +44,26 @@ export function CreateProduct({
   const router = useRouter();
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
-  const [failures, setFailures] = useState<string[]>([]);
   /**
-   * Set the moment the row exists, and never cleared.
+   * The finished result, set once and only once the uploads have run.
    *
-   * If images fail we stay on this screen to say so — but the product has
-   * already been created, and leaving the form submittable would make the
-   * obvious next action ("press it again") silently create a duplicate. Once
-   * this is set the form is replaced by the outcome.
+   * One piece of state rather than three, because the three had an order they
+   * had to be written in and no way to express it. In particular the id was set
+   * the moment the row existed — before the images were sent — so anything
+   * keyed on "was it created" was briefly true while uploads were still going.
+   *
+   * Until this is set the form is on screen. After it, the form is gone: the
+   * product exists, and leaving it submittable would make the obvious next
+   * action ("press it again") quietly create a duplicate.
    */
-  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<{ productId: string; failures: string[] } | null>(null);
 
   async function createThenUpload(prev: ActionState, formData: FormData): Promise<CreateResult> {
     const created = await action(prev, formData);
     if (created.productId === undefined) return created;
 
     const productId = created.productId;
-    setCreatedId(productId);
     const failed: string[] = [];
-    setFailures([]);
     setUploading({ done: 0, total: files.length });
 
     // Sequential, not parallel: five concurrent multi-megabyte PUTs on a mobile
@@ -78,23 +80,86 @@ export function CreateProduct({
 
     setUploading(null);
 
+    /**
+     * Written after the uploads, whether they worked or not.
+     *
+     * The confirmation below replaces the form. It used to redirect straight to
+     * the edit screen instead, which answered the wrong question: somebody who
+     * has just filled in a product wants to know it saved and to start the next
+     * one, and instead landed on a screen that looks like the form they were on
+     * and had to work out whether they were creating or editing. Uploading a
+     * batch meant navigating back for every single one.
+     */
+    setOutcome({ productId, failures: failed });
+
     if (failed.length > 0) {
-      setFailures(failed);
       return {
         error: `The product was created, but ${failed.length} image${
           failed.length === 1 ? "" : "s"
         } did not upload. Add ${failed.length === 1 ? "it" : "them"} again on the edit screen.`,
       };
     }
-
-    router.push(`/admin/products/${productId}/edit`);
     return { error: null, message: "Product created." };
+  }
+
+  /** Clears everything this screen holds, so the next product starts empty. */
+  function startAnother() {
+    for (const picked of files) URL.revokeObjectURL(picked.previewUrl);
+    setFiles([]);
+    setOutcome(null);
+    // Re-runs the page's data loading, so a brand or category added since this
+    // screen opened is in the next product's lists.
+    router.refresh();
+  }
+
+  // Everything worked. The form is replaced rather than left on screen: it has
+  // already done its job, and the next thing this person does is either open
+  // what they made or make another.
+  if (outcome !== null && outcome.failures.length === 0) {
+    return (
+      <div className="panel-bracket grid gap-4 p-5 text-center">
+        <CheckCircle
+          size={44}
+          weight="fill"
+          aria-hidden="true"
+          className="justify-self-center text-(--pv-success)"
+        />
+        {/* `role="status"` so the outcome is announced, not just drawn. */}
+        <div role="status">
+          <h2 className="text-lg font-bold">Product created</h2>
+          <p className="mt-1 text-sm text-(--pv-muted)">
+            Saved as a <strong>draft</strong>. Nothing is public until you publish it, and you can
+            add prices, stock and more pictures on the product itself.
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button type="button" className="button-primary" onClick={startAnother}>
+            <Plus size={17} weight="bold" aria-hidden="true" />
+            Add another product
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => router.push(`/admin/products/${outcome.productId}/edit`)}
+          >
+            Open this product
+          </button>
+          <button
+            type="button"
+            className="button-ghost"
+            onClick={() => router.push("/admin/products")}
+          >
+            All products
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // The product exists but some images did not make it. Re-submitting would
   // create a second product, so the form is gone and the only way on is the
   // edit screen, where the missing images can be added to the row that exists.
-  if (createdId !== null && failures.length > 0) {
+  if (outcome !== null) {
     return (
       <div className="panel-bracket grid gap-4 p-5">
         <h2 className="text-lg font-bold">Product created, but some images did not upload</h2>
@@ -102,7 +167,7 @@ export function CreateProduct({
           The product was saved as a draft. Nothing is public yet. These did not upload:
         </p>
         <ul className="grid gap-1 text-sm text-(--pv-danger)">
-          {failures.map((reason) => (
+          {outcome.failures.map((reason) => (
             <li key={reason}>{reason}</li>
           ))}
         </ul>
@@ -112,7 +177,7 @@ export function CreateProduct({
         <button
           type="button"
           className="button-primary justify-self-start"
-          onClick={() => router.push(`/admin/products/${createdId}/edit`)}
+          onClick={() => router.push(`/admin/products/${outcome.productId}/edit`)}
         >
           Open the product
         </button>

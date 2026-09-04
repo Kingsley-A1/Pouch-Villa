@@ -178,24 +178,24 @@ export function CheckoutForm({
                 )}
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="label" htmlFor="deliveryLga">
-                    LGA
-                  </label>
-                  <input id="deliveryLga" name="deliveryLga" className="field" maxLength={120} />
-                </div>
-                <div>
-                  <label className="label" htmlFor="deliveryLandmark">
-                    Nearest landmark
-                  </label>
-                  <input
-                    id="deliveryLandmark"
-                    name="deliveryLandmark"
-                    className="field"
-                    maxLength={200}
-                  />
-                </div>
+              {/*
+                No LGA field. It asked the buyer to type something the shop
+                already knows — every delivery area belongs to one, and the
+                option above says which in brackets. Two answers to one question
+                can disagree, and the typed one was the guess. The order still
+                records an LGA; it is now taken from the area that was chosen.
+              */}
+              <div>
+                <label className="label" htmlFor="deliveryLandmark">
+                  Nearest landmark
+                </label>
+                <input
+                  id="deliveryLandmark"
+                  name="deliveryLandmark"
+                  className="field"
+                  maxLength={200}
+                />
+                <p className="help mt-1">Optional. A shop or junction the rider will recognise.</p>
               </div>
 
               <div>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, UploadSimple, WarningCircle } from "@phosphor-icons/react";
+import Link from "next/link";
 import { describeUploadFailure } from "@/lib/upload-error";
 
 /**
@@ -27,13 +28,19 @@ const MAX_BYTES = 8 * 1024 * 1024;
 
 type Phase = "idle" | "requesting" | "uploading" | "checking" | "done" | "error";
 
+/** Long enough to read the confirmation, short enough not to feel stuck. */
+const LEAVE_AFTER_MS = 4000;
+
 export function ProofUpload({
   orderId,
   reference,
+  signedIn,
   existingProofs,
 }: {
   orderId: string;
   reference: string;
+  /** Decides where a finished upload goes: the account, or the shop. */
+  signedIn: boolean;
   existingProofs: ExistingProof[];
 }) {
   const router = useRouter();
@@ -42,6 +49,26 @@ export function ProofUpload({
   const [message, setMessage] = useState<string | null>(null);
 
   const pending = phase === "requesting" || phase === "uploading" || phase === "checking";
+  const destination = signedIn ? "/account" : "/";
+
+  /**
+   * A finished upload leaves this page.
+   *
+   * It used to stay, with a line of green text under a button that still said
+   * "Upload another" — so the one question the buyer had, *did that work*, was
+   * answered in the same weight as the hint above it, and the obvious next
+   * action was to send the receipt again. Now the form is replaced by the
+   * confirmation and the page moves on by itself.
+   *
+   * The delay is what makes it a confirmation rather than a flash. The button
+   * below is there throughout for anyone who does not want to wait, and the
+   * timer is cleared on unmount so a push never lands after they have gone.
+   */
+  useEffect(() => {
+    if (phase !== "done") return;
+    const timer = window.setTimeout(() => router.push(destination), LEAVE_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, destination, router]);
 
   async function upload(file: File) {
     if (file.size > MAX_BYTES) {
@@ -86,12 +113,33 @@ export function ProofUpload({
       }
 
       setPhase("done");
-      setMessage("Received. We will confirm your payment shortly.");
-      router.refresh();
+      setMessage(null);
     } catch (error) {
       setPhase("error");
       setMessage(describeUploadFailure(error));
     }
+  }
+
+  if (phase === "done") {
+    return (
+      <div className="card-surface grid gap-3 p-5 text-center" role="status">
+        <CheckCircle
+          size={44}
+          weight="fill"
+          aria-hidden="true"
+          className="justify-self-center text-(--pv-success)"
+        />
+        <h2 className="text-lg font-bold">Receipt received</h2>
+        <p className="text-sm text-(--pv-muted)">
+          We will check it against the transfer and confirm {reference} shortly. You will get an
+          email either way.
+        </p>
+        <Link href={destination} className="button-primary mt-1 justify-self-center">
+          {signedIn ? "Go to your account" : "Back to the shop"}
+        </Link>
+        <p className="help">Taking you there in a moment.</p>
+      </div>
+    );
   }
 
   return (

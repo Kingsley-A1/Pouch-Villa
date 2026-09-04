@@ -113,6 +113,17 @@ export type PlacedOrder = {
   totalKobo: Kobo;
   /** True where this request replayed an order that already existed. */
   replayed: boolean;
+  /**
+   * The account **this checkout created**, and only that. Null where the buyer
+   * was already signed in, declined an account, or matched one that already
+   * existed.
+   *
+   * The caller signs the buyer into it. That is safe for exactly this case and
+   * no other: an account that did not exist a moment ago has no owner to
+   * displace, whereas matching an existing address and issuing a session would
+   * hand over a stranger's order history for the price of typing their email.
+   */
+  newCustomerId: string | null;
 };
 
 type CartLineForOrder = {
@@ -195,6 +206,9 @@ export async function placeOrder(
         reference: order.reference,
         totalKobo: kobo(Number(order.total_kobo)),
         replayed: true,
+        // A replay creates nothing. If the first attempt made an account, the
+        // buyer already has the session it issued.
+        newCustomerId: null,
       };
     }
 
@@ -249,16 +263,30 @@ export async function placeOrder(
     // ---------------------------------------------------------------------
     let deliveryFeeKobo = kobo(0);
     let zoneId: string | null = null;
+    /**
+     * Taken from the zone, not from the buyer.
+     *
+     * The checkout used to have an LGA text box directly under a picker whose
+     * options already name their LGA. Two answers to one question, and the typed
+     * one was a guess that could contradict the area the fee was charged for.
+     * A caller may still send one — the API is a contract and a POS may know
+     * better — but where it does not, the area decides.
+     */
+    let deliveryLga = input.deliveryLga?.trim() || null;
 
     if (input.fulfilment === "delivery" && input.deliveryZoneId) {
       const zoneRows = await tx.query(
-        "SELECT id, fee_kobo::STRING AS fee_kobo FROM delivery_zone WHERE id = $1 AND deleted_at IS NULL AND is_active",
+        `SELECT id, lga, fee_kobo::STRING AS fee_kobo
+           FROM delivery_zone
+          WHERE id = $1 AND deleted_at IS NULL AND is_active`,
         [input.deliveryZoneId],
       );
-      const zone = zoneRows.rows[0] as { id: string; fee_kobo: string } | undefined;
+      const zone = zoneRows.rows[0] as
+        { id: string; lga: string | null; fee_kobo: string } | undefined;
       if (zone !== undefined) {
         zoneId = zone.id;
         deliveryFeeKobo = kobo(Number(zone.fee_kobo));
+        deliveryLga = deliveryLga ?? zone.lga;
       }
     }
 
@@ -268,12 +296,16 @@ export async function placeOrder(
     // The account, where the checkbox was ticked or the shopper was signed in.
     // ---------------------------------------------------------------------
     let customerId = input.customerId ?? null;
+    let newCustomerId: string | null = null;
     if (customerId === null && input.createAccount) {
-      customerId = await findOrCreateCustomerForOrder(tx, {
+      const account = await findOrCreateCustomerForOrder(tx, {
         email: input.contactEmail,
         fullName: input.contactName,
         phone,
       });
+      customerId = account.customerId;
+      // Only a genuinely new account is offered to the caller to sign into.
+      if (account.created) newCustomerId = account.customerId;
     }
 
     // ---------------------------------------------------------------------
@@ -301,7 +333,7 @@ export async function placeOrder(
           phone,
           input.fulfilment,
           zoneId,
-          input.fulfilment === "delivery" ? (input.deliveryLga ?? null) : null,
+          input.fulfilment === "delivery" ? deliveryLga : null,
           input.fulfilment === "delivery" ? (input.deliveryAddress ?? null) : null,
           input.fulfilment === "delivery" ? (input.deliveryLandmark ?? null) : null,
           subtotalKobo,
@@ -395,7 +427,7 @@ export async function placeOrder(
     const paymentId = (payment.rows[0] as { id: string }).id;
     await syncAdminSearchDocument(tx, "payment", paymentId);
 
-    return { orderId, reference, totalKobo, replayed: false };
+    return { orderId, reference, totalKobo, replayed: false, newCustomerId };
   });
 }
 

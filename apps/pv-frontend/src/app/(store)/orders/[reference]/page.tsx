@@ -13,14 +13,19 @@ import { AwaitingConfirmation } from "@/components/awaiting-confirmation";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { hasOrderAccess } from "@/server/order-access";
 import { ProofUpload } from "./proof-upload";
+import { TransferDetails } from "./transfer-details";
 
 export const metadata: Metadata = { title: "Your order" };
 export const dynamic = "force-dynamic";
 
-type Params = { params: Promise<{ reference: string }> };
+type Params = {
+  params: Promise<{ reference: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function OrderPage({ params }: Params) {
+export default async function OrderPage({ params, searchParams }: Params) {
   const { reference: raw } = await params;
+  const newAccount = (await searchParams).account === "new";
   const reference = normaliseOrderReference(decodeURIComponent(raw));
   if (reference === null) notFound();
 
@@ -58,6 +63,27 @@ export default async function OrderPage({ params }: Params) {
           <div>
             <p className="eyebrow">Order {order.reference}</p>
             <h1 className="section-title mt-1">{describeStatus(order.status)}</h1>
+
+            {/*
+              Said here rather than by redirecting to the account itself. The
+              next thing this person has to do is make a transfer, and the
+              details for it are on this page — a profile screen in between
+              would be a worse welcome than none.
+
+              Rendered on the query the checkout redirect set, and only for
+              somebody who is actually signed in, so a shared or bookmarked link
+              cannot congratulate a stranger on an account they do not have.
+            */}
+            {newAccount && customer !== null ? (
+              <p className="mt-4 rounded-2xl border border-(--pv-line) bg-(--pv-cream) p-4 text-sm">
+                <span className="font-bold">Your Pouch Villa account is ready.</span> You are signed
+                in as {customer.email}. Everything you order is kept in{" "}
+                <Link href="/account" className="font-bold text-(--pv-red) underline">
+                  your account
+                </Link>
+                .
+              </p>
+            ) : null}
 
             <ol className="mt-8 grid gap-3">
               {order.timeline.map((entry, index) => {
@@ -129,51 +155,36 @@ export default async function OrderPage({ params }: Params) {
           </div>
 
           <aside className="grid gap-5 lg:sticky lg:top-24">
+            {/*
+              §0 rule 2 and §4: where the bank details are not configured we say
+              so, rather than rendering an empty box where an account number
+              should be. An invented placeholder that reaches a customer is
+              worse than an honest blank.
+            */}
             {awaitingPayment ? (
-              <div className="card-surface p-5">
-                <h2 className="text-lg font-bold">Pay by transfer</h2>
-
-                {/*
-                  §0 rule 2 and §4: where the bank details are not configured we
-                  say so, rather than rendering an empty box where an account
-                  number should be. An invented placeholder that reaches a
-                  customer is worse than an honest blank.
-                */}
-                {bankKnown ? (
-                  <>
-                    <dl className="mt-3 grid gap-2 text-sm">
-                      <div>
-                        <dt className="help">Account name</dt>
-                        <dd className="font-semibold">{accountName.value}</dd>
-                      </div>
-                      <div>
-                        <dt className="help">Account number</dt>
-                        <dd className="font-mono text-lg font-bold tracking-wider tabular-nums">
-                          {accountNumber.value}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="help">Bank</dt>
-                        <dd className="font-semibold">{bankName.value}</dd>
-                      </div>
-                    </dl>
-                    <p className="mt-3 rounded-xl bg-(--pv-wash) p-3 text-sm">
-                      Use <strong>{order.reference}</strong> as the transfer narration, then upload
-                      your receipt below.
-                    </p>
-                  </>
-                ) : (
+              bankKnown ? (
+                <TransferDetails
+                  accountName={accountName.value}
+                  accountNumber={accountNumber.value}
+                  bankName={bankName.value}
+                  amountLabel={formatKobo(order.totalKobo)}
+                  reference={order.reference}
+                />
+              ) : (
+                <div className="card-surface p-5">
+                  <h2 className="text-lg font-bold">Pay by transfer</h2>
                   <div className="mt-3">
                     <AwaitingConfirmation what="account for transfers" />
                   </div>
-                )}
-              </div>
+                </div>
+              )
             ) : null}
 
             {awaitingPayment ? (
               <ProofUpload
                 orderId={order.id}
                 reference={order.reference}
+                signedIn={customer !== null}
                 existingProofs={proofs.map((proof) => ({
                   id: proof.id,
                   status: proof.status,

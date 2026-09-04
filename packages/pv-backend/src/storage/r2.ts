@@ -65,7 +65,6 @@ export function isStorageConfigured(): boolean {
 }
 
 const UPLOAD_URL_TTL_SECONDS = 5 * 60;
-const READ_URL_TTL_SECONDS = 5 * 60;
 
 /**
  * A short-lived URL the browser PUTs bytes to directly. The upload does not pass
@@ -89,13 +88,6 @@ export async function presignUpload(
     { expiresIn: UPLOAD_URL_TTL_SECONDS },
   );
   return { url, key, expiresIn: UPLOAD_URL_TTL_SECONDS };
-}
-
-/** Payment proofs are read only through one of these, and every issue is audited. */
-export async function presignRead(bucket: Bucket, key: string) {
-  return getSignedUrl(getR2(), new GetObjectCommand({ Bucket: bucketName(bucket), Key: key }), {
-    expiresIn: READ_URL_TTL_SECONDS,
-  });
 }
 
 export async function getObjectBytes(bucket: Bucket, key: string): Promise<Buffer> {

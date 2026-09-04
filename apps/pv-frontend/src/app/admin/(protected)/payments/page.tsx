@@ -87,7 +87,11 @@ export default async function PaymentsAdminPage({ searchParams }: Params) {
               </p>
 
               <div className="mt-4">
-                <ProofReview proofId={entry.proofId} status={entry.status} />
+                <ProofReview
+                  proofId={entry.proofId}
+                  status={entry.status}
+                  contentType={entry.contentType}
+                />
               </div>
             </li>
           ))}
