@@ -79,15 +79,23 @@ jobs:
     name: Performance budgets
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # Reports rather than gates, for now. The app does not yet meet three of the
-    # four budgets in AGENTS.md §2 — measured 2026-09-03 on the home page:
-    # LCP 4.2s against 2.5s, total blocking time 1.2s against 200ms, and 180KB
-    # of script against 120KB. Making this a required check before the work that
-    # fixes those would put main permanently red, which teaches everyone to
-    # ignore CI. The thresholds below are the real ones and are not to be
-    # loosened; the numbers are collected on every run so the trend is visible,
-    # and this flag comes off when the budgets are met. See work-plan.md §4.
-    continue-on-error: true
+    # The budget *measurement* reports rather than gates, for now. The app does
+    # not yet meet three of the four budgets in AGENTS.md §2 — measured
+    # 2026-09-03 on the home page: LCP 4.2s against 2.5s, total blocking time
+    # 1.2s against 200ms, and 180KB of script against 120KB. Making that a
+    # required check before the work that fixes it would put main permanently
+    # red, which teaches everyone to ignore CI. The thresholds in
+    # lighthouserc.json are the real ones and are not to be loosened; the
+    # numbers are collected on every run so the trend is visible, and the flag
+    # comes off the Lighthouse step when the budgets are met. See work-plan.md §4.
+    #
+    # `continue-on-error` is on that step alone, not on the job. It used to be on
+    # the job, and that is how a broken migration hid: this is the only job that
+    # runs `db:migrate` against a real CockroachDB, and it was also the only job
+    # permitted to fail. Since 0008_admin_search.sql landed on 2026-09-01 it died
+    # at Migrate on every run, reached Lighthouse zero times, and still reported
+    # green — across 60 commits on main. A step that cannot measure a budget is
+    # not the same as a budget that is not met.
 
     steps:
       - uses: actions/checkout@v5
@@ -122,8 +130,18 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Twice, deliberately. A migration file is not atomic — the runner sends one
+      # statement per round trip, because CockroachDB rejects a write to a table
+      # a schema change in the same transaction is still adding — so a failure
+      # part-way through a file replays the statements before it on the next run.
+      # The second pass is what proves every statement survives that: it must
+      # apply nothing and report the whole set already recorded.
       - name: Migrate
-        run: pnpm run db:migrate
+        run: |
+          pnpm run db:migrate
+          echo "--- second pass: every statement must be safe to replay ---"
+          pnpm run db:migrate | tee second-pass.log
+          grep -q "Nothing to apply" second-pass.log
         env:
           DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
 
@@ -147,6 +165,7 @@ jobs:
           done
           curl -fsS -o /dev/null http://127.0.0.1:3131/track
           npx lhci autorun
+        continue-on-error: true
         env:
           DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
           AUTH_SECRET: ci-only-never-used-to-sign-anything-real
