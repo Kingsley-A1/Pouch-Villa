@@ -1,219 +1,188 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DeviceMobile, MagnifyingGlass } from "@phosphor-icons/react";
-import { filterDevices, type DeviceLike } from "@pv/backend/domain/device-match";
-import { cn } from "@/lib/utils";
+import { DeviceMobile } from "@phosphor-icons/react";
+import type { DeviceLike } from "@pv/backend/domain/device-match";
 
 export type FinderDevice = DeviceLike & { id: string };
 
-const MAX_SUGGESTIONS = 8;
-
 /**
- * "Which phone have you got?" — type the model, get the pouches that fit it.
+ * "Which phone have you got?" — pick the brand, pick the model, get what fits.
  *
- * This replaces a rail of every device the shop stocks for, which scrolled
- * sideways on a phone and hid every model past the right edge with nothing on
- * screen to say they were there. A rail also gets worse with every model staff
- * add; a text box gets better, because more stock means more chance the thing
- * someone types is in the list.
+ * This replaces a typeahead. The typeahead worked, and it was still the wrong
+ * shape: it looked exactly like the search box in the header, so it read as
+ * "search the shop" rather than "tell us your phone", and it asked the shopper
+ * to supply the answer before it would help. Nobody types a model name they are
+ * not already sure the shop stocks.
  *
- * Built as a real combobox rather than a `<select>`: a native select on Android
- * opens a full-screen list with no way to type, which is the one interaction
- * that matters here. The list is filtered in memory — it is one small row per
- * model, loaded with the page — so there is no request per keystroke and the
- * suggestions keep up on a slow connection.
+ * Two selects state the question instead. The brand list says which makes are
+ * covered at a glance, and choosing one narrows the models to that brand's, so
+ * the second list is short enough to read. It is also the pattern every
+ * accessory counter uses out loud — "what phone? which model?" — which is the
+ * point: the control should match the conversation.
  *
- * Submitting navigates to the shop's existing `device` filter, so every result
- * has a URL a shopper can share, bookmark, or reach with the back button.
+ * Native `<select>` rather than a custom listbox. On Android it opens the OS
+ * picker: full-screen rows, real touch targets, and the system's own
+ * accessibility settings. That is the wrong trade when a list runs to hundreds
+ * and typing is the only way through, which is why the typeahead existed — but
+ * grouped by brand the list is short, so the trade goes the other way.
+ *
+ * The whole thing is a real GET form pointed at the shop, so every result has a
+ * URL a shopper can share, bookmark or reach with the back button — and it still
+ * works with no JavaScript at all. That is why the model list holds every device
+ * grouped by brand rather than starting empty: the brand select is an accelerant,
+ * never the gate. A disabled control that only a script can enable is a dead
+ * control on a phone that dropped the bundle.
  */
 export function DeviceFinder({
   devices,
   activeSlug = "",
   categorySlug = "",
-  autoFocus = false,
 }: {
   devices: readonly FinderDevice[];
   activeSlug?: string;
   categorySlug?: string;
-  autoFocus?: boolean;
 }) {
   const router = useRouter();
-  const listId = useId();
-  const field = useRef<HTMLInputElement>(null);
+  const fieldId = useId();
 
   const active = devices.find((device) => device.slug === activeSlug) ?? null;
-  const [term, setTerm] = useState(active === null ? "" : `${active.brandName} ${active.name}`);
-  const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
 
-  const suggestions = useMemo(
-    () => filterDevices(term, devices).slice(0, MAX_SUGGESTIONS),
-    [term, devices],
-  );
+  const [choice, setChoice] = useState(() => ({
+    brand: active?.brandName ?? "",
+    slug: active?.slug ?? "",
+  }));
+  /**
+   * Navigating between two devices re-renders this component rather than
+   * remounting it, so state seeded from the prop would keep showing the model
+   * the shopper filtered by *last*. Resetting during render — React's documented
+   * way to adjust state to a changed prop — is what keeps the selects agreeing
+   * with the URL.
+   */
+  const [renderedFor, setRenderedFor] = useState(activeSlug);
+  if (renderedFor !== activeSlug) {
+    setRenderedFor(activeSlug);
+    setChoice({ brand: active?.brandName ?? "", slug: active?.slug ?? "" });
+  }
+
+  /**
+   * Devices grouped by brand, in the order the catalogue returns them — the sort
+   * order staff set in the admin, not alphabetical. A shop that sells mostly
+   * Samsung should be able to put Samsung first.
+   */
+  const byBrand = useMemo(() => {
+    const groups = new Map<string, FinderDevice[]>();
+    for (const device of devices) {
+      const existing = groups.get(device.brandName);
+      if (existing === undefined) groups.set(device.brandName, [device]);
+      else existing.push(device);
+    }
+    return [...groups];
+  }, [devices]);
 
   if (devices.length === 0) return null;
 
-  const go = (device: FinderDevice) => {
-    const query = new URLSearchParams();
-    if (categorySlug) query.set("category", categorySlug);
-    query.set("device", device.slug);
-    setTerm(`${device.brandName} ${device.name}`);
-    setOpen(false);
-    field.current?.blur();
-    router.push(`/shop?${query.toString()}`);
-  };
+  const shownGroups =
+    choice.brand === "" ? byBrand : byBrand.filter(([brandName]) => brandName === choice.brand);
 
-  const clear = () => {
-    setTerm("");
-    setOpen(false);
+  const shopHref = (slug: string) => {
     const query = new URLSearchParams();
     if (categorySlug) query.set("category", categorySlug);
+    if (slug) query.set("device", slug);
     const suffix = query.toString();
-    router.push(suffix ? `/shop?${suffix}` : "/shop");
+    return suffix ? `/shop?${suffix}` : "/shop";
   };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      if (suggestions.length === 0) return;
-      setOpen(true);
-      setHighlighted((current) => {
-        const step = event.key === "ArrowDown" ? 1 : -1;
-        return (current + step + suggestions.length) % suggestions.length;
-      });
-      return;
-    }
-    if (event.key === "Enter") {
-      // Only ever navigates to a device that is really in the list. Guessing
-      // from free text would send someone to an empty shop and call it a result.
-      const choice = suggestions[highlighted] ?? suggestions[0];
-      if (choice !== undefined) {
-        event.preventDefault();
-        go(choice);
-      }
-      return;
-    }
-    if (event.key === "Escape") setOpen(false);
-  };
-
-  const expanded = open && suggestions.length > 0;
 
   return (
-    <div className="relative">
-      <label htmlFor={`${listId}-field`} className="label">
-        Which phone have you got?
-      </label>
-      {/*
-        ARIA 1.2 puts `combobox` on the input itself rather than on a wrapper —
-        the earlier 1.0 pattern, which wrapped the field in the role, is what
-        makes a screen reader announce the group instead of the text box.
-      */}
-      <div className="relative">
-        <DeviceMobile
-          size={20}
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-(--pv-muted)"
-        />
-        <input
-          ref={field}
-          id={`${listId}-field`}
-          type="text"
-          role="combobox"
-          value={term}
-          autoFocus={autoFocus}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          enterKeyHint="search"
-          aria-expanded={expanded}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={expanded ? `${listId}-option-${highlighted}` : undefined}
-          aria-describedby={`${listId}-hint`}
-          placeholder="Search your model, e.g. iPhone 13"
-          className="field field-icon min-h-11 w-full"
-          onChange={(event) => {
-            setTerm(event.target.value);
-            setHighlighted(0);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          // A blur that fires before the click lands would close the list out
-          // from under the tap, so the close waits a frame for the choice.
-          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
-          onKeyDown={onKeyDown}
-        />
-      </div>
-
-      <p id={`${listId}-hint`} className="help mt-1.5">
-        {active === null
-          ? "Pick your phone and we will show only what fits it."
-          : `Showing what fits your ${active.brandName} ${active.name}.`}
+    <form
+      action="/shop"
+      method="get"
+      // Client-side navigation where there is JavaScript; the plain GET above is
+      // what happens where there is not. Both land on the same URL.
+      onSubmit={(event) => {
+        event.preventDefault();
+        router.push(shopHref(choice.slug));
+      }}
+      className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
+    >
+      <p className="flex items-center gap-2 text-sm font-bold">
+        <DeviceMobile size={20} weight="fill" aria-hidden="true" className="text-(--pv-red)" />
+        Find what fits your phone
       </p>
 
-      {active !== null ? (
-        <button type="button" onClick={clear} className="mt-2 text-sm font-bold text-(--pv-red)">
-          Show every device
-        </button>
-      ) : null}
+      {/* The category a shopper was already browsing is carried through, so the
+          finder narrows what they were looking at rather than resetting it. */}
+      {categorySlug ? <input type="hidden" name="category" value={categorySlug} /> : null}
 
-      {/*
-        Announced to assistive technology whether or not it is visible, so a
-        screen-reader user hears the count change as they type rather than only
-        discovering an empty list on arrow-down.
-      */}
-      <span aria-live="polite" className="sr-only">
-        {expanded
-          ? `${suggestions.length} ${suggestions.length === 1 ? "device" : "devices"} available`
-          : ""}
-      </span>
-
-      <ul
-        id={listId}
-        role="listbox"
-        aria-label="Matching devices"
-        hidden={!expanded}
-        className="absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-2xl border border-(--pv-line) bg-(--pv-surface) py-1.5 shadow-(--pv-shadow) shadow-lg"
-      >
-        {/*
-          `role="option"` sits on the <li> itself, not on a button inside it: a
-          listbox must contain options as its own children, and wrapping each in
-          a focusable control also breaks the pattern — focus stays in the text
-          box throughout and `aria-activedescendant` says which option is current.
-        */}
-        {suggestions.map((device, index) => (
-          <li
-            key={device.id}
-            id={`${listId}-option-${index}`}
-            role="option"
-            aria-selected={index === highlighted}
-            // Stops the field blurring before the click resolves, which would
-            // close the list out from under the tap.
-            onMouseDown={(event) => event.preventDefault()}
-            onMouseEnter={() => setHighlighted(index)}
-            onClick={() => go(device)}
-            className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm",
-              index === highlighted ? "bg-(--pv-wash)" : "",
-              device.slug === activeSlug ? "font-bold text-(--pv-red)" : "",
-            )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${fieldId}-brand`} className="label">
+            Brand
+          </label>
+          {/*
+            Deliberately unnamed, so it is never submitted. `/shop` does have a
+            `brand` filter, but it filters by the maker of the *pouch*, not the
+            maker of the phone — submitting this would quietly answer a different
+            question and hand back an empty shop.
+          */}
+          <select
+            id={`${fieldId}-brand`}
+            value={choice.brand}
+            onChange={(event) => setChoice({ brand: event.target.value, slug: "" })}
+            className="field min-h-11 w-full"
           >
-            <MagnifyingGlass size={15} aria-hidden="true" className="shrink-0 text-(--pv-muted)" />
-            <span className="truncate">
-              <span className="text-(--pv-muted)">{device.brandName}</span> {device.name}
-            </span>
-          </li>
-        ))}
-      </ul>
+            <option value="">All brands</option>
+            {byBrand.map(([brandName]) => (
+              <option key={brandName} value={brandName}>
+                {brandName}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {open && term.trim() !== "" && suggestions.length === 0 ? (
-        <p className="mt-2 text-sm text-(--pv-muted)">
-          No match for “{term.trim()}”. Try the brand and model, like “Samsung A54”.
+        <div>
+          <label htmlFor={`${fieldId}-model`} className="label">
+            Model
+          </label>
+          <select
+            id={`${fieldId}-model`}
+            name="device"
+            required
+            value={choice.slug}
+            onChange={(event) => setChoice((current) => ({ ...current, slug: event.target.value }))}
+            className="field min-h-11 w-full"
+          >
+            <option value="">Choose your model</option>
+            {shownGroups.map(([brandName, models]) => (
+              <optgroup key={brandName} label={brandName}>
+                {models.map((device) => (
+                  <option key={device.id} value={device.slug}>
+                    {device.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <button type="submit" className="button-primary">
+          Show what fits
+        </button>
+        {active !== null ? (
+          <a href={shopHref("")} className="text-sm font-bold text-(--pv-red)">
+            Show everything
+          </a>
+        ) : null}
+      </div>
+
+      {active !== null ? (
+        <p className="help" role="status">
+          Showing what fits your {active.brandName} {active.name}.
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }
