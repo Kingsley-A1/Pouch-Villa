@@ -629,6 +629,26 @@ form:has(.bulk-select:checked) .bulk-list {
   padding-bottom: 7rem;
 }
 
+/*
+ * A control drawn straight onto a photograph.
+ *
+ * The like button used to carry a translucent plate so it stayed legible over
+ * any product image. The plate was sized to the *touch target* — 44px, per §2 —
+ * rather than to the 20px glyph inside it, so what a shopper saw was a large
+ * coloured blob in the corner of every card rather than a heart.
+ *
+ * A drop shadow does the same job for the icon alone: it keeps a light glyph
+ * readable on a light photograph without painting a shape around it. It also
+ * drops a `backdrop-filter`, which is the expensive part of that plate on the
+ * mid-range Android §2 designs for.
+ *
+ * Two shadows, not one. The tight one gives the glyph an edge; the soft one
+ * separates it from a busy photograph behind it.
+ */
+.on-media {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 5px rgba(0, 0, 0, 0.3));
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
