@@ -28,6 +28,14 @@ export type SettingKey =
   | "store.opening_hours"
   | "store.whatsapp_number"
   | "store.contact_email"
+  // The running announcement above the header, and the contact row beneath it.
+  // Every one of these is a business fact under §4 — a social handle and a list
+  // of shop locations are exactly the kind of thing that changes on a Sunday —
+  // so they are rows the CEO edits, never source and never an env var.
+  | "store.announcement"
+  | "store.instagram_url"
+  | "store.x_url"
+  | "store.locations"
   // Marketing copy, not a business fact — the rule in §4 is about facts a wrong
   // value would make a lie (a phone number, a price, a policy sentence). A
   // headline is here so the CEO can reword the shop's own pitch without a

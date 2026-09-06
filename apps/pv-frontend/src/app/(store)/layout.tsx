@@ -1,8 +1,10 @@
+import { AnnouncementBar } from "@/components/announcement-bar";
 import { ConnectionStatus } from "@/components/connection-status";
 import { StoreFooter } from "@/components/store-footer";
 import { StoreHeader } from "@/components/store-header";
 import { StaffBar } from "@/components/staff-bar";
 import { StoreSidebar } from "@/components/store-sidebar";
+import { announcementDismissed, readAnnouncement } from "@/server/announcement";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { staffViewerName } from "@/server/staff-viewer";
 
@@ -24,11 +26,23 @@ import { staffViewerName } from "@/server/staff-viewer";
  * storefront page.
  */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [principal, staffName] = await Promise.all([getCustomerPrincipal(), staffViewerName()]);
+  const [principal, staffName, announcement, announcementHidden] = await Promise.all([
+    getCustomerPrincipal(),
+    staffViewerName(),
+    readAnnouncement(),
+    announcementDismissed(),
+  ]);
   const signedIn = principal !== null;
 
   return (
     <div className="storefront flex min-h-dvh flex-col">
+      {/*
+        Above everything, including the staff bar: an announcement is addressed
+        to whoever is looking at the shop. It renders nothing until the CEO has
+        written a message, and nothing at all once a visitor has closed it —
+        both decided on the server, so the page never reflows around it.
+      */}
+      <AnnouncementBar announcement={announcement} dismissed={announcementHidden} />
       {/*
         Above everything, including the header, because it is a statement about
         the session rather than part of the shop. It renders nothing for a

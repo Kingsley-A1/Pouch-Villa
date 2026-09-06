@@ -3,6 +3,7 @@ import { withTransaction } from "../db/transaction";
 import { syncAdminSearchDocument, syncDeviceSearchDocumentsForBrand } from "./admin-search-index";
 import { deriveUniqueSlug } from "../domain/slug";
 import { recordAudit } from "./audit";
+import { catalogueImageFrom, type CatalogueImageRef } from "./catalogue-media-urls";
 
 export type AdminBrand = {
   id: string;
@@ -10,9 +11,26 @@ export type AdminBrand = {
   slug: string;
   sortOrder: number;
   isActive: boolean;
+  /** The logo the CEO set for this brand, or a typed absence. */
+  logo: CatalogueImageRef | null;
 };
 
-type BrandRow = { id: string; name: string; slug: string; sort_order: number; is_active: boolean };
+type BrandRow = {
+  id: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+  is_active: boolean;
+  logo_hash: string | null;
+  /** INT columns, so strings off the wire. */
+  logo_width: string | null;
+  logo_height: string | null;
+};
+
+const BRAND_COLUMNS = `b.id, b.name, b.slug, b.sort_order, b.is_active,
+       m.content_hash AS logo_hash, m.width AS logo_width, m.height AS logo_height`;
+
+const BRAND_FROM = `FROM brand b LEFT JOIN catalogue_media m ON m.brand_id = b.id`;
 
 function toAdminBrand(row: BrandRow): AdminBrand {
   return {
@@ -21,19 +39,22 @@ function toAdminBrand(row: BrandRow): AdminBrand {
     slug: row.slug,
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    logo: catalogueImageFrom("brand", row.id, row.logo_hash, row.logo_width, row.logo_height),
   };
 }
 
 export async function listAllBrands(): Promise<AdminBrand[]> {
   const rows = await query<BrandRow>(
-    "SELECT id, name, slug, sort_order, is_active FROM brand WHERE deleted_at IS NULL ORDER BY sort_order, name",
+    `SELECT ${BRAND_COLUMNS} ${BRAND_FROM}
+      WHERE b.deleted_at IS NULL ORDER BY b.sort_order, b.name`,
   );
   return rows.map(toAdminBrand);
 }
 
 export async function getBrand(id: string): Promise<AdminBrand | null> {
   const row = await queryOne<BrandRow>(
-    "SELECT id, name, slug, sort_order, is_active FROM brand WHERE id = $1 AND deleted_at IS NULL",
+    `SELECT ${BRAND_COLUMNS} ${BRAND_FROM}
+      WHERE b.id = $1 AND b.deleted_at IS NULL`,
     [id],
   );
   return row === null ? null : toAdminBrand(row);

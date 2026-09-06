@@ -5,10 +5,11 @@ import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import {
   getBrandBySlug,
   getCategoryBySlug,
-  listChildCategoriesForBrand,
+  listDevicesInCategoryForBrand,
 } from "@pv/backend/services/catalogue";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ChoiceTile } from "@/components/choice-tile";
+import { InstantFilter } from "@/components/instant-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +26,24 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * Step three: the category and the brand are settled, now the kind — luxury,
- * protective, whatever the shop has filed under this category.
+ * Step three: the category and the make are settled, now the model.
  *
- * **Where there is only one kind, or none, this page does not exist.** It
+ * This used to ask for the *kind* — luxury, protective — from the child
+ * categories. The CEO's own description of the path is the reason it now asks
+ * which phone: having picked Pouches and then Apple, the question a shopper is
+ * holding is "which iPhone have I got", and answering it is what makes the
+ * result a shelf of things that actually fit. The kinds are still reachable, as
+ * filters on the results themselves.
+ *
+ * **Where there is only one model, or none, this page does not exist.** It
  * redirects straight to the results. A screen that asks a question with one
  * answer is a tap taken from somebody for nothing, and the whole point of the
  * path is that every step narrows something.
+ *
+ * The models come from the `device` table, which staff fill in at
+ * `/admin/devices`. Where the shop has entered none, every brand redirects and
+ * the path is two steps rather than three — correct behaviour rather than a
+ * broken screen, and it becomes three the day the models are entered.
  */
 export default async function BrowseBrandPage({ params }: Params) {
   const { category: categorySlug, brand: brandSlug } = await params;
@@ -42,14 +54,16 @@ export default async function BrowseBrandPage({ params }: Params) {
   ]);
   if (category === null || brand === null) notFound();
 
-  const kinds = await listChildCategoriesForBrand(categorySlug, brandSlug);
+  const models = await listDevicesInCategoryForBrand(categorySlug, brandSlug);
   const results = `/shop?category=${category.slug}&brand=${brand.slug}`;
 
-  if (kinds.length <= 1) {
-    // One kind is not a choice, and none means this brand's stock sits directly
-    // on the parent. Either way the answer is the products themselves.
+  if (models.length <= 1) {
+    // One model is not a choice, and none means the shop has not recorded any
+    // for this make. Either way the answer is the products themselves.
     redirect(
-      kinds[0] === undefined ? results : `/shop?category=${kinds[0].slug}&brand=${brand.slug}`,
+      models[0] === undefined
+        ? results
+        : `/shop?category=${category.slug}&device=${models[0].slug}`,
     );
   }
 
@@ -61,18 +75,34 @@ export default async function BrowseBrandPage({ params }: Params) {
       <section className="section-space">
         <div className="container-shell">
           <p className="eyebrow">Step 2 of 2</p>
-          <h1 className="section-title mt-2">What kind of {singular(category.name)}?</h1>
+          <h1 className="section-title mt-2">Which {brand.name}?</h1>
           <p className="mt-3 max-w-2xl text-(--pv-muted)">
-            Showing what we carry for {brand.name}.
+            Pick your model and we will show only what fits it.
           </p>
 
-          <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {kinds.map((kind) => (
-              <li key={kind.id}>
+          {/*
+            A make can carry a lot of models — more than the brand list ever
+            will — so the filter is worth offering sooner here.
+          */}
+          {models.length > 6 ? (
+            <InstantFilter
+              scope="models"
+              total={models.length}
+              label="Find your model"
+              placeholder="Start typing — 15 Pro, A54…"
+            />
+          ) : null}
+
+          <ul
+            data-filter-scope="models"
+            className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+          >
+            {models.map((model) => (
+              <li key={model.id} data-filter-label={`${brand.name} ${model.name}`}>
                 <ChoiceTile
-                  href={`/shop?category=${kind.slug}&brand=${brand.slug}`}
-                  title={kind.name}
-                  detail={`${kind.productCount} ${kind.productCount === 1 ? "item" : "items"}`}
+                  href={`/shop?category=${category.slug}&device=${model.slug}`}
+                  title={model.name}
+                  detail={`${model.productCount} ${model.productCount === 1 ? "item" : "items"}`}
                 />
               </li>
             ))}
@@ -89,14 +119,4 @@ export default async function BrowseBrandPage({ params }: Params) {
       </section>
     </>
   );
-}
-
-/**
- * "Pouches" reads badly in "what kind of Pouches?". Trims one trailing `s`,
- * which is right for the categories this shop has and wrong for none of them —
- * and if it ever is wrong, the heading is slightly off rather than broken.
- */
-function singular(name: string): string {
-  const lower = name.toLowerCase();
-  return lower.endsWith("s") ? lower.slice(0, -1) : lower;
 }

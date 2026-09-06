@@ -3,6 +3,7 @@ import { withTransaction } from "../db/transaction";
 import { syncAdminSearchDocument } from "./admin-search-index";
 import { deriveUniqueSlug } from "../domain/slug";
 import { recordAudit } from "./audit";
+import { catalogueImageFrom, type CatalogueImageRef } from "./catalogue-media-urls";
 
 export type AdminCategory = {
   id: string;
@@ -12,6 +13,8 @@ export type AdminCategory = {
   description: string | null;
   sortOrder: number;
   isActive: boolean;
+  /** The photograph the CEO set for this category, or a typed absence. */
+  image: CatalogueImageRef | null;
 };
 
 type CategoryRow = {
@@ -22,6 +25,10 @@ type CategoryRow = {
   description: string | null;
   sort_order: number;
   is_active: boolean;
+  image_hash: string | null;
+  /** INT columns, so strings off the wire. */
+  image_width: string | null;
+  image_height: string | null;
 };
 
 function toAdminCategory(row: CategoryRow): AdminCategory {
@@ -33,16 +40,36 @@ function toAdminCategory(row: CategoryRow): AdminCategory {
     description: row.description,
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    image: catalogueImageFrom(
+      "category",
+      row.id,
+      row.image_hash,
+      row.image_width,
+      row.image_height,
+    ),
   };
 }
+
+/**
+ * The columns every read of a category needs in order to render its tile.
+ *
+ * A left join rather than a second query: one round trip matters more here than
+ * elsewhere because CockroachDB charges latency per statement (AGENTS.md
+ * section 3), and this list is read on every admin page that offers a parent.
+ */
+const CATEGORY_COLUMNS = `c.id, c.parent_id, c.name, c.slug, c.description, c.sort_order,
+       c.is_active, m.content_hash AS image_hash, m.width AS image_width,
+       m.height AS image_height`;
+
+const CATEGORY_FROM = `FROM category c LEFT JOIN catalogue_media m ON m.category_id = c.id`;
 
 /** Includes inactive rows — the admin manages what the storefront hides. */
 export async function listAllCategories(): Promise<AdminCategory[]> {
   const rows = await query<CategoryRow>(
-    `SELECT id, parent_id, name, slug, description, sort_order, is_active
-       FROM category
-      WHERE deleted_at IS NULL
-      ORDER BY sort_order, name`,
+    `SELECT ${CATEGORY_COLUMNS}
+       ${CATEGORY_FROM}
+      WHERE c.deleted_at IS NULL
+      ORDER BY c.sort_order, c.name`,
   );
   return rows.map(toAdminCategory);
 }
@@ -164,8 +191,9 @@ export async function softDeleteCategory(id: string, reason: string, actor: { st
 
 export async function getCategory(id: string): Promise<AdminCategory | null> {
   const row = await queryOne<CategoryRow>(
-    `SELECT id, parent_id, name, slug, description, sort_order, is_active
-       FROM category WHERE id = $1 AND deleted_at IS NULL`,
+    `SELECT ${CATEGORY_COLUMNS}
+       ${CATEGORY_FROM}
+      WHERE c.id = $1 AND c.deleted_at IS NULL`,
     [id],
   );
   return row === null ? null : toAdminCategory(row);

@@ -50,7 +50,7 @@ export function CategoryCard({
     <Link
       href={href}
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-2xl border bg-(--pv-surface)",
+        "group flex h-full flex-col overflow-hidden rounded-none border bg-(--pv-surface)",
         "border-(--pv-line) transition-[border-color,box-shadow,transform] duration-200",
         "hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--pv-red)_45%,var(--pv-line))]",
         "hover:shadow-[0_10px_30px_-16px_var(--pv-shadow)]",

@@ -26,7 +26,7 @@ export function ChoiceTile({
     <Link
       href={href}
       className={cn(
-        "group flex min-h-24 flex-col justify-between gap-3 rounded-2xl p-4",
+        "group flex min-h-24 flex-col justify-between gap-3 rounded-none p-4",
         "border border-(--pv-line) bg-(--pv-surface)",
         "transition-[transform,border-color,box-shadow] duration-200",
         "hover:-translate-y-0.5 hover:border-(--pv-ink)",

@@ -55,6 +55,24 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "6mb",
     },
+    /**
+     * Cross-fades a route change instead of blanking the page between them.
+     *
+     * The client asked for the shop to feel alive, and on a slow connection the
+     * most conspicuously dead moment is the white gap between tapping a product
+     * and seeing it. This is the browser's own View Transitions API, which
+     * animates on the compositor: it costs no JavaScript we ship and it degrades
+     * to today's instant swap in a browser that does not implement it.
+     *
+     * Still flagged experimental by Next, so it is deliberately used at its
+     * least invasive setting — the flag and a CSS cross-fade in `globals.css`,
+     * with no `<ViewTransition>` boundaries in the tree. Nothing renders
+     * differently if the flag is removed.
+     *
+     * The animation is dropped entirely under `prefers-reduced-motion`; see the
+     * `::view-transition` rules in globals.css.
+     */
+    viewTransition: true,
   },
   poweredByHeader: false,
 };

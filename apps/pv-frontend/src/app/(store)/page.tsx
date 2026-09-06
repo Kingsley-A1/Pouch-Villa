@@ -7,8 +7,10 @@ import {
   listDevices,
 } from "@pv/backend/services/catalogue";
 import { listHomeSections } from "@pv/backend/services/home-sections";
+import { listHeroSlides } from "@pv/backend/services/hero-slides";
 import { pick, readSettings } from "@pv/backend/services/settings";
-import { CategoryCard } from "@/components/category-card";
+import { CategoryMosaic } from "@/components/category-mosaic";
+import { HeroDeck } from "@/components/hero-deck";
 import { ProductGrid } from "@/components/product-grid";
 import { StorefrontSection } from "@/components/storefront-section";
 import { DeviceFinder } from "@/components/device-finder";
@@ -38,18 +40,21 @@ export const dynamic = "force-dynamic";
 const DEFAULT_HEADLINE = "Pouches and gadget accessories that fit your phone.";
 
 export default async function HomePage() {
-  const [{ products: latest }, categories, devices, sections, settings] = await Promise.all([
-    listPublishedProducts({ limit: 8 }),
-    listTopCategoryCards(),
-    listDevices(),
-    listHomeSections(),
-    readSettings([
-      "store.address",
-      "store.opening_hours",
-      "store.hero_headline",
-      "store.hero_subtitle",
-    ]),
-  ]);
+  const [{ products: latest }, categories, devices, sections, slides, settings] = await Promise.all(
+    [
+      listPublishedProducts({ limit: 8 }),
+      listTopCategoryCards(),
+      listDevices(),
+      listHomeSections(),
+      listHeroSlides(),
+      readSettings([
+        "store.address",
+        "store.opening_hours",
+        "store.hero_headline",
+        "store.hero_subtitle",
+      ]),
+    ],
+  );
 
   const address = pick(settings, "store.address");
   const hours = pick(settings, "store.opening_hours");
@@ -87,8 +92,19 @@ export default async function HomePage() {
         utility classes rather than inline `style` attributes — a `style` attr
         needs `style-src-attr 'unsafe-inline'`, which §5 rules out.
       */}
-      <section className="hero-space">
-        {/*
+      {/*
+        The deck when the CEO has built one, the headline when they have not.
+
+        Not both: two competing openings is what the client's review objected to
+        in the first place, and a headline underneath a full-bleed photograph is
+        a second hero nobody asked for. `listHeroSlides` already excludes slides
+        with no picture, so "has a deck" means "has something worth showing".
+      */}
+      {slides.length > 0 ? <HeroDeck slides={slides} /> : null}
+
+      {slides.length > 0 ? null : (
+        <section className="hero-space">
+          {/*
           One centred column, at every width.
 
           `items-center` rather than `text-center` on the container: it centres
@@ -102,93 +118,108 @@ export default async function HomePage() {
           stretch, and a two-up grid that shrinks to its content is not a
           two-up grid on a 360 px screen.
         */}
-        <div className="container-shell flex flex-col items-center">
-          <h1 className="hero-title rise-in text-center sm:max-w-[34ch]">
-            {headline.present ? headline.value : DEFAULT_HEADLINE}
-          </h1>
-          {subtitle.present ? (
-            <p className="rise-in mt-5 max-w-2xl text-center text-lg leading-8 text-(--pv-muted) [animation-delay:90ms]">
-              {subtitle.value}
-            </p>
-          ) : null}
+          <div className="container-shell flex flex-col items-center">
+            <h1 className="hero-title rise-in text-center sm:max-w-[34ch]">
+              {headline.present ? headline.value : DEFAULT_HEADLINE}
+            </h1>
 
-          {/*
-            The two ways into the shop, side by side, directly under the opening
-            line — the first thing a customer is asked to choose, before anything
-            else competes for the tap.
+            {/*
+            One way in, not three.
 
-            `grid-cols-2` at every width, so they stay on one line at 360 px.
-            Two cards is the point: each one is a whole half of the catalogue,
-            and giving them a full row each would push the finder below the fold
-            on the phones this shop is actually used on.
+            The finder used to sit here too. It now has its own band under the
+            mosaic, and rendering it in both places put two copies of the same
+            form on one page — which is a duplicated `id`, a second identical
+            heading, and a shopper wondering which of the two is the real one.
 
-            Only top-level categories. A sub-category standing beside its own
-            parent would make "which way in" unanswerable, which is the one
-            question this row exists to ask.
+            What is left is the plain route into the catalogue, for somebody who
+            does not want to answer a question before they can look at anything.
           */}
-          {categories.length > 0 ? (
-            <ul className="rise-in mt-9 grid w-full grid-cols-2 gap-3 [animation-delay:150ms] sm:max-w-2xl sm:gap-4">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <CategoryCard category={category} href={`/browse/${category.slug}`} />
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {/*
-            The finder sits under them, as the shortcut for somebody who already
-            knows their phone and does not want to browse at all.
-
-            It renders nothing until staff have entered a device, so where the
-            shop has none the plain way into the catalogue takes its place rather
-            than leaving the hero with no way forward.
-          */}
-          <div className="rise-in mt-8 w-full max-w-md [animation-delay:230ms]">
-            {devices.length > 0 ? (
-              <DeviceFinder devices={devices} />
-            ) : (
-              <Link href="/shop" className="button-primary">
-                Shop the range
-              </Link>
-            )}
+            <Link href="/shop" className="button-primary rise-in mt-8 [animation-delay:230ms]">
+              Shop the range
+              <ArrowRight aria-hidden="true" size={16} weight="bold" />
+            </Link>
           </div>
+        </section>
+      )}
 
+      {/*
+        The ways in, as photographs rather than as two outlined cards in the
+        hero. They moved down out of the hero deliberately: the opening line and
+        the finder are what someone needs in the first screenful, and the
+        categories read far better with room to be pictures.
+      */}
+      {categories.length > 0 ? (
+        <section className="section-space">
+          <div className="container-shell">
+            <CategoryMosaic categories={categories} />
+          </div>
+        </section>
+      ) : null}
+
+      {/*
+        The finder, directly under the ways in.
+
+        The CEO direction put it here in so many words - the category cards,
+        "then the device finder" - and it is the one thing this shop has that
+        the reference site does not. The plan had proposed folding it into the
+        header search slot instead; that was wrong on a 360 px screen, where two
+        selects and a button do not fit into a 76 px bar beside a cart and an
+        account icon without becoming unusable.
+
+        It still renders nothing until staff have entered a device, so a shop
+        with an empty model list gets no empty control.
+      */}
+      {devices.length > 0 ? (
+        <section className="band-raised section-space">
           {/*
-            The way past the finder, for somebody who does not want to answer a
-            question before they can look at anything.
-
-            It was a bare underlined link, and on the red ground it read as a
-            stray line of text rather than a control — the shop's third route in
-            was the least visible thing in the hero. Drawn as the secondary
-            button it is: outlined, so the filled "Show what fits" above it still
-            wins the eye, but unmistakably something to press.
+            No heading of its own: `DeviceFinder` already opens with "Find what
+            fits your phone", and a section title above it said the same words
+            twice — once to a reader and twice to a screen reader.
           */}
-          <Link href="/shop" className="button-secondary rise-in mt-5 [animation-delay:300ms]">
-            Or browse everything
-            <ArrowRight aria-hidden="true" size={16} weight="bold" />
-          </Link>
-        </div>
-      </section>
+          <div className="container-shell grid justify-items-center">
+            <div className="w-full max-w-md">
+              <DeviceFinder devices={devices} />
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-      {sections.map((section, position) => (
-        <StorefrontSection key={section.id} section={section} likes={likes} index={position} />
-      ))}
-
+      {/*
+        One named product band, centred, with the CEO's own sentence under it —
+        the shape the client asked for. It carries whatever they wrote as the
+        sub-heading; where they wrote nothing, the heading stands alone rather
+        than borrowing a line of ours.
+      */}
       {showLatest ? (
         <section className="band-raised section-space">
           <div className="container-shell">
-            <h2 className="section-title">Latest</h2>
-            <div className="mt-6">
+            <div className="text-center">
+              <h2 className="section-title">Our products</h2>
+              {subtitle.present ? (
+                <p className="mx-auto mt-3 max-w-xl text-(--pv-muted)">{subtitle.value}</p>
+              ) : null}
+            </div>
+            <div className="mt-8">
               <ProductGrid
                 products={latest}
                 likes={likes}
                 emptyMessage="The catalogue is being set up. Products appear here once staff publish them."
               />
             </div>
+            {latest.length > 0 ? (
+              <div className="mt-10 flex justify-center">
+                <Link href="/shop" className="button-secondary">
+                  View all products
+                </Link>
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
+
+      {sections.map((section, position) => (
+        <StorefrontSection key={section.id} section={section} likes={likes} index={position} />
+      ))}
 
       {/*
         A real photo beside the address, rather than the address on its own.
