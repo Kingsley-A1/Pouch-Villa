@@ -110,90 +110,102 @@ export function StoreSidebar({ signedIn, brands }: { signedIn: boolean; brands: 
         Sticks below the 76px header and scrolls on its own, so a long product
         list never leaves the navigation stranded above the viewport.
       */}
-      <nav
-        aria-label="Storefront"
-        className="sticky top-19 h-[calc(100dvh-76px)] overflow-y-auto p-3"
-      >
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          aria-label={open ? "Collapse navigation" : "Expand navigation"}
-          className={cn(
-            "mb-2 flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-semibold text-(--pv-muted)",
-            "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
-            open ? "px-3" : "justify-center px-0",
-          )}
-        >
-          <SidebarSimple aria-hidden="true" size={21} weight="bold" />
-          <span
-            aria-hidden="true"
+      {/*
+        The brand menu sits *outside* the scrolling nav below it, and that is
+        the whole reason this wrapper exists.
+
+        `overflow-y-auto` on the nav clips anything positioned outside its box,
+        so the flyout was being cut off by the sidebar it hangs from — worst on
+        the collapsed rail, where the panel opens sideways into nothing.
+        `position: fixed` would escape the clip too, but placing it would need a
+        computed `style` attribute, which the CSP refuses (§5). Moving the menu
+        one level up costs nothing and needs no inline anything.
+      */}
+      <div className="sticky top-19 flex h-[calc(100dvh-76px)] flex-col">
+        <div className="px-3 pt-3">
+          <BrandMenu brands={brands} open={open} />
+        </div>
+
+        <nav aria-label="Storefront" className="min-h-0 flex-1 overflow-y-auto p-3 pt-2">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            aria-label={open ? "Collapse navigation" : "Expand navigation"}
             className={cn(
-              "whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none",
-              open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+              "mb-2 flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-semibold text-(--pv-muted)",
+              "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+              open ? "px-3" : "justify-center px-0",
             )}
           >
-            Collapse
-          </span>
-        </button>
+            <SidebarSimple aria-hidden="true" size={21} weight="bold" />
+            <span
+              aria-hidden="true"
+              className={cn(
+                "whitespace-nowrap transition-opacity duration-150 motion-reduce:transition-none",
+                open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+              )}
+            >
+              Collapse
+            </span>
+          </button>
 
-        <BrandMenu brands={brands} open={open} />
+          <SidebarLinks items={shop} pathname={pathname} open={open} />
 
-        <SidebarLinks items={shop} pathname={pathname} open={open} />
+          <div className="my-2 border-t border-(--pv-line)" />
+          <SidebarLinks items={account} pathname={pathname} open={open} />
 
-        <div className="my-2 border-t border-(--pv-line)" />
-        <SidebarLinks items={account} pathname={pathname} open={open} />
-
-        <div className="my-2 border-t border-(--pv-line)" />
-        {/*
+          <div className="my-2 border-t border-(--pv-line)" />
+          {/*
           The supporting pages. Quieter than the links that lead to a sale, and
           collapsed to a single icon on the rail — four separate icons for
           Privacy, Terms, About and Returns would give them more weight than
           the shop itself, which is the opposite of what they are for.
         */}
-        {open ? (
-          <>
-            <p
-              id="store-sidebar-info"
-              className="px-3 pt-3 pb-1 text-xs font-bold tracking-[.14em] text-(--pv-muted) uppercase"
+          {open ? (
+            <>
+              <p
+                id="store-sidebar-info"
+                className="px-3 pt-3 pb-1 text-xs font-bold tracking-[.14em] text-(--pv-muted) uppercase"
+              >
+                Information
+              </p>
+              <ul aria-labelledby="store-sidebar-info" className="grid gap-0.5">
+                {INFO_LINKS.map(({ label, href }) => {
+                  const active = isCurrent(pathname, href);
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold",
+                          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+                          active ? "text-(--pv-red)" : "text-(--pv-muted) hover:bg-(--pv-wash)",
+                        )}
+                      >
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : (
+            <Link
+              href="/about"
+              aria-label="About us, returns, privacy and terms"
+              title="Information"
+              className={cn(
+                "flex min-h-11 items-center justify-center rounded-xl text-(--pv-muted)",
+                "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
+              )}
             >
-              Information
-            </p>
-            <ul aria-labelledby="store-sidebar-info" className="grid gap-0.5">
-              {INFO_LINKS.map(({ label, href }) => {
-                const active = isCurrent(pathname, href);
-                return (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold",
-                        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
-                        active ? "text-(--pv-red)" : "text-(--pv-muted) hover:bg-(--pv-wash)",
-                      )}
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        ) : (
-          <Link
-            href="/about"
-            aria-label="About us, returns, privacy and terms"
-            title="Information"
-            className={cn(
-              "flex min-h-11 items-center justify-center rounded-xl text-(--pv-muted)",
-              "hover:bg-(--pv-wash) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
-            )}
-          >
-            <Info aria-hidden="true" size={21} />
-          </Link>
-        )}
-      </nav>
+              <Info aria-hidden="true" size={21} />
+            </Link>
+          )}
+        </nav>
+      </div>
     </aside>
   );
 }
@@ -264,11 +276,11 @@ function BrandMenu({ brands, open }: { brands: BrandLink[]; open: boolean }) {
         <ul
           id={panelId}
           className={cn(
-            "absolute z-30 max-h-72 overflow-y-auto py-1",
+            "absolute z-40 max-h-[60vh] overflow-y-auto py-1",
             "border border-(--pv-line) bg-(--pv-surface) shadow-[0_14px_40px_-18px_var(--pv-shadow)]",
             // Beneath the button when the rail is open, beside it when it is a
             // narrow rail — where a dropdown would be wider than the sidebar.
-            open ? "top-full left-0 w-full" : "top-0 left-full ml-1 w-52",
+            open ? "top-full left-0 w-full" : "top-0 left-full ml-1 w-56",
           )}
         >
           {brands.map((brand) => (

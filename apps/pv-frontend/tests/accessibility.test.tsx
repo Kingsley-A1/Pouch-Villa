@@ -19,7 +19,7 @@ describe("component accessibility", () => {
   });
 
   it("provides named, keyboard-reachable storefront navigation controls", async () => {
-    render(<StoreHeader />);
+    render(<StoreHeader brands={[]} />);
     const result = await axe.run(document.body, {
       rules: { "color-contrast": { enabled: false } },
     });

@@ -9,6 +9,7 @@ import { listHomeSections } from "@pv/backend/services/home-sections";
 import { listHeroSlides } from "@pv/backend/services/hero-slides";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { CategoryMosaic } from "@/components/category-mosaic";
+import { TypedHeadline } from "@/components/typed-headline";
 import { HeroDeck } from "@/components/hero-deck";
 import { ProductGrid } from "@/components/product-grid";
 import { StorefrontSection } from "@/components/storefront-section";
@@ -118,8 +119,13 @@ export default async function HomePage() {
           two-up grid on a 360 px screen.
         */}
           <div className="container-shell flex flex-col items-center">
-            <h1 className="hero-title rise-in text-center sm:max-w-[34ch]">
-              {headline.present ? headline.value : DEFAULT_HEADLINE}
+            {/*
+              `relative` because the typed copy is absolutely positioned over an
+              invisible ghost of the finished sentence — that is what keeps the
+              line from resizing as it types. See `TypedHeadline`.
+            */}
+            <h1 className="hero-title rise-in relative text-center sm:max-w-[34ch]">
+              <TypedHeadline text={headline.present ? headline.value : DEFAULT_HEADLINE} />
             </h1>
           </div>
         </section>

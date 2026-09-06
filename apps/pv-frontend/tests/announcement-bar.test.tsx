@@ -7,6 +7,7 @@ const EMPTY: Announcement = {
   whatsappNumber: null,
   instagramUrl: null,
   xUrl: null,
+  facebookUrl: null,
   locations: [],
 };
 

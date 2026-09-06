@@ -245,6 +245,7 @@ export const ANNOUNCEMENT_SETTING_FIELDS = [
   "store.announcement",
   "store.locations",
   "store.instagram_url",
+  "store.facebook_url",
   "store.x_url",
 ] as const;
 
@@ -280,6 +281,7 @@ export const announcementSettingsFormSchema = z.object({
   // A real URL or nothing. A half-typed handle would render as a dead link on
   // every page of the shop, which is worse than no icon.
   "store.instagram_url": z.string().trim().url().max(300).or(z.literal("")),
+  "store.facebook_url": z.string().trim().url().max(300).or(z.literal("")),
   "store.x_url": z.string().trim().url().max(300).or(z.literal("")),
 });
 

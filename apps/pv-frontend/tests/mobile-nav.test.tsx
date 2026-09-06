@@ -18,7 +18,10 @@ describe("mobile navigation drawer", () => {
 
   it("names the signed-in customer and links to their account", () => {
     render(
-      <MobileNav account={{ name: "Kingsley", monogram: "KA", email: "kingsley@example.com" }} />,
+      <MobileNav
+        account={{ name: "Kingsley", monogram: "KA", email: "kingsley@example.com" }}
+        brands={[]}
+      />,
     );
     open();
 
@@ -29,7 +32,7 @@ describe("mobile navigation drawer", () => {
   });
 
   it("invites a visitor to sign in instead", () => {
-    render(<MobileNav account={null} />);
+    render(<MobileNav account={null} brands={[]} />);
     open();
 
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/account");
@@ -37,7 +40,12 @@ describe("mobile navigation drawer", () => {
   });
 
   it("still reaches the shopping and information links", () => {
-    render(<MobileNav account={{ name: null, monogram: null, email: "kingsley@example.com" }} />);
+    render(
+      <MobileNav
+        account={{ name: null, monogram: null, email: "kingsley@example.com" }}
+        brands={[]}
+      />,
+    );
     open();
 
     expect(screen.getByRole("link", { name: "Shop" })).toBeVisible();

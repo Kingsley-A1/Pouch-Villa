@@ -33,6 +33,7 @@ export async function readAnnouncement(): Promise<Announcement> {
     "store.whatsapp_number",
     "store.instagram_url",
     "store.x_url",
+    "store.facebook_url",
     "store.locations",
   ]);
 
@@ -43,6 +44,7 @@ export async function readAnnouncement(): Promise<Announcement> {
     whatsappNumber: valueOf(pick(settings, "store.whatsapp_number")),
     instagramUrl: valueOf(pick(settings, "store.instagram_url")),
     xUrl: valueOf(pick(settings, "store.x_url")),
+    facebookUrl: valueOf(pick(settings, "store.facebook_url")),
     // One per line in the admin, so a shop with one branch and a shop with four
     // both read correctly without a second settings key.
     locations:

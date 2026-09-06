@@ -26,11 +26,13 @@ export function AnnouncementSettingsForm({
   announcement,
   locations,
   instagramUrl,
+  facebookUrl,
   xUrl,
 }: {
   announcement: SettingValue;
   locations: SettingValue;
   instagramUrl: SettingValue;
+  facebookUrl: SettingValue;
   xUrl: SettingValue;
 }) {
   const [state, formAction] = useActionState(saveAnnouncementSettingsAction, INITIAL_ACTION_STATE);
@@ -72,6 +74,14 @@ export function AnnouncementSettingsForm({
             defaultValue={instagramUrl.present ? instagramUrl.value : ""}
           />
           <OriginBadge value={instagramUrl} />
+        </Field>
+        <Field label="Facebook link" name="store.facebook_url" hint="Full https:// address">
+          <TextInput
+            name="store.facebook_url"
+            type="url"
+            defaultValue={facebookUrl.present ? facebookUrl.value : ""}
+          />
+          <OriginBadge value={facebookUrl} />
         </Field>
         <Field label="X link" name="store.x_url" hint="Full https:// address">
           <TextInput name="store.x_url" type="url" defaultValue={xUrl.present ? xUrl.value : ""} />

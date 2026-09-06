@@ -45,7 +45,13 @@ export function ProductCardFace({
           // No radius of its own now that the shell is square: the one-pixel
           // inset that used to keep the card's border from showing as a sliver
           // outside the image corner has nothing left to correct for.
-          feature ? "aspect-4/3" : "aspect-square",
+          //
+          // Taller than square, at the client's request. A phone case is a
+          // portrait object photographed on a portrait phone, so a square crop
+          // was cutting the top and bottom off the very thing being sold — 4:5
+          // gives the picture back the height it was shot at without making the
+          // card so tall that only one row fits on a screen.
+          feature ? "aspect-4/3" : "aspect-4/5",
         )}
       >
         {imageSlot}
@@ -84,17 +90,27 @@ export function ProductCardFace({
         */}
         <h3
           className={cn(
-            "line-clamp-2 leading-snug font-bold text-balance",
-            feature ? "text-lg" : "text-sm",
+            // `leading-tight` rather than `snug`: at two clamped lines the extra
+            // leading was pushing the price further from the name it belongs to
+            // than from the card below it.
+            "line-clamp-2 leading-tight font-semibold text-balance",
+            feature ? "text-lg" : "text-[0.9375rem]",
           )}
         >
           {name}
         </h3>
 
+        {/*
+          The price is the loudest thing on the card now, which is what the
+          client asked for and is right: the name tells you what it is, the
+          price is what decides whether you tap. `font-black` and a size up on
+          both, with the name stepped *down* to semibold so the two are not
+          competing at the same weight.
+        */}
         <p
           className={cn(
-            "font-extrabold text-(--pv-red) tabular-nums",
-            feature ? "mt-1 text-xl" : "text-sm",
+            "font-black text-(--pv-red) tabular-nums",
+            feature ? "mt-1 text-2xl" : "mt-0.5 text-base",
           )}
         >
           {priceLabel}

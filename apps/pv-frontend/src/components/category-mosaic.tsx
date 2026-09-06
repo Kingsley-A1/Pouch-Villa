@@ -38,23 +38,54 @@ export function CategoryMosaic({ categories }: { categories: CategoryCard[] }) {
   );
 }
 
-/** Unchanged from what shipped: a stack of square cards, one per category. */
+/**
+ * Mobile: a stack of square cards, framed like the desktop deck.
+ *
+ * The client asked for the same treatment here — the name over the middle of
+ * the picture rather than on a plate in the corner, the picture blurred behind
+ * it, and a Shop now that arrives rather than simply being there.
+ *
+ * It stays a *stack* rather than becoming a deck, because a full-height slide a
+ * visitor has to wait two seconds to get past is a worse phone experience than
+ * scrolling, whatever it looks like in a screenshot.
+ *
+ * "Shop now" is an `aria-hidden` span, not a button. The whole card is already
+ * the link, and a control nested inside a link is invalid HTML that browsers
+ * resolve by following the link anyway — the same rule the product card's
+ * "View" follows.
+ */
 function MobileStack({ categories }: { categories: CategoryCard[] }) {
   return (
     <ul className="grid gap-2.5 sm:grid-cols-2">
-      {categories.map((category) => (
+      {categories.map((category, index) => (
         <li key={category.id}>
           <Link
             href={`/browse/${category.slug}`}
             className={cn(
-              "group relative block aspect-square overflow-hidden rounded-none bg-(--pv-surface)",
+              "group relative grid aspect-square place-items-center overflow-hidden",
+              "rounded-none bg-(--pv-surface) text-center",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
             )}
           >
-            <Art category={category} sizes="(max-width: 640px) 100vw, 50vw" />
-            <span className="absolute bottom-0 left-0 max-w-[92%] bg-[color-mix(in_srgb,#1a0d0e_82%,transparent)] px-3.5 py-2.5">
-              <span className="block text-sm font-bold tracking-[0.05em] text-white uppercase">
-                {category.name}
+            <Art
+              category={category}
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="pv-cat-photo"
+            />
+            {/* The same wash the deck uses, so a bright photograph cannot take
+                the name below AA on either presentation. */}
+            <span aria-hidden="true" className="absolute inset-0 bg-[rgba(40,0,3,0.34)]" />
+
+            <span className="pv-cat-card-body">
+              <span className="pv-cat-card-title">{category.name}</span>
+              <span
+                aria-hidden="true"
+                // Staggered per card so a column of them arrives in order
+                // rather than all at once. Capped, or the fifth card would sit
+                // blank for most of a second.
+                className={cn("pv-cat-card-cta", CARD_DELAYS[Math.min(index, 3)])}
+              >
+                Shop now
               </span>
             </span>
           </Link>
@@ -63,6 +94,18 @@ function MobileStack({ categories }: { categories: CategoryCard[] }) {
     </ul>
   );
 }
+
+/**
+ * Utility classes, never `style` attributes — a style attribute needs
+ * `style-src-attr 'unsafe-inline'`, which §5 rules out and `verify-routes.mjs`
+ * fails the build on.
+ */
+const CARD_DELAYS = [
+  "[animation-delay:120ms]",
+  "[animation-delay:200ms]",
+  "[animation-delay:280ms]",
+  "[animation-delay:360ms]",
+] as const;
 
 /**
  * Desktop: one category at a time, full width.
