@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import {
   listPublishedProducts,
   listTopCategoryCards,
@@ -122,22 +121,6 @@ export default async function HomePage() {
             <h1 className="hero-title rise-in text-center sm:max-w-[34ch]">
               {headline.present ? headline.value : DEFAULT_HEADLINE}
             </h1>
-
-            {/*
-            One way in, not three.
-
-            The finder used to sit here too. It now has its own band under the
-            mosaic, and rendering it in both places put two copies of the same
-            form on one page — which is a duplicated `id`, a second identical
-            heading, and a shopper wondering which of the two is the real one.
-
-            What is left is the plain route into the catalogue, for somebody who
-            does not want to answer a question before they can look at anything.
-          */}
-            <Link href="/shop" className="button-primary rise-in mt-8 [animation-delay:230ms]">
-              Shop the range
-              <ArrowRight aria-hidden="true" size={16} weight="bold" />
-            </Link>
           </div>
         </section>
       )}
@@ -148,11 +131,17 @@ export default async function HomePage() {
         the finder are what someone needs in the first screenful, and the
         categories read far better with room to be pictures.
       */}
+      {/*
+        No `container-shell` here. On a desktop this is a full-bleed deck that
+        runs edge to edge; the mobile stack applies the gutter itself, so the
+        two presentations are not fighting one wrapper.
+
+        `pb` only: the hero above it already ends close, which is the gap the
+        client asked to tighten.
+      */}
       {categories.length > 0 ? (
-        <section className="section-space">
-          <div className="container-shell">
-            <CategoryMosaic categories={categories} />
-          </div>
+        <section className="pb-[clamp(2.5rem,5vw,4.5rem)]">
+          <CategoryMosaic categories={categories} />
         </section>
       ) : null}
 

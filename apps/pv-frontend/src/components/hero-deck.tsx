@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import type { HeroSlide } from "@pv/backend/services/hero-slides";
 import { cn } from "@/lib/utils";
-import { HeroDeckControls } from "./hero-deck-controls";
+import { DeckControls } from "./deck-controls";
 
 /** The id the controls island reaches the track by. */
 export const DECK_TRACK_ID = "pv-hero-track";
@@ -84,9 +84,7 @@ export function HeroDeck({ slides }: { slides: HeroSlide[] }) {
         ))}
       </div>
 
-      {slides.length > 1 ? (
-        <HeroDeckControls count={slides.length} trackId={DECK_TRACK_ID} />
-      ) : null}
+      {slides.length > 1 ? <DeckControls count={slides.length} trackId={DECK_TRACK_ID} /> : null}
     </section>
   );
 }

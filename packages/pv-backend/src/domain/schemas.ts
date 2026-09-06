@@ -225,12 +225,27 @@ export const STORE_SETTING_FIELDS = [
   "store.opening_hours",
   "store.whatsapp_number",
   "store.contact_email",
-  "store.announcement",
-  "store.instagram_url",
-  "store.x_url",
-  "store.locations",
   "store.hero_headline",
   "store.hero_subtitle",
+] as const;
+
+/**
+ * The announcement bar's own fields, split out of `STORE_SETTING_FIELDS`.
+ *
+ * Its own list, schema and action — the fourth of the same shape bank, store and
+ * policy already use — so the bar gets its own titled section on the settings
+ * page. It was a fieldset inside "Store details" and the client could not find
+ * it, which for a feature whose whole job is to be edited is the same as it not
+ * existing.
+ *
+ * Splitting the list is what makes two forms safe: each action reads only its
+ * own fields, so neither can blank the other's keys on save.
+ */
+export const ANNOUNCEMENT_SETTING_FIELDS = [
+  "store.announcement",
+  "store.locations",
+  "store.instagram_url",
+  "store.x_url",
 ] as const;
 
 export const POLICY_SETTING_FIELDS = [
@@ -251,18 +266,21 @@ export const storeSettingsFormSchema = z.object({
   "store.opening_hours": z.string().trim().max(500),
   "store.whatsapp_number": z.string().trim().max(20),
   "store.contact_email": z.string().trim().email().max(320).or(z.literal("")),
+  "store.hero_headline": z.string().trim().max(200),
+  "store.hero_subtitle": z.string().trim().max(300),
+});
+
+export const announcementSettingsFormSchema = z.object({
   // One sentence, because it scrolls past on a phone and a paragraph would
   // never be read. Blank means the bar does not render at all.
   "store.announcement": z.string().trim().max(200),
+  // One location per line — the contact row lists them, and a shop that adds a
+  // branch should not need a deployment or a new settings key to say so.
+  "store.locations": z.string().trim().max(500),
   // A real URL or nothing. A half-typed handle would render as a dead link on
   // every page of the shop, which is worse than no icon.
   "store.instagram_url": z.string().trim().url().max(300).or(z.literal("")),
   "store.x_url": z.string().trim().url().max(300).or(z.literal("")),
-  // One location per line — the contact row lists them, and a shop that adds a
-  // branch should not need a deployment or a new settings key to say so.
-  "store.locations": z.string().trim().max(500),
-  "store.hero_headline": z.string().trim().max(200),
-  "store.hero_subtitle": z.string().trim().max(300),
 });
 
 export const policySettingsFormSchema = z.object({

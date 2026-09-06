@@ -647,6 +647,35 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
   }));
 }
 
+/** Just enough to draw a navigation entry: no counts, no logo, no join. */
+export type BrandLink = { id: string; slug: string; name: string };
+
+/**
+ * Every make the shop actually has something published for.
+ *
+ * For the sidebar's brand menu. Deliberately the narrowest query in this file —
+ * three columns, one index, no aggregate — because it runs on **every**
+ * storefront page as part of the layout, and the brand strip that used to live
+ * in the header was removed partly for costing exactly that.
+ *
+ * `EXISTS` rather than a join with `GROUP BY`: the menu shows names, not counts,
+ * and `EXISTS` stops at the first published product per brand instead of
+ * counting all of them.
+ */
+export async function listBrandLinks(): Promise<BrandLink[]> {
+  const rows = await query<{ id: string; slug: string; name: string }>(
+    `SELECT b.id, b.slug, b.name
+       FROM brand b
+      WHERE b.deleted_at IS NULL AND b.is_active
+        AND EXISTS (
+          SELECT 1 FROM product p
+           WHERE p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published'
+        )
+      ORDER BY b.sort_order, b.name`,
+  );
+  return rows;
+}
+
 export type StorefrontBrand = {
   id: string;
   slug: string;

@@ -2,38 +2,30 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * The logo — the client's supplied file, used as supplied.
+ * The logo — the client's supplied artwork, cropped to itself.
  *
- * `public/images/pouch-villa-logo.jpg` is a byte-for-byte copy of
- * `docs/client/brand/logo-flat-red.jpg`. Nothing here recolours it, redraws it
- * or generates a variant of it. An earlier version derived a white lockup from
- * the artwork; the client's instruction was to use this file and nothing else,
- * so that is what this does.
+ * `public/images/pouch-villa-logo-mark.png` is generated from
+ * `docs/client/brand/logo-flat-red.jpg` by `scripts/generate-logo-mark.mjs`,
+ * which trims the blank paper off the supplied 1080×1080 square and nothing
+ * else. Same pixels, same colours, no trace and no redraw.
  *
- * **Two things follow from the file being what it is, and both are handled in
- * CSS rather than by editing it.**
+ * **This used to be scaled to 195% and offset to crop the margin in CSS**, and
+ * that is why the header logo looked soft: `next/image` sized the file for a
+ * 44px box and the browser then blew it up. Cropping the file instead means the
+ * served image *is* the mark, so it renders at 1:1 or better at every size the
+ * app asks for.
  *
- * It is a 1080×1080 square whose artwork occupies 555×441 in the middle — a
- * little over half the width and 41% of the height. Rendered whole it would be
- * a small logo adrift in a large empty box. So the artwork's own bounding box,
- * measured from the file, is framed by an `overflow-hidden` box with the image
- * scaled and offset inside it. Every number below comes from that measurement.
- * They are utility classes, not `style` attributes: a style attribute needs
- * `style-src-attr 'unsafe-inline'`, which §5 rules out.
+ * The white plate stays. The source is a JPEG with no transparency, so on the
+ * red storefront it would carry a white rectangle whatever we did; drawn as a
+ * rounded plate that reads as a badge rather than as a mistake. On the white
+ * admin it costs nothing.
  *
- * It is a JPEG, so it has no transparency and carries its own white paper. On
- * the red storefront that paper would be a white rectangle around the mark
- * whatever we did, so it is made deliberate instead of accidental: a white
- * rounded plate the logo sits on, which reads as a badge rather than a mistake.
- * On the white admin the plate is invisible and costs nothing.
- *
- * When the client sends a vector or a transparent PNG, the crop maths and the
- * plate both go and this becomes a plain `<Image>`.
+ * When the client sends a vector or a transparent PNG, the plate goes too.
  */
 
-/** The artwork's bounding box inside the supplied square, measured from it. */
-const ARTWORK_WIDTH = 555;
-const ARTWORK_HEIGHT = 441;
+/** The trimmed artwork's real dimensions, from the generated file. */
+const MARK_WIDTH = 562;
+const MARK_HEIGHT = 443;
 
 export function BrandMark({
   compact = false,
@@ -49,30 +41,28 @@ export function BrandMark({
   return (
     <span
       className={cn(
-        // The plate. `bg-white`, not `--pv-surface`: it exists to match the
-        // paper baked into the JPEG, which does not follow our tokens.
-        "inline-flex shrink-0 overflow-hidden rounded-xl bg-white",
-        compact ? "h-11 p-1" : "h-14 p-1.5",
+        // `bg-white`, not `--pv-surface`: the plate exists to match the paper
+        // baked into the artwork, which does not follow our tokens.
+        "inline-flex shrink-0 items-center overflow-hidden rounded-xl bg-white",
+        compact ? "h-11 px-2 py-1.5" : "h-14 px-2.5 py-2",
       )}
     >
-      <span className="relative block aspect-[555/441] h-full overflow-hidden">
-        <Image
-          src="/images/pouch-villa-logo.jpg"
-          alt={decorative ? "" : "Pouch Villa"}
-          width={ARTWORK_WIDTH}
-          height={ARTWORK_HEIGHT}
-          // On every page and above the fold.
-          priority
-          sizes="72px"
-          /*
-            195% wide and pulled up and left, so the artwork's bounding box —
-            not the file's empty margin — fills the frame. `max-w-none` because
-            the global `img { max-width: 100% }` reset would otherwise clamp it
-            straight back to the box it is meant to overflow.
-          */
-          className="absolute top-[-72.56%] left-[-42.34%] w-[194.59%] max-w-none"
-        />
-      </span>
+      <Image
+        src="/images/pouch-villa-logo-mark.png"
+        alt={decorative ? "" : "Pouch Villa"}
+        width={MARK_WIDTH}
+        height={MARK_HEIGHT}
+        // On every page and above the fold.
+        priority
+        /*
+          Generous rather than exact. The mark renders about 45px wide in the
+          compact header and 60px otherwise; asking for 128 lets `next/image`
+          serve a bitmap that is still crisp on a 2× and 3× phone screen, which
+          is what most of this shop's visitors are on. It is a ~4KB PNG.
+        */
+        sizes="128px"
+        className="h-full w-auto"
+      />
     </span>
   );
 }

@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  ANNOUNCEMENT_SETTING_FIELDS,
   BANK_SETTING_FIELDS,
   POLICY_SETTING_FIELDS,
   STORE_SETTING_FIELDS,
+  announcementSettingsFormSchema,
   settingsFormSchema,
   storeSettingsFormSchema,
   policySettingsFormSchema,
@@ -62,6 +64,27 @@ export async function saveStoreSettingsAction(
   // per request only for the visitor who triggered this.
   revalidatePath("/");
   return { error: null, message: "Store details saved." };
+}
+
+export async function saveAnnouncementSettingsAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const principal = await requirePermission("settings.manage");
+  const parsed = announcementSettingsFormSchema.safeParse(
+    submissionFrom(formData, ANNOUNCEMENT_SETTING_FIELDS),
+  );
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
+
+  try {
+    await writeSettings(parsed.data, { staffId: principal.staffId });
+  } catch (error) {
+    return toActionError(error, "The announcement could not be saved.");
+  }
+  revalidatePath("/admin/settings");
+  // The bar is in the storefront layout, so it is on every page rather than one.
+  revalidatePath("/", "layout");
+  return { error: null, message: "Announcement saved." };
 }
 
 export async function savePolicySettingsAction(

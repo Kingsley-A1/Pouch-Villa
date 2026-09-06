@@ -4,6 +4,7 @@ import { StoreFooter } from "@/components/store-footer";
 import { StoreHeader } from "@/components/store-header";
 import { StaffBar } from "@/components/staff-bar";
 import { StoreSidebar } from "@/components/store-sidebar";
+import { listBrandLinks } from "@pv/backend/services/catalogue";
 import { announcementDismissed, readAnnouncement } from "@/server/announcement";
 import { getCustomerPrincipal } from "@/server/customer-session";
 import { staffViewerName } from "@/server/staff-viewer";
@@ -26,11 +27,14 @@ import { staffViewerName } from "@/server/staff-viewer";
  * storefront page.
  */
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [principal, staffName, announcement, announcementHidden] = await Promise.all([
+  const [principal, staffName, announcement, announcementHidden, brands] = await Promise.all([
     getCustomerPrincipal(),
     staffViewerName(),
     readAnnouncement(),
     announcementDismissed(),
+    // For the sidebar's brand menu. Three columns and one index — see
+    // `listBrandLinks` for why it is the narrowest query in the catalogue.
+    listBrandLinks(),
   ]);
   const signedIn = principal !== null;
 
@@ -62,7 +66,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
         whole page into a horizontal scroll — which §2 forbids at any width.
       */}
       <div className="flex-1 lg:flex">
-        <StoreSidebar signedIn={signedIn} />
+        <StoreSidebar signedIn={signedIn} brands={brands} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <StoreFooter />

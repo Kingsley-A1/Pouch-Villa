@@ -3,6 +3,7 @@ import { requirePermission } from "@/server/session";
 import { readSettings, pick } from "@pv/backend/services/settings";
 import { BankSettingsForm } from "./bank-settings-form";
 import { StoreSettingsForm } from "./store-settings-form";
+import { AnnouncementSettingsForm } from "./announcement-settings-form";
 import { PolicySettingsForm } from "./policy-settings-form";
 import { EditableSettingsSection } from "./editable-settings-section";
 
@@ -51,21 +52,25 @@ export default async function SettingsAdminPage() {
           bankName={pick(settings, "bank.bank_name")}
         />
       </EditableSettingsSection>
-      <EditableSettingsSection
-        title="Store details"
-        summary="Contact details, the announcement bar, and home page copy."
-      >
+      <EditableSettingsSection title="Store details" summary="Contact details and home page copy.">
         <StoreSettingsForm
           address={pick(settings, "store.address")}
           hours={pick(settings, "store.opening_hours")}
           whatsapp={pick(settings, "store.whatsapp_number")}
           contactEmail={pick(settings, "store.contact_email")}
-          announcement={pick(settings, "store.announcement")}
-          instagramUrl={pick(settings, "store.instagram_url")}
-          xUrl={pick(settings, "store.x_url")}
-          locations={pick(settings, "store.locations")}
           heroHeadline={pick(settings, "store.hero_headline")}
           heroSubtitle={pick(settings, "store.hero_subtitle")}
+        />
+      </EditableSettingsSection>
+      <EditableSettingsSection
+        title="Announcement bar"
+        summary="The message that runs across the top of the shop, and the contact row under it."
+      >
+        <AnnouncementSettingsForm
+          announcement={pick(settings, "store.announcement")}
+          locations={pick(settings, "store.locations")}
+          instagramUrl={pick(settings, "store.instagram_url")}
+          xUrl={pick(settings, "store.x_url")}
         />
       </EditableSettingsSection>
       <EditableSettingsSection

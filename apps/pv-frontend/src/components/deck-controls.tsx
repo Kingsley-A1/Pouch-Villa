@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
-const ADVANCE_MS = 5200;
-
 /**
- * Autoplay, arrows and dots for the hero deck — the deck's only JavaScript.
+ * Autoplay, arrows and dots for a slide deck — its only JavaScript.
+ *
+ * Shared by the hero and the category showcase. It knows nothing about what is
+ * in the track: it scrolls a container by id, which is what lets the slides
+ * themselves stay Server Components in both.
  *
  * It drives the track by scrolling it, rather than owning the slides. That is
  * what keeps the slides Server Components: no photograph, headline or link is
@@ -18,7 +20,17 @@ const ADVANCE_MS = 5200;
  * deck has said what they want to look at, and moving it under them afterwards
  * is the behaviour that makes carousels hated.
  */
-export function HeroDeckControls({ count, trackId }: { count: number; trackId: string }) {
+export function DeckControls({
+  count,
+  trackId,
+  /** How long a slide holds before the next one. The hero rests longer than the
+      category deck, which the client asked to move every two seconds. */
+  intervalMs = 5200,
+}: {
+  count: number;
+  trackId: string;
+  intervalMs?: number;
+}) {
   const [index, setIndex] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopped = useRef(false);
@@ -81,7 +93,7 @@ export function HeroDeckControls({ count, trackId }: { count: number; trackId: s
       timer.current = setInterval(() => {
         if (stopped.current) return;
         show((current() + 1) % count);
-      }, ADVANCE_MS);
+      }, intervalMs);
     }
 
     function show(next: number) {
@@ -109,7 +121,7 @@ export function HeroDeckControls({ count, trackId }: { count: number; trackId: s
       if (frame !== null) cancelAnimationFrame(frame);
       stop();
     };
-  }, [count, trackId]);
+  }, [count, trackId, intervalMs]);
 
   const goTo = useRef<(next: number) => void>(() => {});
 

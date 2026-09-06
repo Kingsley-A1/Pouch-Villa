@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CaretDown,
   ChatCircleDots,
   Heart,
   Info,
+  List,
   Package,
   SidebarSimple,
   SquaresFour,
@@ -14,6 +16,7 @@ import {
   Truck,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
+import type { BrandLink } from "@pv/backend/services/catalogue";
 import { INFO_LINKS, SHOP_LINKS, isCurrent } from "@/lib/store-nav";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +80,7 @@ const SHOP_ICONS: Record<string, Icon> = {
   "/contact": ChatCircleDots,
 };
 
-export function StoreSidebar({ signedIn }: { signedIn: boolean }) {
+export function StoreSidebar({ signedIn, brands }: { signedIn: boolean; brands: BrandLink[] }) {
   const pathname = usePathname();
   // The server render and the first client render must agree, so this starts
   // collapsed and widens only once the stored preference has been read.
@@ -133,6 +136,8 @@ export function StoreSidebar({ signedIn }: { signedIn: boolean }) {
             Collapse
           </span>
         </button>
+
+        <BrandMenu brands={brands} open={open} />
 
         <SidebarLinks items={shop} pathname={pathname} open={open} />
 
@@ -190,6 +195,99 @@ export function StoreSidebar({ signedIn }: { signedIn: boolean }) {
         )}
       </nav>
     </aside>
+  );
+}
+
+/**
+ * The makes the shop carries, on a hamburger.
+ *
+ * The client asked for the reference site's "Browse categories" control, filled
+ * with brands rather than categories. It opens on hover **and** on focus, and it
+ * is a real `<button>` with `aria-expanded`: a hover-only menu is unreachable by
+ * keyboard and invisible to a touch screen, which is most of this shop.
+ *
+ * The names come from the same `brand` rows the admin's Brands & Categories
+ * screen manages — there is no second list to keep in step — and only makes with
+ * something published appear, so no entry here leads to an empty shelf.
+ *
+ * It renders nothing at all where the shop has no brands yet, rather than
+ * offering a control that opens onto nothing.
+ */
+function BrandMenu({ brands, open }: { brands: BrandLink[]; open: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const panelId = "store-sidebar-brands";
+
+  if (brands.length === 0) return null;
+
+  return (
+    // Hover opens it; focus-within keeps it open while tabbing through the
+    // links inside, which is what stops it closing under a keyboard user.
+    <div
+      className="relative mb-1"
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      onFocus={() => setExpanded(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setExpanded(false);
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        // Tapping is the touch equivalent of hovering, and without it this
+        // control does nothing at all on a tablet.
+        onClick={() => setExpanded((wasOpen) => !wasOpen)}
+        className={cn(
+          "flex min-h-11 w-full items-center gap-3 rounded-xl text-sm font-bold",
+          "bg-(--pv-surface-raised) text-(--pv-ink)",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
+          open ? "px-3" : "justify-center px-0",
+        )}
+      >
+        <List aria-hidden="true" size={20} weight="bold" />
+        <span
+          className={cn(
+            "flex flex-1 items-center justify-between gap-2 whitespace-nowrap",
+            open ? "opacity-100" : "w-0 overflow-hidden opacity-0",
+          )}
+        >
+          {/* Not `aria-hidden` like the other collapsed labels: this one names
+              the control, and the button has no other accessible text. */}
+          <span>Shop by brand</span>
+          <CaretDown aria-hidden="true" size={14} weight="bold" />
+        </span>
+        {open ? null : <span className="sr-only">Shop by brand</span>}
+      </button>
+
+      {expanded ? (
+        <ul
+          id={panelId}
+          className={cn(
+            "absolute z-30 max-h-72 overflow-y-auto py-1",
+            "border border-(--pv-line) bg-(--pv-surface) shadow-[0_14px_40px_-18px_var(--pv-shadow)]",
+            // Beneath the button when the rail is open, beside it when it is a
+            // narrow rail — where a dropdown would be wider than the sidebar.
+            open ? "top-full left-0 w-full" : "top-0 left-full ml-1 w-52",
+          )}
+        >
+          {brands.map((brand) => (
+            <li key={brand.id}>
+              <Link
+                href={`/shop?brand=${brand.slug}`}
+                className={cn(
+                  "flex min-h-11 items-center px-3 text-sm font-semibold uppercase",
+                  "text-(--pv-ink) hover:bg-(--pv-wash)",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--pv-focus)",
+                )}
+              >
+                {brand.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

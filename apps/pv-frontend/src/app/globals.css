@@ -49,6 +49,17 @@
    */
   --pv-focus: rgba(227, 6, 19, 0.55);
   --pv-selection: rgba(227, 6, 19, 0.16);
+
+  /*
+    The heart, and the one colour the storefront must not repaint.
+
+    `--pv-red` becomes white inside `.storefront`, because on red paper white is
+    what carries the "actionable" role. A heart is different: it is a picture of
+    a thing, not an accent, and the client asked for it red inside with a white
+    edge. So it gets its own token, defined once and never remapped, and it is
+    the brand red on every ground.
+  */
+  --pv-heart: #e30613;
 }
 
 /*
@@ -436,7 +447,10 @@
     there is room to spare and an unbroken line of display type would run past
     the point it stays readable.
   */
-  font-size: clamp(1.55rem, 4.4vw, 3.2rem);
+  /* Reduced at the client's request: the home page is meant to be clean, and at
+     the previous 3.2rem ceiling the headline was the loudest thing on a page
+     whose job is to show photographs of stock. */
+  font-size: clamp(1.4rem, 3.2vw, 2.25rem);
   line-height: 1.12;
   letter-spacing: -0.032em;
   font-weight: 800;
@@ -451,8 +465,14 @@
  * is visible before a scroll. The bottom stays at the section rhythm so the hero
  * still separates cleanly from what follows.
  */
+/* The opening line sits close to what follows it.
+
+   It used to carry a full section's padding underneath, which on a desktop put
+   about 7rem of red between the headline and the first photograph — the client
+   asked for that gap closed, and for the page to read as one thing rather than
+   a sentence and then, separately, a shop. */
 .hero-space {
-  padding-block: clamp(1.5rem, 3vw, 2.75rem) clamp(3.75rem, 7vw, 7rem);
+  padding-block: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 2vw, 1.75rem);
 }
 .section-title {
   font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
@@ -789,6 +809,107 @@ nav[aria-label="Breadcrumb"] + .section-space {
        already stopped by `pv-loop`; this is only what it looks like stopped. */
     width: 100%;
     opacity: 0.55;
+  }
+}
+
+/* The category showcase, desktop only (components/category-mosaic.tsx).
+
+   Shares `.pv-deck-track` with the hero, so both are the browser's own
+   horizontal scroll with snap points rather than a carousel library. What is
+   different here is the framing: the name sits over the middle of the picture
+   instead of in a corner, so the picture has to be treated to carry it. */
+.pv-cat-slide {
+  position: relative;
+  scroll-snap-align: center;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  /* Wide and generous — the client asked for the image to expand on desktop,
+     and this is the band that does it. */
+  aspect-ratio: 16 / 7;
+  max-height: 32rem;
+  overflow: hidden;
+}
+
+/* Blurred and pulled back a little.
+
+   Not decoration: the name is white text over an arbitrary photograph the CEO
+   uploaded, and nothing else keeps it above 4.5:1 on a picture nobody has
+   measured. `scale(1.06)` hides the transparent edge a blur leaves behind —
+   without it the slide shows a soft grey frame where the filter runs out. */
+.pv-cat-photo {
+  z-index: -2;
+  filter: blur(3px) brightness(0.72);
+  transform: scale(1.06);
+}
+
+/* A second, even wash on top. The blur alone still leaves a bright photograph
+   bright; this puts a known floor under the contrast rather than trusting the
+   image. */
+.pv-cat-slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(40, 0, 3, 0.34);
+}
+
+.pv-cat-body {
+  display: grid;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.pv-cat-title {
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-size: clamp(2.2rem, 4.4vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-transform: capitalize;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Square, per the client's rule for anything that is not typed into, and the
+   reference's own treatment of the same button. */
+.pv-cat-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.8rem 2.2rem;
+  border: 1px solid #ffffff;
+  border-radius: 0;
+  background: transparent;
+  color: #ffffff;
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+.pv-cat-cta:hover {
+  background: #ffffff;
+  color: var(--pv-on-brand);
+}
+
+/* The entrance, on whichever slide is showing: the name, then the button.
+
+   The photograph never animates — it is the largest element on the band and
+   fading it in is how an LCP lands late. Delays are utility-free literal rules
+   here because they belong to these two elements and nothing else. */
+@media (prefers-reduced-motion: no-preference) {
+  .pv-cat-slide.is-on .pv-cat-title,
+  .pv-cat-slide.is-on .pv-cat-cta {
+    animation: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .pv-cat-slide.is-on .pv-cat-cta {
+    animation-delay: 220ms;
   }
 }
 

@@ -2,92 +2,161 @@ import Link from "next/link";
 import Image from "next/image";
 import type { CategoryCard } from "@pv/backend/services/catalogue";
 import { cn } from "@/lib/utils";
+import { DeckControls } from "./deck-controls";
+
+const DECK_TRACK_ID = "pv-category-track";
 
 /**
- * The ways into the shop, as a bento of photographs.
+ * The ways into the shop.
  *
- * This replaces the two bordered cards that used to sit under the headline. The
- * client's brief was that the home page should be bold, and a two-up grid of
- * outlined cards cannot be made bold — it has to become something else. What
- * carries it is the photography: full-bleed tiles with the name on a plate in
- * the corner, which is the shape of the reference the client pointed at.
+ * **Two presentations, not one responsive layout.** On a desktop the client
+ * asked for a full-bleed deck that moves on its own — one category at a time,
+ * its name over the middle of the photograph and a square button under it. On a
+ * phone that would be a single enormous tile the visitor has to wait out, so
+ * below `lg` this stays the stack of cards it already was.
  *
- * **The first tile is tall, and only above 720 px.** On a phone the layout is a
- * single column of squares, because a tall tile at 360 px is most of a screen
- * spent on one category. The grid is written so a fourth or a sixth category
- * wraps without anyone having to come back and re-tune it.
+ * Both read the same rows, so the shop is never showing two different sets of
+ * categories depending on what you opened it on. The desktop track is a Server
+ * Component like the hero's, with one shared controls island for autoplay.
  *
- * The label sits on a **solid** plate rather than a gradient. Every other
- * surface in the shop is measured against a known token; this one is measured
- * against whatever photograph the CEO uploaded, and the only way to keep white
- * text at AA over an unknown image is to put something opaque behind it.
+ * There is no product count on either. The client asked for it gone: on a
+ * photograph the size of a screen, "5 items" is the smallest true thing that
+ * could be said and it was competing with the name.
  */
 export function CategoryMosaic({ categories }: { categories: CategoryCard[] }) {
   if (categories.length === 0) return null;
 
   return (
-    <ul className="mosaic grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((category, index) => (
-        <li
-          key={category.id}
-          className={cn(
-            // The lead tile spans two rows, so it needs the two-row grid to
-            // exist — which it only does from `lg` up.
-            index === 0 ? "lg:row-span-2" : undefined,
-          )}
-        >
-          <Tile category={category} lead={index === 0} />
+    <>
+      <div className="container-shell lg:hidden">
+        <MobileStack categories={categories} />
+      </div>
+      <div className="hidden lg:block">
+        <DesktopDeck categories={categories} />
+      </div>
+    </>
+  );
+}
+
+/** Unchanged from what shipped: a stack of square cards, one per category. */
+function MobileStack({ categories }: { categories: CategoryCard[] }) {
+  return (
+    <ul className="grid gap-2.5 sm:grid-cols-2">
+      {categories.map((category) => (
+        <li key={category.id}>
+          <Link
+            href={`/browse/${category.slug}`}
+            className={cn(
+              "group relative block aspect-square overflow-hidden rounded-none bg-(--pv-surface)",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
+            )}
+          >
+            <Art category={category} sizes="(max-width: 640px) 100vw, 50vw" />
+            <span className="absolute bottom-0 left-0 max-w-[92%] bg-[color-mix(in_srgb,#1a0d0e_82%,transparent)] px-3.5 py-2.5">
+              <span className="block text-sm font-bold tracking-[0.05em] text-white uppercase">
+                {category.name}
+              </span>
+            </span>
+          </Link>
         </li>
       ))}
     </ul>
   );
 }
 
-function Tile({ category, lead }: { category: CategoryCard; lead: boolean }) {
-  const { image, name, slug, productCount } = category;
+/**
+ * Desktop: one category at a time, full width.
+ *
+ * The photograph is blurred and darkened a little. That is not decoration — the
+ * name sits over the middle of an arbitrary image the CEO uploaded, and there is
+ * no other way to keep white text above 4.5:1 on a picture nobody has measured.
+ * The blur is slight enough that the product is still legible behind it.
+ */
+function DesktopDeck({ categories }: { categories: CategoryCard[] }) {
+  return (
+    <section className="relative" aria-roledescription="carousel" aria-label="Shop by category">
+      <div id={DECK_TRACK_ID} className="pv-deck-track">
+        {categories.map((category, index) => (
+          <article
+            key={category.id}
+            className={cn("pv-cat-slide", index === 0 && "is-on")}
+            aria-roledescription="slide"
+            aria-label={`${index + 1} of ${categories.length}`}
+          >
+            <Art category={category} sizes="100vw" className="pv-cat-photo" />
+
+            <div className="pv-cat-body">
+              {/* The name arrives first, then the button — the order the client
+                  described, and the order somebody reads them in anyway. */}
+              <p className="pv-cat-title">{category.name}</p>
+              <Link href={`/browse/${category.slug}`} className="pv-cat-cta">
+                Shop Now
+              </Link>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {categories.length > 1 ? (
+        <DeckControls count={categories.length} trackId={DECK_TRACK_ID} intervalMs={2000} />
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * The picture, or a lettered panel where the CEO has not set one.
+ *
+ * Shared so the two presentations cannot drift into showing different artwork —
+ * and so the fallback for an unphotographed category is written once.
+ */
+function Art({
+  category,
+  sizes,
+  className,
+}: {
+  category: CategoryCard;
+  sizes: string;
+  className?: string;
+}) {
+  if (category.image === null) {
+    return (
+      <span
+        aria-hidden="true"
+        className={cn(
+          "grid h-full w-full place-items-center bg-(--pv-wash) text-6xl font-black",
+          "text-[color-mix(in_srgb,var(--pv-ink)_22%,transparent)]",
+          className,
+        )}
+      >
+        {category.name.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
 
   return (
-    <Link
-      href={`/browse/${slug}`}
-      className={cn(
-        "group relative block h-full overflow-hidden rounded-none bg-(--pv-surface)",
-        // Portrait for the lead where it has the height to fill, landscape
-        // otherwise. `aspect-square` on a phone keeps every tile the same shape
-        // whichever position it happens to land in.
-        "aspect-square",
-        lead ? "lg:aspect-3/4" : "lg:aspect-4/3",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
-      )}
-    >
-      {image === null ? (
-        // A tinted panel with the initial, not an empty grey box: a category
-        // nobody has photographed yet should look unfinished, not broken.
-        <span
-          aria-hidden="true"
-          className="grid h-full place-items-center bg-(--pv-wash) text-6xl font-black text-[color-mix(in_srgb,var(--pv-ink)_22%,transparent)]"
-        >
-          {name.slice(0, 1).toUpperCase()}
-        </span>
-      ) : (
-        <Image
-          src={image.cardUrl}
-          alt=""
-          fill
-          // The lead tile is the widest thing on the page below `lg`, so it gets
-          // its own hint rather than sharing the smaller tiles' estimate.
-          sizes={lead ? "(max-width: 1024px) 100vw, 40vw" : "(max-width: 640px) 100vw, 30vw"}
-          className="object-cover transition-transform duration-500 group-hover:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-        />
-      )}
+    <Image
+      src={category.image.cardUrl}
+      alt=""
+      fill
+      sizes={sizes}
+      /*
+        Lazy, and never `priority`, in both presentations.
 
-      <span className="absolute bottom-0 left-0 max-w-[92%] bg-[color-mix(in_srgb,#1a0d0e_82%,transparent)] px-3.5 py-2.5">
-        <span className="block text-sm font-bold tracking-[0.05em] text-white uppercase">
-          {name}
-        </span>
-        <span className="mt-0.5 block text-xs text-white/70">
-          {productCount} {productCount === 1 ? "item" : "items"}
-        </span>
-      </span>
-    </Link>
+        Both the stack and the deck are in the HTML at once — CSS decides which
+        one a visitor sees — so an eager image here would make a phone download
+        the desktop deck's 100vw photograph it will never display. Lazy loading
+        is what keeps the hidden half free: a browser does not fetch a lazy image
+        inside a `display: none` subtree.
+
+        Neither is the LCP element either way; the band sits below the headline.
+      */
+      loading="lazy"
+      className={cn(
+        "object-cover transition-transform duration-500 group-hover:scale-[1.06]",
+        "motion-reduce:transition-none motion-reduce:group-hover:scale-100",
+        className,
+      )}
+    />
   );
 }

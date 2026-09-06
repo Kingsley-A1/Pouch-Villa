@@ -92,20 +92,44 @@ export function LikeButton({
           "grid h-11 w-11 place-items-center rounded-full transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
           detail ? "border border-(--pv-line)" : "",
-          onMedia
-            ? "on-media text-white"
-            : liked
-              ? "text-(--pv-red)"
-              : "text-(--pv-muted) hover:text-(--pv-red)",
+          onMedia ? "on-media" : "",
           pending ? "opacity-60" : "",
         )}
       >
-        <Heart
-          aria-hidden="true"
-          size={detail ? 23 : 20}
-          weight={liked ? "fill" : "regular"}
-          className="motion-safe:transition-transform"
-        />
+        {/*
+          Two hearts, stacked: a red body with a white outline drawn over it.
+
+          The client asked for exactly that, and one glyph cannot give it —
+          Phosphor's `fill` has no contrasting edge and `duotone` draws its fill
+          at partial opacity, which on a photograph reads as a smudge rather
+          than as a red heart.
+
+          Liked and unliked still differ by shape rather than only by colour:
+          unliked is the outline alone. That keeps the state legible to someone
+          who cannot tell the two colours apart, which colour alone would not.
+        */}
+        <span className="relative grid place-items-center">
+          {liked ? (
+            <Heart
+              aria-hidden="true"
+              size={detail ? 23 : 20}
+              weight="fill"
+              className="absolute text-(--pv-heart)"
+            />
+          ) : null}
+          <Heart
+            aria-hidden="true"
+            size={detail ? 23 : 20}
+            weight="regular"
+            className={cn(
+              "relative motion-safe:transition-transform",
+              // White edge on media and on the red storefront alike; on the
+              // white admin surface an unliked heart still needs to be visible,
+              // so it keeps the muted grey there.
+              onMedia || liked ? "text-white" : "text-(--pv-muted) hover:text-(--pv-heart)",
+            )}
+          />
+        </span>
       </button>
 
       {count > 0 ? (

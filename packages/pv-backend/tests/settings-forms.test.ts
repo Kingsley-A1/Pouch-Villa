@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ANNOUNCEMENT_SETTING_FIELDS,
   BANK_SETTING_FIELDS,
   POLICY_SETTING_FIELDS,
   STORE_SETTING_FIELDS,
+  announcementSettingsFormSchema,
   policySettingsFormSchema,
   settingsFormSchema,
   storeSettingsFormSchema,
@@ -26,6 +28,7 @@ const CASES = [
   ["bank", BANK_SETTING_FIELDS, settingsFormSchema],
   ["store", STORE_SETTING_FIELDS, storeSettingsFormSchema],
   ["policy", POLICY_SETTING_FIELDS, policySettingsFormSchema],
+  ["announcement", ANNOUNCEMENT_SETTING_FIELDS, announcementSettingsFormSchema],
 ] as const;
 
 describe("settings form field lists", () => {
