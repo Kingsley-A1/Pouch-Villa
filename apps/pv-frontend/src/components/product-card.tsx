@@ -42,10 +42,9 @@ export function ProductCardFace({
       <div
         className={cn(
           "relative overflow-hidden bg-(--pv-wash)",
-          // The image fills the top of the card, so only its top corners round.
-          // One pixel less than the shell's radius, which stops the card's own
-          // border showing as a hairline sliver outside the image corner.
-          "rounded-t-[15px]",
+          // No radius of its own now that the shell is square: the one-pixel
+          // inset that used to keep the card's border from showing as a sliver
+          // outside the image corner has nothing left to correct for.
           feature ? "aspect-4/3" : "aspect-square",
         )}
       >
@@ -136,9 +135,13 @@ export function ProductCardFace({
  * `bg-(--pv-surface)` matters in dark mode: without it the card is the page
  * colour and the border is the only thing separating it from the background,
  * which reads as a wireframe rather than a card.
+ *
+ * Square, at the client's instruction. The fill and the hairline border stay:
+ * on the storefront's red ground a borderless card dissolves into the page and
+ * a grid of them stops reading as a grid.
  */
 export const CARD_SHELL_CLASS = cn(
-  "group block overflow-hidden rounded-2xl border border-(--pv-line) bg-(--pv-surface)",
+  "group block overflow-hidden rounded-none border border-(--pv-line) bg-(--pv-surface)",
   "transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none",
   "hover:border-[color-mix(in_srgb,var(--pv-red)_38%,var(--pv-line))] hover:shadow-[0_6px_24px_-12px_var(--pv-shadow)]",
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",

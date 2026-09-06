@@ -24,7 +24,7 @@ export function ProductGrid({
 }) {
   if (products.length === 0) {
     return (
-      <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed border-(--pv-line) p-10 text-center">
+      <div className="grid justify-items-center gap-3 rounded-none border border-dashed border-(--pv-line) p-10 text-center">
         {/* Dimmed rather than full strength: it is decoration marking an empty
             shelf, not the shop announcing itself a second time on the page. */}
         <span className="opacity-40">

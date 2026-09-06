@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
 import { requirePermission } from "@/server/session";
 import { listAllHomeSections } from "@pv/backend/services/home-sections";
+import { listAllHeroSlides } from "@pv/backend/services/hero-slides";
 import { listAllCategories } from "@pv/backend/services/categories";
 import { listAllBrands } from "@pv/backend/services/brands";
 import { SectionList } from "./section-list";
+import { SlideList } from "./slide-list";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Storefront" };
 
 export default async function StorefrontAdminPage() {
   await requirePermission("product.manage");
-  const [sections, categories, brands] = await Promise.all([
+  const [sections, categories, brands, slides] = await Promise.all([
     listAllHomeSections(),
     listAllCategories(),
     listAllBrands(),
+    listAllHeroSlides(),
   ]);
 
   return (
@@ -26,6 +29,8 @@ export default async function StorefrontAdminPage() {
           broken while you are setting it up.
         </p>
       </div>
+      {/* Above the sections, because it is above them on the page it describes. */}
+      <SlideList slides={slides} />
       <SectionList sections={sections} categories={categories} brands={brands} />
     </div>
   );

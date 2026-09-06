@@ -461,9 +461,13 @@
   letter-spacing: -0.028em;
   font-weight: 800;
 }
+/* Square, at the client's instruction, and deliberately only here: the rule they
+   gave is "square everything that holds content, keep the radius on everything
+   you press or type into", so `.button-*` and `.field` below are untouched.
+   Used on storefront routes only — the admin has no `.card-surface`. */
 .card-surface {
   border: 1px solid var(--pv-line);
-  border-radius: 1.35rem;
+  border-radius: 0;
   background: var(--pv-surface);
 }
 /* Buttons must always render their label on a single line — never wrap into
@@ -726,6 +730,22 @@ nav[aria-label="Breadcrumb"] + .section-space {
   }
 }
 
+/* The reduced-motion kill switch, in two halves — because one rule cannot serve
+   both kinds of animation the shop has.
+
+   Collapsing a duration to 0.01ms is the right answer for a one-shot: the
+   element arrives at its final state immediately and never moves again. On a
+   *looping* animation it is the wrong answer and an actively harmful one — an
+   infinite iteration count does not stop, it repeats every 0.01ms, which is a
+   strobe aimed precisely at the people who asked the browser for less motion.
+
+   CSS cannot select "animations whose iteration count is infinite", so the
+   second half is opt-in: anything that loops carries `pv-loop`, and that class
+   is what gets stopped rather than accelerated. `stylesheet-layers.test.ts`
+   asserts the pairing, so a new looping animation cannot be added without it.
+
+   Both halves stay outside a cascade layer: this has to beat every animation on
+   the page, Tailwind utilities included, which is the whole point of it. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -734,13 +754,21 @@ nav[aria-label="Breadcrumb"] + .section-space {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+
+  /* The shorthand, not `animation-duration`, so it also clears the iteration
+     count and the element is left in the animation's un-started state. It beats
+     the rule above on specificity, so order between them does not matter. */
+  .pv-loop,
+  .pv-loop::before,
+  .pv-loop::after {
+    animation: none !important;
+  }
 }
 
 /* The branded indeterminate loading sweep (components/loading-line.tsx).
    Kept here rather than as a Tailwind arbitrary value because it needs
-   keyframes and a reduced-motion fallback that actually stops it: the global
-   rule below caps animation-duration at 0.01ms, which on an infinite loop is a
-   strobe rather than a stop. */
+   keyframes of its own. It loops, so the element carries `pv-loop` and the rule
+   above stops it; what is left here is only the still state it stops *into*. */
 @keyframes pv-loading-sweep {
   0% {
     transform: translateX(-105%);
@@ -757,10 +785,304 @@ nav[aria-label="Breadcrumb"] + .section-space {
 @media (prefers-reduced-motion: reduce) {
   .pv-loading-sweep {
     /* A still, full-width bar: the element still says "busy" via its
-       role="progressbar" parent, without any movement at all. */
-    animation: none !important;
+       role="progressbar" parent, without any movement at all. The animation is
+       already stopped by `pv-loop`; this is only what it looks like stopped. */
     width: 100%;
     opacity: 0.55;
+  }
+}
+
+/* Continuity between screens.
+
+   Two small things, both of which the client would describe as "alive" and
+   neither of which ships a byte of JavaScript.
+
+   1. A press state. Every control in the shop reacted to a mouse hovering it and
+      to nothing at all when a thumb pressed it - which is the only one of the
+      two that happens on the phones this shop is actually used on. The dip is
+      tiny and instant, because a press is feedback rather than an animation.
+
+   2. A cross-fade between routes, through the browser own View Transitions API
+      (enabled by `experimental.viewTransition` in next.config.ts). It runs on
+      the compositor, so it costs no main-thread work on a mid-range Android.
+
+   Both are dropped under `prefers-reduced-motion`: a page that cross-fades is
+   exactly the kind of unrequested movement that setting exists to stop. */
+.button-primary:active,
+.button-secondary:active,
+.button-ghost:active,
+.pv-slide-cta:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 220ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* `animation: none` rather than a short duration: the default cross-fade is a
+     pair of generated animations, and shortening them still moves the page. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  .button-primary:active,
+  .button-secondary:active,
+  .button-ghost:active,
+  .pv-slide-cta:active {
+    transform: none;
+  }
+}
+
+/* The hero slide deck (components/hero-deck.tsx).
+
+   A scroll-snapping strip, not a carousel library. The track is a single-row
+   grid whose columns are each 100% wide, so swiping is the browser's own
+   horizontal scroll — it is smooth on a phone for free, it works with the deck's
+   JavaScript stripped out, and it costs nothing against the §2 script budget.
+
+   Everything here is written so that with `pv-hero-controls` removed the deck is
+   still a usable, reachable strip of slides. */
+.pv-deck-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  /* The scrollbar is furniture on a full-bleed photograph, and the dots already
+     say where you are. */
+  scrollbar-width: none;
+}
+.pv-deck-track::-webkit-scrollbar {
+  display: none;
+}
+
+.pv-slide {
+  position: relative;
+  scroll-snap-align: center;
+  display: grid;
+  align-content: end;
+  isolation: isolate;
+  /* Wide enough to be a banner, tall enough that the headline is not squeezed
+     against the button at 360 px. The min-height is what stops a very wide
+     desktop turning the hero into a letterbox slot. */
+  aspect-ratio: 16 / 9;
+  min-height: 22rem;
+}
+@media (min-width: 640px) {
+  .pv-slide {
+    aspect-ratio: 16 / 7;
+  }
+}
+
+.pv-slide-photo {
+  z-index: -2;
+}
+
+/* A gradient scrim, angled so it is heaviest exactly where the text sits.
+   A flat overlay would either wash out the photograph or leave the headline
+   unreadable over its bright corner; this keeps white above 4.5:1 across the
+   text column while the far side of the picture stays almost untouched. */
+.pv-slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    75deg,
+    rgba(70, 0, 4, 0.9) 8%,
+    rgba(70, 0, 4, 0.55) 55%,
+    rgba(70, 0, 4, 0.15) 100%
+  );
+}
+
+.pv-slide-body {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  max-width: 42ch;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.pv-slide-kicker {
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f7d0d3;
+}
+
+.pv-slide-title {
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-size: clamp(1.9rem, 5.2vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  /* The words are inline-blocks so each can be transformed on its own; the gap
+     between them therefore has to be drawn rather than inherited from the space
+     characters the split removed. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.28em;
+}
+
+.pv-slide-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.75rem 1.4rem;
+  background: #ffffff;
+  color: var(--pv-on-brand);
+  border: 1px solid #ffffff;
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-weight: 700;
+  text-decoration: none;
+  /* Square, per the client's rule — this holds content rather than being a
+     control you type into, and it is the reference's own treatment. */
+  border-radius: 0;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+.pv-slide-cta:hover {
+  background: #f7d0d3;
+  border-color: #f7d0d3;
+  transform: translateY(-1px);
+}
+
+/* The entrance, and only on the slide currently showing.
+
+   The photograph never participates: it is the LCP element and an image that
+   fades in is an LCP that lands late. Only the text moves. */
+@media (prefers-reduced-motion: no-preference) {
+  .pv-slide.is-on .pv-slide-kicker,
+  .pv-slide.is-on .pv-w,
+  .pv-slide.is-on .pv-slide-cta {
+    animation: rise-in 0.62s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .pv-slide.is-on .pv-slide-cta {
+    animation-delay: 320ms;
+  }
+}
+.pv-w {
+  display: inline-block;
+}
+
+.pv-deck-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  /* 44 px, as §2 requires of every target. */
+  width: 44px;
+  height: 44px;
+  z-index: 2;
+  color: #ffffff;
+  background: rgba(70, 0, 4, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}
+.pv-deck-arrow:hover {
+  background: rgba(70, 0, 4, 0.85);
+}
+
+.pv-deck-dots {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.25rem;
+  z-index: 2;
+}
+/* A small mark with a large target: the bar is 4 px tall because a thick one
+   would compete with the headline, and the button around it is 44 px because a
+   4 px tap target is not one. */
+.pv-deck-dot {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.pv-deck-dot-bar {
+  display: block;
+  width: 28px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.45);
+  transition: background 0.2s ease;
+}
+.pv-deck-dot[aria-current="true"] .pv-deck-dot-bar {
+  background: #ffffff;
+}
+
+/* The running announcement (components/announcement-bar.tsx).
+   Two identical copies of the message sit side by side in a track that is as
+   wide as its content, and the track is translated by exactly half its width —
+   so at the moment the animation restarts, the second copy is already where the
+   first began and the loop has no seam.
+
+   The track carries `pv-loop`, which is what stops it under
+   `prefers-reduced-motion` rather than accelerating it into a strobe. Stopped,
+   it rests at `translateX(0)` with the first copy legible from the start. */
+.pv-marquee {
+  overflow: hidden;
+  /* Fades the message at both ends instead of letting it appear and vanish at a
+     hard edge, which is most of what makes the loop read as continuous. */
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent
+  );
+}
+.pv-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: pv-marquee 26s linear infinite;
+}
+/* Reading is not a race: hovering or tabbing into the bar holds the message
+   still long enough to finish it. */
+.pv-marquee:hover .pv-marquee-track,
+.pv-marquee:focus-within .pv-marquee-track {
+  animation-play-state: paused;
+}
+.pv-marquee-run {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  padding-block: 0.5rem;
+  padding-right: 2.5rem;
+  white-space: nowrap;
+}
+.pv-marquee-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pv-muted);
+  opacity: 0.6;
+  flex: none;
+}
+@keyframes pv-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 

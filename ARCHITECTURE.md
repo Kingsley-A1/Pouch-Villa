@@ -22,9 +22,9 @@ pouch-villa/                     pnpm workspace, two packages, one deployment
 │   ├── src/domain/              Pure: money, slugs, phone numbers, state machines
 │   ├── src/auth/                Sessions, passwords, role codes, permissions
 │   ├── src/db/                  Pooled client, retry-aware transactions, migrator
-│   ├── src/services/            Business logic — 36 modules
+│   ├── src/services/            Business logic — 39 modules
 │   ├── src/storage/             Cloudflare R2, image validation and derivatives
-│   ├── migrations/              11 forward-only, checksummed SQL files
+│   ├── migrations/              13 forward-only, checksummed SQL files
 │   └── tests/                   Unit and live-database integration
 │
 └── apps/pv-frontend/            @pv/frontend — Next 16 App Router
@@ -88,26 +88,28 @@ in a test with no DOM. If yes, `lib/`.
 
 ## 3. Data model
 
-Eleven migrations, forward-only and checksummed. The migrator refuses to run if
+Thirteen migrations, forward-only and checksummed. The migrator refuses to run if
 a file that has already been applied has changed, so an edited migration is
 caught rather than silently skipped. That guard has fired in anger: a
 comment-only edit to an applied file failed the integration suite, which is the
 correct outcome — the fix is a new migration, or a deliberate re-record of the
 checksum once the statements are confirmed byte-identical.
 
-| Migration                    | Adds                                                           |
-| ---------------------------- | -------------------------------------------------------------- |
-| `0001_identity_and_settings` | `staff`, `customer`, sessions, `setting`, `audit_event`        |
-| `0002_permission_catalogue`  | `permission`, `role_grant` — RBAC as rows                      |
-| `0003_catalogue`             | `category`, `brand`, `device`, `product`, variants, stock      |
-| `0004_media_renditions`      | content-hashed derivatives                                     |
-| `0005_search`                | `search_vector`, trigram indexes                               |
-| `0006_commerce`              | cart, `customer_order`, payments, proofs, reviews, rate limits |
-| `0007_saved_views`           | admin saved filters                                            |
-| `0008_admin_search`          | cross-entity admin search index                                |
-| `0009_storefront`            | home sections, collections, `product_like`                     |
-| `0010_section_layout`        | per-section layout: grid, feature, band                        |
-| `0011_staff_phone`           | `staff.phone`, so a staff member has a profile of their own    |
+| Migration                    | Adds                                                            |
+| ---------------------------- | --------------------------------------------------------------- |
+| `0001_identity_and_settings` | `staff`, `customer`, sessions, `setting`, `audit_event`         |
+| `0002_permission_catalogue`  | `permission`, `role_grant` — RBAC as rows                       |
+| `0003_catalogue`             | `category`, `brand`, `device`, `product`, variants, stock       |
+| `0004_media_renditions`      | content-hashed derivatives                                      |
+| `0005_search`                | `search_vector`, trigram indexes                                |
+| `0006_commerce`              | cart, `customer_order`, payments, proofs, reviews, rate limits  |
+| `0007_saved_views`           | admin saved filters                                             |
+| `0008_admin_search`          | cross-entity admin search index                                 |
+| `0009_storefront`            | home sections, collections, `product_like`                      |
+| `0010_section_layout`        | per-section layout: grid, feature, band                         |
+| `0011_staff_phone`           | `staff.phone`, so a staff member has a profile of their own     |
+| `0012_catalogue_media`       | `catalogue_media` — a photograph per category, a logo per brand |
+| `0013_hero_slide`            | `hero_slide` — the home page's slide deck, ordered by the CEO   |
 
 ### Five conventions you must not break
 
@@ -271,11 +273,42 @@ never nested. Where an affordance only needs to look like a button, it is an
 **Navigation is defined once** in `lib/store-nav.ts` and read by the sidebar, the
 drawer and the footer. It used to live in three places and had already drifted.
 
-**The home page is composed at runtime.** Sections are rows the CEO manages at
-`/admin/storefront`, in three kinds: a category rule, a brand rule, or a
-hand-picked collection. A section that resolves to no products is dropped rather
-than rendered as an empty heading
+**The home page is composed at runtime**, and in four bands:
+
+1. **The hero deck** — `hero_slide` rows the CEO orders at `/admin/storefront`,
+   each a photograph, a headline and a destination. A slide with no photograph is
+   filtered out in the service rather than rendered as a headline over an empty
+   box, and where no slide qualifies the page opens with the headline from
+   Settings instead. Scroll-snap and about a kilobyte of script, because Slick
+   plus jQuery is ~120 KB and the whole budget is 120 KB.
+2. **The category mosaic** — a bento of photographs, replacing the two bordered
+   cards that used to sit under the headline.
+3. **The device finder**, which is the one thing this shop has that its reference
+   does not.
+4. **CEO sections**, then the product band.
+
+Sections are rows the CEO manages, in three kinds: a category rule, a brand rule,
+or a hand-picked collection. A section that resolves to no products is dropped
+rather than rendered as an empty heading
 ([`decisions/0006`](docs/decisions/0006-storefront-composition-and-likes.md)).
+
+**The announcement bar renders nothing until the CEO writes a message.** Its
+text, the store locations and both social links are settings rows, and dismissal
+is a cookie read **on the server** — read after hydration instead, it would push
+the page down and snap it back, which is how a CLS budget is lost.
+
+**The browse path is category → make → model → products.** Step two carries brand
+logos, step three asks which phone, and a step with one answer or none redirects
+rather than asking a question with a single option. Every step is filtered by what
+is actually in stock beneath it, so the path can never lead to an empty shelf. The
+search box on those steps filters the list already on the page — no navigation, no
+request per keystroke.
+
+**Motion is opt-in to being stopped.** `prefers-reduced-motion` collapses one-shot
+animations to nothing, but a loop needs `animation: none` rather than a 0.01 ms
+duration, which is a strobe. Anything that loops carries `pv-loop`, and
+`tests/reduced-motion.test.ts` fails the build if a looping class is ever added
+without it.
 
 **Components do not fetch.** `ProductGrid` takes its like state as a prop;
 `server/product-likes.ts` gathers it in at most two queries. A page that does not
@@ -353,6 +386,17 @@ now follows the first product link on the home page rather than checking a fixed
 list, and it hashes **every inline style attribute** it finds, failing the build
 on one the CSP does not permit. If you add a gated route, add it there.
 
+**It also fails on a streamed server error, and that was added the hard way.**
+The home page shipped rendering its error boundary — it had begun reading two
+tables a migration had not yet created — and the whole gate stayed green: every
+route answered 200, and the product check was _skipped_, because a broken home
+page has no product link to follow and that looks exactly like a shop with
+nothing published. The error boundary itself is a Client Component, so it never
+appears in the HTML; what does appear is the flight row React streams in its
+place, `N:E{"digest":"…"}`. That is what the check matches now. It was proven by
+pointing a query at a table that does not exist, watching it fail, and putting
+the table back.
+
 Both gates were proven by breaking them deliberately. A gate nobody has watched
 fail is a gate nobody knows works — an earlier version of the nonce check matched
 nothing at all and reported a pass.
@@ -405,16 +449,26 @@ Stated plainly, because finding these by surprise is worse than reading them
 here. Current status is tracked in [`docs/work-plan.md`](docs/work-plan.md).
 
 - **No end-to-end harness.** The largest single gap in confidence.
-- **Performance budgets are not met, and the cause is measured.** Lighthouse
-  against a production build on the CI mobile profile, 2026-09-04:
+- **Performance budgets are still not met, but two of the four moved.**
+  Lighthouse against a production build on the CI mobile profile, four URLs and
+  three runs each, 2026-09-06:
 
-  | Metric                   | Measured                | Budget |
-  | ------------------------ | ----------------------- | ------ |
-  | Largest contentful paint | 4.6 s cold              | 2.5 s  |
-  | Time to first byte       | 4.4 s cold, 198 ms warm | —      |
-  | Total blocking time      | 1,390 ms at 4× CPU      | 200 ms |
-  | Script                   | 181 KB                  | 120 KB |
-  | Cumulative layout shift  | 0                       | 0.1    |
+  | Metric                   | 2026-09-04         | 2026-09-06    | Budget |
+  | ------------------------ | ------------------ | ------------- | ------ |
+  | Largest contentful paint | 4.6 s cold         | 2.7 – 3.2 s   | 2.5 s  |
+  | Total blocking time      | 1,390 ms at 4× CPU | within budget | 200 ms |
+  | Script                   | 181 KB             | 184 KB        | 120 KB |
+  | Cumulative layout shift  | 0                  | 0             | 0.1    |
+
+  **LCP improved by roughly a third and blocking time now passes**, but LCP is
+  still over on every measured URL. Script went the wrong way by ~3 KB, which is
+  the honest cost of the two islands added for the hero deck's autoplay and the
+  browse filter — and it does not change the shape of the problem, because the
+  largest chunk is React itself and the budget will not close by deleting an
+  import.
+
+  The Lighthouse job is `continue-on-error`, so it reports **pass** on a pull
+  request while its assertions fail. Read the job log, not the check mark.
 
   **LCP is server response time, and almost all of it is a cold start** — the
   first request on a new instance pays ~1.9 s opening database connections.
@@ -437,8 +491,16 @@ here. Current status is tracked in [`docs/work-plan.md`](docs/work-plan.md).
 - **Google sign-in has never completed end to end.** The redirect URI is not yet
   registered in the Cloud Console (§9), so the flow fails at Google. Everything
   on our side of it is verified against a built server; the round trip is not.
-- **The catalogue is live but partial.** 15 published products, 12 brands, 6
-  categories, 3 active delivery areas — and **no devices at all**, which is why
-  the device finder renders nothing: it hides itself rather than promising a
-  filter it cannot deliver. Store address, opening hours and contact details are
-  still unset and render as "awaiting confirmation".
+- **The catalogue is live but partial.** 10 brands, 9 devices across 5 of them,
+  and 3 active delivery areas. The device finder now renders, and the browse
+  path's third step works wherever a product has been marked compatible with a
+  model — where it has not, the step is skipped, which is correct behaviour and
+  also means most makes are still two steps rather than three. Store address,
+  opening hours and contact details are still unset and render as "awaiting
+  confirmation".
+- **No category photograph or brand logo has been uploaded yet.** The screens for
+  both exist on `/admin/categories`. Until they are used, a category tile borrows
+  the newest product's cut-out and a brand card draws its initial — deliberate
+  fallbacks, but not what the design is for.
+- **No hero slide exists yet**, so the home page opens with the Settings headline
+  rather than the deck. That is the designed fallback, not a defect.

@@ -19,6 +19,10 @@ export default async function SettingsAdminPage() {
     "store.opening_hours",
     "store.whatsapp_number",
     "store.contact_email",
+    "store.announcement",
+    "store.instagram_url",
+    "store.x_url",
+    "store.locations",
     "store.hero_headline",
     "store.hero_subtitle",
     "policy.about",
@@ -47,12 +51,19 @@ export default async function SettingsAdminPage() {
           bankName={pick(settings, "bank.bank_name")}
         />
       </EditableSettingsSection>
-      <EditableSettingsSection title="Store details" summary="Contact details and home page copy.">
+      <EditableSettingsSection
+        title="Store details"
+        summary="Contact details, the announcement bar, and home page copy."
+      >
         <StoreSettingsForm
           address={pick(settings, "store.address")}
           hours={pick(settings, "store.opening_hours")}
           whatsapp={pick(settings, "store.whatsapp_number")}
           contactEmail={pick(settings, "store.contact_email")}
+          announcement={pick(settings, "store.announcement")}
+          instagramUrl={pick(settings, "store.instagram_url")}
+          xUrl={pick(settings, "store.x_url")}
+          locations={pick(settings, "store.locations")}
           heroHeadline={pick(settings, "store.hero_headline")}
           heroSubtitle={pick(settings, "store.hero_subtitle")}
         />

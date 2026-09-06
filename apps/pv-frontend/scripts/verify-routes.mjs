@@ -182,6 +182,34 @@ try {
     }
 
     /*
+      A page that throws inside a Suspense boundary streams its shell first, so
+      the response is still 200 and still contains the shell — the status check
+      and the shell check above both pass while the visitor gets "This page could
+      not load."
+
+      That is not hypothetical. The home page shipped in exactly that state after
+      it began reading two tables a migration had not yet created: every route
+      here answered 200, and the product check below was *skipped*, because a
+      broken home page has no product link to follow and that is indistinguishable
+      from a shop with nothing published.
+
+      The error boundary itself is no use as a signal — it is a Client Component,
+      so it renders in the browser and never appears in this HTML. What does
+      appear is the flight row React streams in its place: `N:E{"digest":"…"}`,
+      which is the rejected-row encoding that tells the client to show a boundary.
+      Matching that catches the failure wherever the boundary happens to live.
+    */
+    if (/\d+:E\{\\?"digest\\?":/.test(body)) {
+      throw new Error(
+        `${route} streamed a server error and rendered its error boundary.\n` +
+          "The response is still 200 because the shell streamed before the error. " +
+          "The server output below has the reason — most often a query against a " +
+          "table a migration has not created yet.\n" +
+          serverOutput,
+      );
+    }
+
+    /*
       Every script on every page must carry the nonce. One that does not is a
       script the browser refuses to run, and the page breaks in production while
       a typecheck, a build and every other check here still pass.

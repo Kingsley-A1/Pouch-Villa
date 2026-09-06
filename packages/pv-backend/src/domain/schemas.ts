@@ -114,6 +114,30 @@ export const homeSectionSchema = z
     path: ["brandId"],
   });
 
+export const heroSlideSchema = z.object({
+  kicker: z.string().trim().max(40).nullable(),
+  headline: z.string().trim().min(1).max(80),
+  /**
+   * A path inside this shop, never a URL.
+   *
+   * The hero is the most prominent link on the site, so an admin able to point
+   * it anywhere is an admin able to turn the shop own front page into an open
+   * redirect - a phishing lure wearing Pouch Villa branding. Requiring a single
+   * leading slash and rejecting a double one, which a browser reads as a
+   * protocol-relative URL to another host, keeps it inside the app.
+   */
+  href: z
+    .string()
+    .trim()
+    .min(1)
+    .max(300)
+    .refine((value) => value.startsWith("/") && !value.startsWith("//"), {
+      message: "Use a path inside the shop, such as /shop or /browse/pouches.",
+    }),
+  ctaLabel: z.string().trim().max(30).nullable(),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+});
+
 export const deliveryZoneSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
@@ -201,6 +225,10 @@ export const STORE_SETTING_FIELDS = [
   "store.opening_hours",
   "store.whatsapp_number",
   "store.contact_email",
+  "store.announcement",
+  "store.instagram_url",
+  "store.x_url",
+  "store.locations",
   "store.hero_headline",
   "store.hero_subtitle",
 ] as const;
@@ -223,6 +251,16 @@ export const storeSettingsFormSchema = z.object({
   "store.opening_hours": z.string().trim().max(500),
   "store.whatsapp_number": z.string().trim().max(20),
   "store.contact_email": z.string().trim().email().max(320).or(z.literal("")),
+  // One sentence, because it scrolls past on a phone and a paragraph would
+  // never be read. Blank means the bar does not render at all.
+  "store.announcement": z.string().trim().max(200),
+  // A real URL or nothing. A half-typed handle would render as a dead link on
+  // every page of the shop, which is worse than no icon.
+  "store.instagram_url": z.string().trim().url().max(300).or(z.literal("")),
+  "store.x_url": z.string().trim().url().max(300).or(z.literal("")),
+  // One location per line — the contact row lists them, and a shop that adds a
+  // branch should not need a deployment or a new settings key to say so.
+  "store.locations": z.string().trim().max(500),
   "store.hero_headline": z.string().trim().max(200),
   "store.hero_subtitle": z.string().trim().max(300),
 });

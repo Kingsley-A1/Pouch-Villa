@@ -19,6 +19,10 @@ export function StoreSettingsForm({
   hours,
   whatsapp,
   contactEmail,
+  announcement,
+  instagramUrl,
+  xUrl,
+  locations,
   heroHeadline,
   heroSubtitle,
 }: {
@@ -26,6 +30,10 @@ export function StoreSettingsForm({
   hours: SettingValue;
   whatsapp: SettingValue;
   contactEmail: SettingValue;
+  announcement: SettingValue;
+  instagramUrl: SettingValue;
+  xUrl: SettingValue;
+  locations: SettingValue;
   heroHeadline: SettingValue;
   heroSubtitle: SettingValue;
 }) {
@@ -67,6 +75,55 @@ export function StoreSettingsForm({
           <OriginBadge value={contactEmail} />
         </Field>
       </div>
+
+      {/*
+        The bar above the header. Blank is not a broken state here: the whole
+        bar is absent until there is a message, which is §0 rule 2 applied to a
+        piece of furniture rather than to a fact.
+      */}
+      <fieldset className="grid gap-4 border-t border-(--pv-line) pt-4">
+        <legend className="text-sm font-bold">Announcement bar</legend>
+        <Field
+          label="Running message"
+          name="store.announcement"
+          hint="One sentence. It scrolls across the top of the shop. Blank hides the whole bar."
+        >
+          <TextArea
+            name="store.announcement"
+            defaultValue={announcement.present ? announcement.value : ""}
+          />
+          <OriginBadge value={announcement} />
+        </Field>
+        <Field
+          label="Store locations"
+          name="store.locations"
+          hint="One per line. Listed in the contact row under the message."
+        >
+          <TextArea
+            name="store.locations"
+            defaultValue={locations.present ? locations.value : ""}
+          />
+          <OriginBadge value={locations} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Instagram link" name="store.instagram_url" hint="Full https:// address">
+            <TextInput
+              name="store.instagram_url"
+              type="url"
+              defaultValue={instagramUrl.present ? instagramUrl.value : ""}
+            />
+            <OriginBadge value={instagramUrl} />
+          </Field>
+          <Field label="X link" name="store.x_url" hint="Full https:// address">
+            <TextInput
+              name="store.x_url"
+              type="url"
+              defaultValue={xUrl.present ? xUrl.value : ""}
+            />
+            <OriginBadge value={xUrl} />
+          </Field>
+        </div>
+      </fieldset>
 
       {/*
         Marketing copy, not a business fact — so unlike the fields above, leaving

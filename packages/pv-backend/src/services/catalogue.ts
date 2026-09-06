@@ -3,6 +3,11 @@ import { axesFromPairs, VARIANT_AXES_SELECT, type VariantAxisPairs } from "../db
 import { kobo, type Kobo } from "../domain/money";
 import { isStorageConfigured } from "../storage/r2";
 import { urlsForHash } from "./media-urls";
+import {
+  catalogueImageFrom,
+  catalogueImageUrl,
+  type CatalogueImageRef,
+} from "./catalogue-media-urls";
 
 /**
  * Read paths for the storefront and the admin catalogue.
@@ -433,8 +438,12 @@ export async function listBrands() {
  *   - It stays true on its own. Staff never have to remember to change a
  *     category picture after the range behind it changes.
  *
- * If the client later wants to choose the picture themselves, that is a column
- * on `category` and a field in the admin — this is the honest default until then.
+ * That was written when a category had nowhere to store a picture of its own.
+ * It now does — `catalogue_media`, set on the Brands & Categories admin page —
+ * and the CEO's own photograph wins where there is one. The borrowed product
+ * image stays as the fallback rather than being deleted, because it is still the
+ * right answer for a category nobody has photographed yet: a real picture of
+ * real stock, and never an invented one.
  */
 /**
  * The top of the catalogue: root categories only, each with everything filed
@@ -461,6 +470,9 @@ export async function listTopCategoryCards(): Promise<CategoryCard[]> {
     image_width: string | null;
     image_height: string | null;
     image_hash: string | null;
+    own_hash: string | null;
+    own_width: string | null;
+    own_height: string | null;
   }>(
     `SELECT c.id, c.slug, c.name, c.description,
             (SELECT count(DISTINCT p.id)::STRING
@@ -479,8 +491,10 @@ export async function listTopCategoryCards(): Promise<CategoryCard[]> {
                 )) AS product_count,
             m.product_id AS image_product_id,
             m.r2_key AS image_key, m.width AS image_width,
-            m.height AS image_height, m.content_hash AS image_hash
+            m.height AS image_height, m.content_hash AS image_hash,
+            own.content_hash AS own_hash, own.width AS own_width, own.height AS own_height
        FROM category c
+       LEFT JOIN catalogue_media own ON own.category_id = c.id
        LEFT JOIN LATERAL (
          SELECT pm.product_id, pm.r2_key, pm.width, pm.height, pm.content_hash
            FROM product_category pc
@@ -511,8 +525,11 @@ export async function listTopCategoryCards(): Promise<CategoryCard[]> {
     description: row.description,
     parentName: null,
     productCount: Number(row.product_count),
+    // The CEO's own photograph first, the borrowed product image second, and a
+    // typed absence third — the card draws its own lettered panel for that case.
     image:
-      row.image_product_id === null
+      ownCategoryImage(row.id, row.own_hash, row.own_width, row.own_height) ??
+      (row.image_product_id === null
         ? null
         : toImage(
             row.image_product_id,
@@ -520,8 +537,36 @@ export async function listTopCategoryCards(): Promise<CategoryCard[]> {
             row.image_hash,
             row.image_width,
             row.image_height,
-          ),
+          )),
   }));
+}
+
+/**
+ * The category's own photograph, shaped like a product image so the card does
+ * not have to know which of the two it received.
+ *
+ * One rendition serves all three slots. A category tile renders at card size on
+ * every surface that uses it, so generating and storing a hero and a thumb of a
+ * picture nothing displays at those sizes would be storage spent on nothing.
+ */
+function ownCategoryImage(
+  categoryId: string,
+  contentHash: string | null | undefined,
+  width: string | null | undefined,
+  height: string | null | undefined,
+): CatalogueImage | null {
+  // `== null` catches `undefined` too. Rows reach here through a cast rather
+  // than a parse, so a query that forgets the join columns would otherwise build
+  // a URL containing the word "undefined" and put a broken image on the page.
+  if (contentHash == null || !isStorageConfigured()) return null;
+  const url = catalogueImageUrl("category", categoryId, contentHash);
+  return {
+    thumbUrl: url,
+    cardUrl: url,
+    heroUrl: url,
+    width: width == null ? null : Number(width),
+    height: height == null ? null : Number(height),
+  };
 }
 
 export type CategoryCard = {
@@ -548,6 +593,9 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
     image_width: string | null;
     image_height: string | null;
     image_hash: string | null;
+    own_hash: string | null;
+    own_width: string | null;
+    own_height: string | null;
   }>(
     `SELECT c.id, c.slug, c.name, c.description, parent.name AS parent_name,
             (SELECT count(*)::STRING
@@ -557,9 +605,11 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
                 AND p.deleted_at IS NULL AND p.status = 'published') AS product_count,
             m.product_id AS image_product_id,
             m.r2_key AS image_key, m.width AS image_width,
-            m.height AS image_height, m.content_hash AS image_hash
+            m.height AS image_height, m.content_hash AS image_hash,
+            own.content_hash AS own_hash, own.width AS own_width, own.height AS own_height
        FROM category c
        LEFT JOIN category parent ON parent.id = c.parent_id AND parent.deleted_at IS NULL
+       LEFT JOIN catalogue_media own ON own.category_id = c.id
        LEFT JOIN LATERAL (
          SELECT pm.product_id, pm.r2_key, pm.width, pm.height, pm.content_hash
            FROM product_category pc
@@ -581,8 +631,11 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
     description: row.description,
     parentName: row.parent_name,
     productCount: Number(row.product_count),
+    // The CEO's own photograph first, the borrowed product image second, and a
+    // typed absence third — the card draws its own lettered panel for that case.
     image:
-      row.image_product_id === null
+      ownCategoryImage(row.id, row.own_hash, row.own_width, row.own_height) ??
+      (row.image_product_id === null
         ? null
         : toImage(
             row.image_product_id,
@@ -590,11 +643,25 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
             row.image_hash,
             row.image_width,
             row.image_height,
-          ),
+          )),
   }));
 }
 
-export type StorefrontBrand = { id: string; slug: string; name: string; productCount: number };
+export type StorefrontBrand = {
+  id: string;
+  slug: string;
+  name: string;
+  productCount: number;
+  /**
+   * The logo the CEO set on the Brands & Categories page, or a typed absence.
+   *
+   * The brand step is meant to be carried by these — the client asked for cards
+   * that hold the logo prominently with the name on one line beneath. Absent,
+   * the card draws the brand's initial rather than an empty box, so a shop
+   * halfway through uploading logos still looks deliberate.
+   */
+  logo: CatalogueImageRef | null;
+};
 
 /**
  * The brands with something published inside a category — step two of the shop's
@@ -609,17 +676,27 @@ export type StorefrontBrand = { id: string; slug: string; name: string; productC
  * shopper which way is worth going before they spend a tap finding out.
  */
 export async function listBrandsInCategory(categorySlug: string): Promise<StorefrontBrand[]> {
-  const rows = await query<{ id: string; slug: string; name: string; product_count: string }>(
-    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    product_count: string;
+    logo_hash: string | null;
+    logo_width: string | null;
+    logo_height: string | null;
+  }>(
+    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count,
+            m.content_hash AS logo_hash, m.width AS logo_width, m.height AS logo_height
        FROM brand b
        JOIN product p ON p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published'
+       LEFT JOIN catalogue_media m ON m.brand_id = b.id
       WHERE b.deleted_at IS NULL AND b.is_active
         AND EXISTS (
           SELECT 1 FROM product_category pc
            WHERE pc.product_id = p.id
              AND pc.category_id IN (${categorySubtreeIds("$1")})
         )
-      GROUP BY b.id, b.slug, b.name, b.sort_order
+      GROUP BY b.id, b.slug, b.name, b.sort_order, m.content_hash, m.width, m.height
       ORDER BY b.sort_order, b.name`,
     [categorySlug],
   );
@@ -628,6 +705,9 @@ export async function listBrandsInCategory(categorySlug: string): Promise<Storef
     slug: row.slug,
     name: row.name,
     productCount: Number(row.product_count),
+    logo: isStorageConfigured()
+      ? catalogueImageFrom("brand", row.id, row.logo_hash, row.logo_width, row.logo_height)
+      : null,
   }));
 }
 
@@ -661,6 +741,51 @@ export async function listChildCategoriesForBrand(
       GROUP BY c.id, c.slug, c.name, c.sort_order
       ORDER BY c.sort_order, c.name`,
     [parentSlug, brandSlug],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    productCount: Number(row.product_count),
+  }));
+}
+
+export type DeviceChoice = { id: string; slug: string; name: string; productCount: number };
+
+/**
+ * The models of one make that this category actually stocks something for —
+ * step three of the CEO's path: Pouches, then Apple, then which iPhone.
+ *
+ * Three filters at once, and all three matter. The device must belong to the
+ * chosen brand; the product must be compatible with that device; and the product
+ * must be filed somewhere in the chosen category's branch. Drop any one of them
+ * and the screen starts offering models with nothing behind them, which is the
+ * one thing a guided path must never do — a shopper who follows every step the
+ * shop laid out and lands on an empty shelf blames the shop, correctly.
+ *
+ * Note the category is matched against the product, not against the device: a
+ * device has no category, and "iPhone 15" is a fact about a phone rather than
+ * about anything Pouch Villa sells.
+ */
+export async function listDevicesInCategoryForBrand(
+  categorySlug: string,
+  brandSlug: string,
+): Promise<DeviceChoice[]> {
+  const rows = await query<{ id: string; slug: string; name: string; product_count: string }>(
+    `SELECT d.id, d.slug, d.name, count(DISTINCT p.id)::STRING AS product_count
+       FROM device d
+       JOIN brand b ON b.id = d.brand_id AND b.slug = $2 AND b.deleted_at IS NULL
+       JOIN product_compatibility pcp ON pcp.device_id = d.id
+       JOIN product p ON p.id = pcp.product_id
+        AND p.deleted_at IS NULL AND p.status = 'published'
+      WHERE EXISTS (
+              SELECT 1 FROM product_category pc
+               WHERE pc.product_id = p.id
+                 AND pc.category_id IN (${categorySubtreeIds("$1")})
+            )
+      GROUP BY d.id, d.slug, d.name, d.sort_order
+      ORDER BY d.sort_order, d.name`,
+    [categorySlug, brandSlug],
   );
   return rows.map((row) => ({
     id: row.id,

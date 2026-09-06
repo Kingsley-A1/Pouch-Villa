@@ -24,7 +24,10 @@ export function LoadingLine({
       aria-label={label}
       className={cn("h-[3px] w-full overflow-hidden rounded-full bg-(--pv-line)", className)}
     >
-      <div className="pv-loading-sweep h-full w-2/5 rounded-full bg-(--pv-red)" />
+      {/* `pv-loop` is what stops the sweep under `prefers-reduced-motion` —
+          see the two-halved kill switch in globals.css. Without it the loop
+          would be accelerated to 0.01ms rather than stopped, which is a strobe. */}
+      <div className="pv-loading-sweep pv-loop h-full w-2/5 rounded-full bg-(--pv-red)" />
     </div>
   );
 }
