@@ -449,16 +449,26 @@ Stated plainly, because finding these by surprise is worse than reading them
 here. Current status is tracked in [`docs/work-plan.md`](docs/work-plan.md).
 
 - **No end-to-end harness.** The largest single gap in confidence.
-- **Performance budgets are not met, and the cause is measured.** Lighthouse
-  against a production build on the CI mobile profile, 2026-09-04:
+- **Performance budgets are still not met, but two of the four moved.**
+  Lighthouse against a production build on the CI mobile profile, four URLs and
+  three runs each, 2026-09-06:
 
-  | Metric                   | Measured                | Budget |
-  | ------------------------ | ----------------------- | ------ |
-  | Largest contentful paint | 4.6 s cold              | 2.5 s  |
-  | Time to first byte       | 4.4 s cold, 198 ms warm | —      |
-  | Total blocking time      | 1,390 ms at 4× CPU      | 200 ms |
-  | Script                   | 181 KB                  | 120 KB |
-  | Cumulative layout shift  | 0                       | 0.1    |
+  | Metric                   | 2026-09-04         | 2026-09-06    | Budget |
+  | ------------------------ | ------------------ | ------------- | ------ |
+  | Largest contentful paint | 4.6 s cold         | 2.7 – 3.2 s   | 2.5 s  |
+  | Total blocking time      | 1,390 ms at 4× CPU | within budget | 200 ms |
+  | Script                   | 181 KB             | 184 KB        | 120 KB |
+  | Cumulative layout shift  | 0                  | 0             | 0.1    |
+
+  **LCP improved by roughly a third and blocking time now passes**, but LCP is
+  still over on every measured URL. Script went the wrong way by ~3 KB, which is
+  the honest cost of the two islands added for the hero deck's autoplay and the
+  browse filter — and it does not change the shape of the problem, because the
+  largest chunk is React itself and the budget will not close by deleting an
+  import.
+
+  The Lighthouse job is `continue-on-error`, so it reports **pass** on a pull
+  request while its assertions fail. Read the job log, not the check mark.
 
   **LCP is server response time, and almost all of it is a cold start** — the
   first request on a new instance pays ~1.9 s opening database connections.

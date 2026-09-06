@@ -23,7 +23,7 @@ payments and both identity stacks are untouched throughout.
 | 6 · Mosaic, product band, View all        | **Built**                                                            |
 | 7 · The hero deck                         | **Built** — migration, service, admin list, deck; integration-tested |
 | 8 · Continuity between screens            | **Built** — route cross-fade and press states                        |
-| 9 · Re-measure                            | **Blocked** — the app database is un-migrated, so `/` errors. See §6 |
+| 9 · Re-measure                            | **Done** — measured in CI; LCP and script still over budget, see §6  |
 
 ---
 
@@ -355,29 +355,37 @@ A change of look is not a reason to lower any of it.
 
 ---
 
-## 6. What is blocking slice 9, and one thing it exposed
+## 6. The migration, and the gate gap it exposed
 
-### The app database has not been migrated
+### The app database — migrated, 2026-09-06
 
-`0012_catalogue_media.sql` and `0013_hero_slide.sql` have been applied to
-**`pouchvilla_test`** only, which is where the integration suite runs. The
-database the application itself points at — `defaultdb`, via `DATABASE_URL` — is
-still at `0011_staff_phone.sql`.
+`0012_catalogue_media.sql` and `0013_hero_slide.sql` are now applied to
+**`defaultdb`** as well as `pouchvilla_test`, with the CEO's approval. The home
+page renders again; before the migration it was serving its error boundary. The
+rest of this section is kept because the reasoning still applies to the next
+migration.
 
-Until it is migrated, **the home page renders its error boundary**: it now reads
-`hero_slide` and joins `catalogue_media`, and neither table exists there. Nothing
-in the code is wrong; it is pointed at a schema that predates it.
+### Why it waited, and why the next one should too
 
-This was deliberate rather than an oversight.
+Both files went to `pouchvilla_test` first, which is where the integration suite
+runs. `defaultdb` was left alone until it was asked for, and in the gap between
+the two the home page rendered its error boundary — it reads `hero_slide` and
+joins `catalogue_media`, and neither table existed there yet. Nothing in the code
+was wrong; it was pointed at a schema that predated it.
+
+That gap was deliberate rather than an oversight.
 [`tests/helpers/database.ts`](../packages/pv-backend/tests/helpers/database.ts)
 calls `DATABASE_URL` the production database in as many words, recording that an
 early test run once left twenty-six live role codes in it. AGENTS.md §7 requires
-a migration to be reviewed rather than run on sight, so this one waits for an
-explicit go-ahead.
+a migration to be reviewed rather than run on sight.
+
+The lesson worth keeping is the ordering: a deployment that ships this code to a
+database still on `0011` breaks the home page, so **the migration runs before the
+release, not with it**.
 
 Both migrations are additive: two new tables, four new nullable columns, and one
-`DROP NOT NULL` that relaxes a constraint rather than tightening it. Nothing is
-dropped and no data is rewritten. The command is `pnpm run db:migrate`.
+`DROP NOT NULL` that relaxes a constraint rather than tightening it. Nothing was
+dropped and no data was rewritten. The command is `pnpm run db:migrate`.
 
 ### A gap in the gate, found by the same failure
 
