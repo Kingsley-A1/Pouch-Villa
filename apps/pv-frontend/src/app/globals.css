@@ -644,6 +644,53 @@
 .field-icon {
   padding-inline-start: 2.9rem;
 }
+/* The same problem on the other side: a field with a reveal toggle sitting in
+   it. A `pr-*` utility loses to `.field`'s padding shorthand, so the password
+   would run underneath the eye. */
+.field-trailing {
+  padding-inline-end: 3.25rem;
+}
+/*
+ * The account forms — sign in, register, recover.
+ *
+ * **Why these are square when every other field in the shop is not.** The
+ * standing rule is "square what holds content, keep the radius on what you press
+ * or type into" (Decision 1, docs/work-plan-tomicase.md), and this is a
+ * deliberate exception the client asked for after seeing the form. It is scoped
+ * to `.auth-form` rather than applied to `.field` so the rule still holds
+ * everywhere else — checkout, the admin, the contact form.
+ *
+ * **The border is the actual fix.** `.field` mixes `--pv-line` with `--pv-muted`
+ * for its border, and on the red storefront `--pv-line` is white at 24% — which
+ * against a saturated red ground is very nearly nothing. The fields read as
+ * floating blocks with no edges, which is what "it does not look aligned"
+ * describes. Stating a border in `--pv-muted` gives the column a visible edge on
+ * every one of its four sides, so the stack lines up as one form.
+ */
+.auth-form .field {
+  border-radius: 0;
+  /* Roomier than the 3.15rem default: this is the one form in the shop where a
+     first-time visitor is typing two things they may get wrong. */
+  min-height: 3.4rem;
+  font-size: 1rem;
+  border-color: color-mix(in srgb, var(--pv-muted) 85%, transparent);
+}
+.auth-form .field:focus {
+  border-color: var(--pv-red);
+}
+.auth-form .button-primary,
+.auth-form .auth-google button {
+  border-radius: 0;
+  min-height: 3.4rem;
+}
+.auth-form .auth-google button {
+  border-color: color-mix(in srgb, var(--pv-muted) 85%, transparent);
+}
+/* The message panels sit in the same column and have to align with it. */
+.auth-form .auth-note {
+  border-radius: 0;
+}
+
 .label {
   display: block;
   margin-bottom: 0.42rem;

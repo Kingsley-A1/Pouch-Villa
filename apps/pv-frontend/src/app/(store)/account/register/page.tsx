@@ -20,7 +20,7 @@ export default async function RegisterPage({
 
   return (
     <section className="section-space">
-      <div className="container-shell max-w-md">
+      <div className="container-shell max-w-lg">
         <h1 className="section-title">Create an account</h1>
         {/*
           Said plainly, because it is unusual and it is good news: per ADR 0002

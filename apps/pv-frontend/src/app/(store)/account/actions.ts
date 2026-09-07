@@ -63,14 +63,41 @@ function welcomeRedirect(next: string): string {
     : `/account/welcome?next=${encodeURIComponent(destination)}`;
 }
 
+/**
+ * The fields a failed submission should hand back, so the form can redraw with
+ * them still in it.
+ *
+ * Named explicitly rather than echoing the whole `FormData`. A blanket echo
+ * would return the password too — into a payload that crosses the network and
+ * lands in the browser's memory — and the point of the list is that adding a
+ * field to a form should not silently opt it in.
+ */
+function keep(formData: FormData, names: readonly string[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const name of names) {
+    const value = formData.get(name);
+    if (typeof value === "string" && value !== "") values[name] = value;
+  }
+  return values;
+}
+
 export async function registerAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  // Everything except the password. Somebody whose password was rejected for
+  // being too short should not also have to retype their name and phone number.
+  const submitted = keep(formData, ["email", "fullName", "phone"]);
+
   const parsed = customerSignUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
     fullName: formData.get("fullName") || null,
     phone: formData.get("phone") || null,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Check the form.",
+      values: submitted,
+    };
+  }
 
   const context = await requestContext();
   try {
@@ -80,7 +107,7 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
     });
     await establishCustomerSession(customerId);
   } catch (error) {
-    return toActionError(error, "That account could not be created.");
+    return { ...toActionError(error, "That account could not be created."), values: submitted };
   }
   // Not a verification step — ADR 0002 removed the inbox round-trip and this
   // does not reinstate it. The account already works; this only gives a mistyped
@@ -90,11 +117,15 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
 }
 
 export async function signInAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const submitted = keep(formData, ["email"]);
+
   const parsed = customerLoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the form." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the form.", values: submitted };
+  }
 
   const context = await requestContext();
   try {
@@ -108,7 +139,10 @@ export async function signInAction(_prev: ActionState, formData: FormData): Prom
     // The service already answers a wrong password and an unknown address with
     // one message, so this form cannot be used to discover who has an account.
     // The fallback only covers a driver or network failure.
-    return toActionError(error, "That email and password could not be checked. Try again.");
+    return {
+      ...toActionError(error, "That email and password could not be checked. Try again."),
+      values: submitted,
+    };
   }
   redirect(safeRedirect(formData.get("next")));
 }
