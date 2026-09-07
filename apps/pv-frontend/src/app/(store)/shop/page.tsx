@@ -56,7 +56,7 @@ export default async function ShopPage({
             "does it fit" is the first question, and a filter a shopper has to
             scroll past the results to find is a filter nobody uses.
           */}
-          <div className="mt-5 max-w-md">
+          <div className="mt-5">
             <DeviceFinder devices={devices} activeSlug={deviceSlug} categorySlug={categorySlug} />
           </div>
           <div className="mt-8">

@@ -168,13 +168,16 @@ export default async function HomePage() {
         <section className="band-raised section-space">
           {/*
             No heading of its own: `DeviceFinder` already opens with "Find what
-            fits your phone", and a section title above it said the same words
+            fits your device", and a section title above it said the same words
             twice — once to a reader and twice to a screen reader.
+
+            No inner wrapper either. The finder owns its own measure and centres
+            itself, so this is only the page gutter — two elements setting the
+            same max-width is how this page and the shop page had already begun
+            to disagree about it.
           */}
-          <div className="container-shell grid justify-items-center">
-            <div className="w-full max-w-md">
-              <DeviceFinder devices={devices} />
-            </div>
+          <div className="container-shell">
+            <DeviceFinder devices={devices} />
           </div>
         </section>
       ) : null}

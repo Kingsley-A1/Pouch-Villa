@@ -16,8 +16,8 @@ export default async function DevicesAdminPage() {
       <div>
         <h1 className="text-2xl font-bold">Devices</h1>
         <p className="mt-1 text-sm text-(--pv-muted)">
-          The phone models an accessory can fit. This is what powers &ldquo;show me what fits my
-          phone&rdquo; on the storefront.
+          The models an accessory can fit — phones, tablets, watches. This is what powers
+          &ldquo;show me what fits my device&rdquo; on the storefront.
         </p>
       </div>
       <DeviceList devices={devices} brands={brands} />

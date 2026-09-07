@@ -104,7 +104,7 @@ export function DeviceList({ devices, brands }: { devices: AdminDevice[]; brands
         </p>
       ) : devices.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
-          No devices yet. These are the phone models an accessory can fit, not things you sell.
+          No devices yet. These are the models an accessory can fit, not things you sell.
         </p>
       ) : (
         <ul className="grid gap-3">

@@ -319,7 +319,7 @@ export function ProductForm({
         <fieldset>
           <legend className="text-sm font-bold text-(--pv-ink)">Fits these devices</legend>
           <p className="mt-1 text-xs text-(--pv-muted)">
-            Powers &ldquo;show me what fits my phone&rdquo;. Leave blank if it fits anything.
+            Powers &ldquo;show me what fits my device&rdquo;. Leave blank if it fits anything.
           </p>
           <div className="mt-2 grid max-h-64 gap-1.5 overflow-y-auto">
             {devices.map((device) => (
