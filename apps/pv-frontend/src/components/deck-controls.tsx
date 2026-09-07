@@ -41,12 +41,33 @@ export function DeckControls({
 
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    function stop() {
-      stopped.current = true;
+    /**
+     * `halt` is for a hover — it pauses and can be undone. `stop` is for a
+     * deliberate interaction (a tap, a focus, an arrow) and is permanent.
+     *
+     * The difference matters at the category deck's two-second cadence: a
+     * pointer resting anywhere over a full-width band would otherwise kill the
+     * rotation for the rest of the visit, which reads as the deck being broken
+     * rather than as the visitor having taken control.
+     */
+    function halt() {
       if (timer.current !== null) {
         clearInterval(timer.current);
         timer.current = null;
       }
+    }
+
+    function stop() {
+      stopped.current = true;
+      halt();
+    }
+
+    function play() {
+      if (stopped.current || calm.matches || timer.current !== null) return;
+      timer.current = setInterval(() => {
+        if (stopped.current) return;
+        show((current() + 1) % count);
+      }, intervalMs);
     }
 
     function current(): number {
@@ -85,16 +106,13 @@ export function DeckControls({
     }
 
     track.addEventListener("scroll", onScroll, { passive: true });
-    track.addEventListener("pointerenter", stop);
+    // Hovering pauses and leaving resumes; focusing or touching stops for good.
+    track.addEventListener("pointerenter", halt);
+    track.addEventListener("pointerleave", play);
     track.addEventListener("focusin", stop);
     track.addEventListener("touchstart", stop, { passive: true });
 
-    if (!calm.matches) {
-      timer.current = setInterval(() => {
-        if (stopped.current) return;
-        show((current() + 1) % count);
-      }, intervalMs);
-    }
+    play();
 
     function show(next: number) {
       if (track === null) return;
@@ -115,7 +133,8 @@ export function DeckControls({
 
     return () => {
       track.removeEventListener("scroll", onScroll);
-      track.removeEventListener("pointerenter", stop);
+      track.removeEventListener("pointerenter", halt);
+      track.removeEventListener("pointerleave", play);
       track.removeEventListener("focusin", stop);
       track.removeEventListener("touchstart", stop);
       if (frame !== null) cancelAnimationFrame(frame);

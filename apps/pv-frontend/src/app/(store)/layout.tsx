@@ -55,7 +55,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       */}
       <StaffBar name={staffName} />
       <ConnectionStatus />
-      <StoreHeader />
+      <StoreHeader brands={brands} />
       {/*
         The sidebar is a sibling of `main`, not inside it, so a screen reader's
         landmark list reads navigation and main content as separate regions. It

@@ -49,7 +49,12 @@ export default async function SearchPage({
         <div className="container-shell">
           <h1 className="section-title">Search</h1>
 
-          <form action="/search" role="search" className="mt-6 flex gap-2">
+          {/*
+            Capped rather than full-bleed. On a wide screen the field was running
+            the whole width of the page, which made a one-word query look lost in
+            it and put the Search button an inch from the last character typed.
+          */}
+          <form action="/search" role="search" className="mt-6 flex max-w-xl gap-2">
             <label htmlFor="q" className="sr-only">
               Search products
             </label>

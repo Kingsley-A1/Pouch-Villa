@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CaretRight, List, User, X } from "@phosphor-icons/react";
+import type { BrandLink } from "@pv/backend/services/catalogue";
 import { INFO_LINKS, SHOP_LINKS } from "@/lib/store-nav";
 
 /**
@@ -18,7 +19,13 @@ export type DrawerAccount = { name: string | null; monogram: string | null; emai
  * desktop sidebar reads the same list, so the two cannot drift — which they had,
  * back when the header owned one copy and the drawer another.
  */
-export function MobileNav({ account }: { account: DrawerAccount | null }) {
+export function MobileNav({
+  account,
+  brands,
+}: {
+  account: DrawerAccount | null;
+  brands: BrandLink[];
+}) {
   const pathname = usePathname();
   // The header sets backdrop-filter, which makes it the containing block for any
   // fixed-position descendant. Rendered inline, the overlay was therefore sized to
@@ -136,6 +143,35 @@ export function MobileNav({ account }: { account: DrawerAccount | null }) {
                       </Link>
                     );
                   })}
+
+                  {/*
+                    The makes, in the drawer as well as on the desktop rail.
+
+                    A phone has no hover, so there is nothing to reveal on: the
+                    list is simply here, under the shop links, where somebody
+                    looking for their phone's brand would look. It reads the same
+                    rows the sidebar does, so the two can never disagree.
+                  */}
+                  {brands.length > 0 ? (
+                    <>
+                      <p
+                        id="drawer-brands"
+                        className="px-4 pt-4 pb-1 text-xs font-bold tracking-[.14em] text-(--pv-muted) uppercase"
+                      >
+                        Shop by brand
+                      </p>
+                      {brands.map((brand) => (
+                        <Link
+                          key={brand.id}
+                          href={`/shop?brand=${brand.slug}`}
+                          onClick={close}
+                          className="block truncate rounded-xl px-4 py-3 font-semibold uppercase hover:bg-(--pv-wash)"
+                        >
+                          {brand.name}
+                        </Link>
+                      ))}
+                    </>
+                  ) : null}
 
                   {/*
                     Sits with the shopping links rather than under Information:

@@ -35,6 +35,7 @@ export type SettingKey =
   | "store.announcement"
   | "store.instagram_url"
   | "store.x_url"
+  | "store.facebook_url"
   | "store.locations"
   // Marketing copy, not a business fact — the rule in §4 is about facts a wrong
   // value would make a lie (a phone number, a price, a policy sentence). A

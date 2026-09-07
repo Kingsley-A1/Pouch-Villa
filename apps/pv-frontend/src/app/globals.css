@@ -898,6 +898,79 @@ nav[aria-label="Breadcrumb"] + .section-space {
   color: var(--pv-on-brand);
 }
 
+/* The typing caret (components/typed-headline.tsx).
+
+   Carries `pv-loop`, because it blinks forever and the reduced-motion rule
+   stops a loop rather than accelerating it. Under that setting the headline is
+   not typed at all, so the caret never renders — the class is here so the
+   pairing test stays satisfied and so it cannot strobe if it ever does. */
+.pv-caret {
+  display: inline-block;
+  width: 0.06em;
+  height: 0.85em;
+  margin-left: 0.06em;
+  vertical-align: -0.05em;
+  background: currentColor;
+  animation: pv-caret-blink 0.9s steps(1, end) infinite;
+}
+@keyframes pv-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The mobile category card, framed like the deck above it.
+
+   Smaller type and a smaller button than `.pv-cat-title`/`.pv-cat-cta`, because
+   this is a card in a stack rather than a band the width of a screen — but the
+   same centring, the same wash and the same square button, so the shop does not
+   look like two different designs depending on what you opened it on. */
+.pv-cat-card-body {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.pv-cat-card-title {
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-size: clamp(1.1rem, 5vw, 1.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+
+.pv-cat-card-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.35rem;
+  border: 1px solid #ffffff;
+  border-radius: 0;
+  color: #ffffff;
+  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The button arrives; the name and the photograph are simply there. Animating
+     all three would be three things moving on every card in a scrolling list. */
+  .pv-cat-card-cta {
+    animation: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
 /* The entrance, on whichever slide is showing: the name, then the button.
 
    The photograph never animates — it is the largest element on the band and

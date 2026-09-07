@@ -23,6 +23,7 @@ export default async function SettingsAdminPage() {
     "store.announcement",
     "store.instagram_url",
     "store.x_url",
+    "store.facebook_url",
     "store.locations",
     "store.hero_headline",
     "store.hero_subtitle",
@@ -70,6 +71,7 @@ export default async function SettingsAdminPage() {
           announcement={pick(settings, "store.announcement")}
           locations={pick(settings, "store.locations")}
           instagramUrl={pick(settings, "store.instagram_url")}
+          facebookUrl={pick(settings, "store.facebook_url")}
           xUrl={pick(settings, "store.x_url")}
         />
       </EditableSettingsSection>

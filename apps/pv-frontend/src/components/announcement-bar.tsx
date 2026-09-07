@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { InstagramLogo, MapPin, WhatsappLogo, XLogo } from "@phosphor-icons/react/dist/ssr";
+import {
+  FacebookLogo,
+  InstagramLogo,
+  MapPin,
+  WhatsappLogo,
+  XLogo,
+} from "@phosphor-icons/react/dist/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { AnnouncementDismiss } from "./announcement-dismiss";
 
 const BAR_ID = "pv-announcement";
@@ -20,6 +27,7 @@ export type Announcement = {
   whatsappNumber: string | null;
   instagramUrl: string | null;
   xUrl: string | null;
+  facebookUrl: string | null;
   /** One branch per entry, already split and trimmed. */
   locations: readonly string[];
 };
@@ -47,9 +55,39 @@ export function AnnouncementBar({
   const message = announcement.message?.trim() ?? "";
   if (dismissed || message.length === 0) return null;
 
-  const { whatsappNumber, instagramUrl, xUrl, locations } = announcement;
-  const hasContactRow =
-    locations.length > 0 || whatsappNumber !== null || instagramUrl !== null || xUrl !== null;
+  const { whatsappNumber, instagramUrl, xUrl, facebookUrl, locations } = announcement;
+
+  /**
+   * The socials, as data rather than four near-identical blocks.
+   *
+   * Each one is an icon with its name as the accessible label and nothing
+   * visible beside it. Written out, the X entry read `<XLogo />X` — a logo
+   * followed by the letter it already is, which is the duplication the client
+   * spotted. Naming them here means that cannot come back for the fifth one.
+   */
+  const socials: { label: string; href: string; Glyph: Icon; weight?: "fill" }[] = [
+    ...(whatsappNumber === null
+      ? []
+      : [
+          {
+            label: "WhatsApp",
+            // Built rather than stored, so the setting stays a phone number the
+            // contact page can also render as one.
+            href: `https://wa.me/${whatsappNumber.replace(/\D/g, "")}`,
+            Glyph: WhatsappLogo,
+            weight: "fill" as const,
+          },
+        ]),
+    ...(instagramUrl === null
+      ? []
+      : [{ label: "Instagram", href: instagramUrl, Glyph: InstagramLogo }]),
+    ...(facebookUrl === null
+      ? []
+      : [{ label: "Facebook", href: facebookUrl, Glyph: FacebookLogo, weight: "fill" as const }]),
+    ...(xUrl === null ? [] : [{ label: "X", href: xUrl, Glyph: XLogo }]),
+  ];
+
+  const hasContactRow = locations.length > 0 || socials.length > 0;
 
   return (
     <div id={BAR_ID} className="text-sm">
@@ -69,8 +107,17 @@ export function AnnouncementBar({
         <AnnouncementDismiss targetId={BAR_ID} />
       </div>
 
+      {/*
+        Desktop only.
+
+        On a phone this row was a second line of small print above the shop
+        before anything about the shop itself — the client asked for it to live
+        in the footer there, which it already does. `hidden md:block` rather
+        than removing it, because on a wide screen it costs nothing and is the
+        fastest route to WhatsApp.
+      */}
       {hasContactRow ? (
-        <div className="border-b border-(--pv-line) bg-(--pv-page)">
+        <div className="hidden border-b border-(--pv-line) bg-(--pv-page) md:block">
           <div className="container-shell flex flex-wrap items-center gap-x-5 gap-y-1 py-1.5 text-xs text-(--pv-muted)">
             {locations.length > 0 ? (
               <span className="inline-flex items-center gap-1.5">
@@ -79,41 +126,22 @@ export function AnnouncementBar({
               </span>
             ) : null}
 
-            <span className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-              {whatsappNumber === null ? null : (
+            <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+              {socials.map(({ label, href, Glyph, weight }) => (
                 <a
-                  // Built rather than stored, so the setting stays a phone number
-                  // that the contact page can also render as one.
-                  href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}`}
-                  className="inline-flex min-h-11 items-center gap-1.5 hover:text-(--pv-ink)"
+                  key={label}
+                  href={href}
+                  // The name is the label, not a glyph a screen reader cannot
+                  // read. 44px square, as §2 asks of any target.
+                  aria-label={label}
+                  title={label}
+                  className="grid h-11 w-11 place-items-center hover:text-(--pv-ink)"
                   rel="noreferrer"
                   target="_blank"
                 >
-                  <WhatsappLogo aria-hidden="true" size={15} weight="fill" />
-                  WhatsApp
+                  <Glyph aria-hidden="true" size={17} weight={weight ?? "regular"} />
                 </a>
-              )}
-              {instagramUrl === null ? null : (
-                <a
-                  href={instagramUrl}
-                  className="inline-flex min-h-11 items-center gap-1.5 hover:text-(--pv-ink)"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <InstagramLogo aria-hidden="true" size={15} />
-                  Instagram
-                </a>
-              )}
-              {xUrl === null ? null : (
-                <a
-                  href={xUrl}
-                  className="inline-flex min-h-11 items-center gap-1.5 hover:text-(--pv-ink)"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <XLogo aria-hidden="true" size={15} />X
-                </a>
-              )}
+              ))}
               <Link
                 href="/contact"
                 className="inline-flex min-h-11 items-center hover:text-(--pv-ink)"

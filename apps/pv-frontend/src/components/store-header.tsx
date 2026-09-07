@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MagnifyingGlass, ShoppingBag, User } from "@phosphor-icons/react/dist/ssr";
 import { greetingName, initials } from "@pv/backend/domain/person-name";
 import { BrandMark } from "@/components/brand-mark";
+import type { BrandLink } from "@pv/backend/services/catalogue";
 import { MobileNav } from "@/components/mobile-nav";
 import { getCartCount } from "@/server/cart-count";
 import { getCustomerPrincipal } from "@/server/customer-session";
@@ -13,7 +14,7 @@ import { getCustomerPrincipal } from "@/server/customer-session";
  * behind. What is left here is brand, search, cart and account.
  */
 
-export async function StoreHeader() {
+export async function StoreHeader({ brands }: { brands: BrandLink[] }) {
   const [cartCount, customer] = await Promise.all([getCartCount(), getCustomerPrincipal()]);
   const account =
     customer === null
@@ -84,7 +85,7 @@ export async function StoreHeader() {
             <User size={23} weight={account === null ? "regular" : "fill"} />
           </Link>
 
-          <MobileNav account={account} />
+          <MobileNav account={account} brands={brands} />
         </div>
       </div>
     </header>
