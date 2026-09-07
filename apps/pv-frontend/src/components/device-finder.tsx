@@ -8,18 +8,18 @@ import type { DeviceLike } from "@pv/backend/domain/device-match";
 export type FinderDevice = DeviceLike & { id: string };
 
 /**
- * "Which phone have you got?" — pick the brand, pick the model, get what fits.
+ * "Which device have you got?" — pick the brand, pick the model, get what fits.
  *
  * This replaces a typeahead. The typeahead worked, and it was still the wrong
  * shape: it looked exactly like the search box in the header, so it read as
- * "search the shop" rather than "tell us your phone", and it asked the shopper
+ * "search the shop" rather than "tell us your device", and it asked the shopper
  * to supply the answer before it would help. Nobody types a model name they are
  * not already sure the shop stocks.
  *
  * Two selects state the question instead. The brand list says which makes are
  * covered at a glance, and choosing one narrows the models to that brand's, so
  * the second list is short enough to read. It is also the pattern every
- * accessory counter uses out loud — "what phone? which model?" — which is the
+ * accessory counter uses out loud — "what device? which model?" — which is the
  * point: the control should match the conversation.
  *
  * Native `<select>` rather than a custom listbox. On Android it opens the OS
@@ -104,11 +104,24 @@ export function DeviceFinder({
         event.preventDefault();
         router.push(shopHref(choice.slug));
       }}
-      className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
+      /*
+        Square, and centred on whatever page it sits on.
+
+        Square at the client's instruction, and consistent with the house rule
+        the rest of the shop follows: the things you type into keep a radius, the
+        things you pick from do not. Both selects and the button carry it too — a
+        rounded pill inside a square card reads as an oversight rather than a
+        contrast.
+
+        The measure and the centring live here rather than on each caller. Two
+        pages render this, and when they each owned the width they had already
+        started to disagree about it.
+      */
+      className="mx-auto grid w-full max-w-md gap-3 rounded-none border border-(--pv-line) bg-(--pv-surface) p-4"
     >
-      <p className="flex items-center gap-2 text-sm font-bold">
+      <p className="flex items-center justify-center gap-2 text-sm font-bold">
         <DeviceMobile size={20} weight="fill" aria-hidden="true" className="text-(--pv-red)" />
-        Find what fits your phone
+        Find what fits your device
       </p>
 
       {/* The category a shopper was already browsing is carried through, so the
@@ -130,7 +143,7 @@ export function DeviceFinder({
             id={`${fieldId}-brand`}
             value={choice.brand}
             onChange={(event) => setChoice({ brand: event.target.value, slug: "" })}
-            className="field min-h-11 w-full"
+            className="field field-square min-h-11 w-full"
           >
             <option value="">All brands</option>
             {byBrand.map(([brandName]) => (
@@ -151,7 +164,7 @@ export function DeviceFinder({
             required
             value={choice.slug}
             onChange={(event) => setChoice((current) => ({ ...current, slug: event.target.value }))}
-            className="field min-h-11 w-full"
+            className="field field-square min-h-11 w-full"
           >
             <option value="">Choose your model</option>
             {shownGroups.map(([brandName, models]) => (
@@ -167,8 +180,8 @@ export function DeviceFinder({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <button type="submit" className="button-primary">
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        <button type="submit" className="button-primary button-square">
           Show what fits
         </button>
         {active !== null ? (
@@ -179,7 +192,7 @@ export function DeviceFinder({
       </div>
 
       {active !== null ? (
-        <p className="help" role="status">
+        <p className="help text-center" role="status">
           Showing what fits your {active.brandName} {active.name}.
         </p>
       ) : null}

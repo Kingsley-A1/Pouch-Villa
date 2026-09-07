@@ -88,6 +88,40 @@ describe("device finder", () => {
     expect(screen.getByLabelText("Model")).toHaveValue("galaxy-a54");
   });
 
+  /**
+   * `.field` and `.button-primary` are plain unlayered rules in globals.css and
+   * Tailwind's utilities live in `@layer utilities` — an unlayered declaration
+   * beats a layered one whatever the order, so a `rounded-none` utility never
+   * reaches either and the corner stays round with nothing to show for it.
+   * Measured in a browser: `rounded-none` resolves to 13.6px on both.
+   *
+   * These pin the classes that actually work, because the failure is silent.
+   */
+  it("squares the pickers with the class that beats the cascade", () => {
+    render(<DeviceFinder devices={devices} />);
+
+    for (const label of ["Brand", "Model"]) {
+      expect(screen.getByLabelText(label).className).toContain("field-square");
+    }
+    expect(screen.getByRole("button", { name: "Show what fits" }).className).toContain(
+      "button-square",
+    );
+  });
+
+  it("owns its own measure and centres itself", () => {
+    const { container } = render(<DeviceFinder devices={devices} />);
+    const form = container.querySelector("form");
+
+    expect(form?.className).toContain("mx-auto");
+    expect(form?.className).toContain("max-w-md");
+    expect(form?.className).toContain("rounded-none");
+  });
+
+  it("asks about a device, not a phone — the shop fits tablets too", () => {
+    render(<DeviceFinder devices={devices} />);
+    expect(screen.getByText("Find what fits your device")).toBeVisible();
+  });
+
   it("has no automated accessibility violations", async () => {
     render(
       <main>

@@ -653,6 +653,26 @@
 .field-icon {
   padding-inline-start: 2.9rem;
 }
+
+/* Square, for the same reason `.field-icon` exists: `.field` is declared after
+   Tailwind's utilities, so a `rounded-none` utility loses to its border-radius
+   at equal specificity and the corner stays round.
+
+   Not applied to `.field` itself. The house rule is that anything you type into
+   keeps its radius and anything you do not is square, and every other text input
+   in the shop still follows it — this is the device finder, whose controls are
+   pickers rather than fields, asked for square by the client. */
+.field-square {
+  border-radius: 0;
+}
+
+/* Square, for the same cascade reason. `.button-primary` and friends are plain
+   unlayered rules, and Tailwind's utilities live in `@layer utilities` — an
+   unlayered declaration beats a layered one whatever the order, so a
+   `rounded-none` utility never reaches the button at all. */
+.button-square {
+  border-radius: 0;
+}
 /* The same problem on the other side: a field with a reveal toggle sitting in
    it. A `pr-*` utility loses to `.field`'s padding shorthand, so the password
    would run underneath the eye. */

@@ -47,7 +47,7 @@ export default async function BrowseCategoryPage({ params }: Params) {
       <section className="section-space">
         <div className="container-shell">
           <p className="eyebrow">Step 1 of 2</p>
-          <h1 className="section-title mt-2">Which phone is it for?</h1>
+          <h1 className="section-title mt-2">Which device is it for?</h1>
           <p className="mt-3 max-w-2xl text-(--pv-muted)">
             {brands.length === 0
               ? `Nothing is filed under ${category.name} yet.`
