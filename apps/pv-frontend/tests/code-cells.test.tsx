@@ -53,6 +53,31 @@ describe("role code cells", () => {
     expect(onChange).toHaveBeenLastCalledWith("RVMQTQAF");
   });
 
+  /**
+   * Android keyboards frequently deliver a paste as an ordinary input event
+   * with the whole string in it and never fire `paste` at all, so the code
+   * landed as one character and the rest was dropped.
+   */
+  it("spreads a paste that arrives as typing, the way Android sends it", () => {
+    const onChange = Harness();
+
+    fireEvent.change(cells()[0]!, { target: { value: "RVMQ-TQAF" } });
+
+    expect(onChange).toHaveBeenLastCalledWith("RVMQTQAF");
+  });
+
+  /** Eight boxes plus gaps overflowed a 360px card and wrapped to six and two. */
+  it("keeps the boxes on one row at any width", () => {
+    const { container } = render(<CodeCells name="code" value="" onChange={() => {}} />);
+    const row = container.querySelector('[role="group"]');
+
+    expect(row?.className).not.toContain("flex-wrap");
+    for (const cell of cells()) {
+      expect(cell.className).toContain("flex-1");
+      expect(cell.className).toContain("min-w-0");
+    }
+  });
+
   it("makes a half-filled code fail in the browser, not on the server", () => {
     Harness();
     for (const cell of cells()) expect(cell).toBeRequired();

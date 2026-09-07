@@ -51,6 +51,23 @@ export function CodeCells({
     target?.select();
   };
 
+  /**
+   * Lays a run of characters across the boxes from `from` onwards.
+   *
+   * Shared by the paste handler and the change handler, because a paste reaches
+   * one or the other depending on the keyboard — and two copies of this had
+   * already started to differ in whether they moved the focus.
+   */
+  const spread = (from: number, run: string) => {
+    if (run === "") return;
+    const next = characters.slice();
+    for (let offset = 0; from + offset < CODE_LENGTH && offset < run.length; offset += 1) {
+      next[from + offset] = run[offset] ?? "";
+    }
+    write(next.join("").trimEnd());
+    focusCell(from + run.length);
+  };
+
   const setCharacter = (index: number, character: string) => {
     const next = characters.slice();
     next[index] = character;
@@ -61,7 +78,15 @@ export function CodeCells({
     <div
       role="group"
       aria-labelledby={`${groupId}-label`}
-      className="flex flex-wrap justify-center gap-1.5 sm:gap-2"
+      /*
+        One row, always. Eight fixed-width boxes plus their gaps came to about
+        330 px, which is wider than the claim panel on a 360 px screen — so they
+        wrapped to six and two, and a code that is one thing looked like two.
+        The boxes share the row instead: `flex-1` with `min-w-0` lets them shrink
+        to fit whatever is left, and `max-w-12` stops them stretching into
+        letterboxes on a desktop.
+      */
+      className="flex w-full items-center gap-1 sm:gap-2"
     >
       <span id={`${groupId}-label`} className="sr-only">
         Role code, {CODE_LENGTH} characters
@@ -88,9 +113,26 @@ export function CodeCells({
           aria-label={`Character ${index + 1} of ${CODE_LENGTH}`}
           value={character}
           onChange={(event) => {
+            const incoming = clean(event.target.value);
+
+            /*
+              More than one character means this was a paste, not typing.
+
+              Android's keyboards and clipboard menu often deliver a paste as an
+              ordinary input event with the whole string in it and never fire a
+              `paste` event at all — `maxLength` does not stop that, so without
+              this the eight-character code landed as one character in one box
+              and the rest was dropped. The paste handler below still exists for
+              the browsers that do fire the event.
+            */
+            if (incoming.length > 1) {
+              spread(index, incoming);
+              return;
+            }
+
             // The last character typed, not the first: typing over a filled cell
             // should replace it rather than being ignored.
-            const typed = clean(event.target.value).slice(-1);
+            const typed = incoming.slice(-1);
             if (typed === "") {
               setCharacter(index, "");
               return;
@@ -117,21 +159,12 @@ export function CodeCells({
             }
           }}
           onPaste={(event) => {
-            // A pasted code arrives whole, and a code copied from the admin
-            // carries its display hyphen. Both are spread across the cells.
             event.preventDefault();
-            const pasted = clean(event.clipboardData.getData("text"));
-            if (pasted === "") return;
-            const next = characters.slice();
-            for (let offset = 0; index + offset < CODE_LENGTH && offset < pasted.length; offset++) {
-              next[index + offset] = pasted[offset] ?? "";
-            }
-            write(next.join("").trimEnd());
-            focusCell(index + pasted.length);
+            spread(index, clean(event.clipboardData.getData("text")));
           }}
           className={cn(
-            "h-12 w-9 rounded-none border border-(--pv-line) bg-(--pv-surface) text-center",
-            "text-lg font-bold uppercase sm:w-11",
+            "h-12 min-w-0 flex-1 basis-0 rounded-none border border-(--pv-line) text-center",
+            "max-w-12 bg-(--pv-surface) text-lg font-bold uppercase",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)",
           )}
         />

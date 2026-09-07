@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import type { AdminDevice } from "@pv/backend/services/devices";
+import type { AdminDevice, AdminDeviceLine } from "@pv/backend/services/devices";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import {
   Field,
@@ -17,14 +17,23 @@ import { saveDeviceAction, deleteDeviceAction } from "./actions";
 
 function DeviceForm({
   brands,
+  lines,
   editing,
   onDone,
 }: {
   brands: AdminBrand[];
+  lines: AdminDeviceLine[];
   editing?: AdminDevice;
   onDone?: () => void;
 }) {
   const [state, formAction] = useActionState(saveDeviceAction, INITIAL_ACTION_STATE);
+  /*
+    The class list is filtered to the brand on screen, so an iPad can never be
+    offered under Samsung. The service refuses that pairing too — this only
+    keeps the form from proposing it.
+  */
+  const [brandId, setBrandId] = useState(editing?.brandId ?? "");
+  const brandLines = lines.filter((line) => line.brandId === brandId);
 
   return (
     <form
@@ -37,7 +46,12 @@ function DeviceForm({
       {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Brand" name="brandId">
-          <Select name="brandId" required defaultValue={editing?.brandId ?? ""}>
+          <Select
+            name="brandId"
+            required
+            value={brandId}
+            onChange={(event) => setBrandId(event.target.value)}
+          >
             <option value="">— Choose —</option>
             {brands.map((brand) => (
               <option key={brand.id} value={brand.id}>
@@ -51,6 +65,29 @@ function DeviceForm({
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
+        {/*
+          Optional, and shown even when the brand has no classes — with a hint
+          that says where they come from, so the field explains itself rather
+          than looking broken.
+        */}
+        <Field
+          label="Class"
+          name="lineId"
+          hint={
+            brandLines.length > 0
+              ? "Optional — iPhone, iPad, Galaxy Tab"
+              : "This brand has no classes yet. Add one below."
+          }
+        >
+          <Select name="lineId" defaultValue={editing?.lineId ?? ""}>
+            <option value="">— None —</option>
+            {brandLines.map((line) => (
+              <option key={line.id} value={line.id}>
+                {line.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Released year" name="releasedYear" hint="Optional">
           <TextInput
             name="releasedYear"
@@ -78,7 +115,15 @@ function DeviceForm({
   );
 }
 
-export function DeviceList({ devices, brands }: { devices: AdminDevice[]; brands: AdminBrand[] }) {
+export function DeviceList({
+  devices,
+  brands,
+  lines,
+}: {
+  devices: AdminDevice[];
+  brands: AdminBrand[];
+  lines: AdminDeviceLine[];
+}) {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
 
   return (
@@ -95,7 +140,7 @@ export function DeviceList({ devices, brands }: { devices: AdminDevice[]; brands
       </div>
 
       {editingId === "new" ? (
-        <DeviceForm brands={brands} onDone={() => setEditingId(null)} />
+        <DeviceForm brands={brands} lines={lines} onDone={() => setEditingId(null)} />
       ) : null}
 
       {brands.length === 0 ? (
@@ -111,7 +156,12 @@ export function DeviceList({ devices, brands }: { devices: AdminDevice[]; brands
           {devices.map((device) =>
             editingId === device.id ? (
               <li key={device.id}>
-                <DeviceForm brands={brands} editing={device} onDone={() => setEditingId(null)} />
+                <DeviceForm
+                  brands={brands}
+                  lines={lines}
+                  editing={device}
+                  onDone={() => setEditingId(null)}
+                />
               </li>
             ) : (
               <li
@@ -123,7 +173,7 @@ export function DeviceList({ devices, brands }: { devices: AdminDevice[]; brands
                     {device.brandName} {device.name}
                   </p>
                   <p className="text-xs text-(--pv-muted)">
-                    /{device.slug}
+                    {device.lineName ? `${device.lineName} · ` : ""}/{device.slug}
                     {device.releasedYear ? ` · ${device.releasedYear}` : ""}
                   </p>
                 </div>

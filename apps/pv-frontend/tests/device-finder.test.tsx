@@ -122,6 +122,50 @@ describe("device finder", () => {
     expect(screen.getByText("Find what fits your device")).toBeVisible();
   });
 
+  /**
+   * Device classes. Apple sells iPhones and iPads, so one flat list of thirty
+   * Apple models is a dropdown nobody reads.
+   */
+  describe("device classes", () => {
+    const classed = [
+      { id: "1", slug: "iphone-15", name: "iPhone 15", brandName: "Apple", lineName: "iPhone" },
+      { id: "2", slug: "ipad-air", name: "iPad Air", brandName: "Apple", lineName: "iPad" },
+      { id: "3", slug: "galaxy-a54", name: "Galaxy A54", brandName: "Samsung", lineName: null },
+    ];
+
+    it("groups a brand's models under their class", () => {
+      const { container } = render(<DeviceFinder devices={classed} />);
+      const labels = [...container.querySelectorAll("optgroup")].map((group) =>
+        group.getAttribute("label"),
+      );
+
+      expect(labels).toContain("Apple iPhone");
+      expect(labels).toContain("Apple iPad");
+    });
+
+    /** A brand nobody has sorted must look exactly as it did. */
+    it("leaves an unsorted brand flat, with no empty class heading", () => {
+      const { container } = render(<DeviceFinder devices={classed} />);
+      const labels = [...container.querySelectorAll("optgroup")].map((group) =>
+        group.getAttribute("label"),
+      );
+
+      expect(labels).toContain("Samsung");
+      expect(labels.some((label) => label?.includes("null"))).toBe(false);
+    });
+
+    it("still reaches every model, classed or not", () => {
+      render(<DeviceFinder devices={classed} />);
+      // Scoped to the model select: the brand select carries options too, and
+      // matching the whole form picked those up as well.
+      const values = [
+        ...screen.getByLabelText("Model").querySelectorAll("option[value]:not([value=''])"),
+      ].map((option) => option.getAttribute("value"));
+
+      expect(values).toEqual(["iphone-15", "ipad-air", "galaxy-a54"]);
+    });
+  });
+
   it("has no automated accessibility violations", async () => {
     render(
       <main>

@@ -159,6 +159,20 @@ export const deviceSchema = z.object({
   name: z.string().trim().min(1).max(120),
   releasedYear: z.coerce.number().int().min(1990).max(2100).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+  /**
+   * The device class, and nullable on purpose.
+   *
+   * A model filed under no class is a perfectly good model, and requiring one
+   * would mean sorting the whole catalogue before a single device could be
+   * saved. The service checks the class belongs to the chosen brand.
+   */
+  lineId: z.string().uuid().nullable().default(null),
+});
+
+export const deviceLineSchema = z.object({
+  brandId: z.string().uuid(),
+  name: z.string().trim().min(1).max(120),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 });
 
 /**

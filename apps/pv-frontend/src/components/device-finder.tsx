@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { DeviceMobile } from "@phosphor-icons/react";
 import type { DeviceLike } from "@pv/backend/domain/device-match";
 
-export type FinderDevice = DeviceLike & { id: string };
+export type FinderDevice = DeviceLike & {
+  id: string;
+  /** The class it belongs to — iPhone, Galaxy Tab — or null where unfiled. */
+  lineName?: string | null;
+};
 
 /**
  * "Which device have you got?" — pick the brand, pick the model, get what fits.
@@ -80,6 +84,30 @@ export function DeviceFinder({
     }
     return [...groups];
   }, [devices]);
+
+  /**
+   * Splits one brand's models into its device classes.
+   *
+   * Apple sells iPhones and iPads, so a single list of thirty Apple models is a
+   * dropdown nobody reads. Grouping by class turns it into "iPhone" and "iPad"
+   * with a handful under each.
+   *
+   * A brand nobody has sorted is left exactly as it was: one unlabelled group,
+   * rendered flat. An `<optgroup>` labelled with the brand under a select that
+   * is already filtered to that brand says nothing, and a class tier nobody
+   * filled in must not show up as an empty heading.
+   */
+  const byLine = (models: FinderDevice[]): [string | null, FinderDevice[]][] => {
+    const groups = new Map<string | null, FinderDevice[]>();
+    for (const model of models) {
+      const line = model.lineName ?? null;
+      const existing = groups.get(line);
+      if (existing === undefined) groups.set(line, [model]);
+      else existing.push(model);
+    }
+    const named = [...groups].filter(([line]) => line !== null);
+    return named.length === 0 ? [[null, models]] : [...groups];
+  };
 
   if (devices.length === 0) return null;
 
@@ -167,15 +195,27 @@ export function DeviceFinder({
             className="field field-square min-h-11 w-full"
           >
             <option value="">Choose your model</option>
-            {shownGroups.map(([brandName, models]) => (
-              <optgroup key={brandName} label={brandName}>
-                {models.map((device) => (
+            {shownGroups.map(([brandName, models]) =>
+              byLine(models).map(([lineName, lineModels]) => {
+                const options = lineModels.map((device) => (
                   <option key={device.id} value={device.slug}>
                     {device.name}
                   </option>
-                ))}
-              </optgroup>
-            ))}
+                ));
+
+                // Unfiled models under a brand the shopper has already picked
+                // need no heading; everything else is labelled by its class,
+                // prefixed with the brand while every brand is on show.
+                if (lineName === null && choice.brand !== "") return options;
+
+                const label = lineName === null ? brandName : `${brandName} ${lineName}`.trim();
+                return (
+                  <optgroup key={`${brandName}-${lineName ?? "other"}`} label={label}>
+                    {options}
+                  </optgroup>
+                );
+              }),
+            )}
           </select>
         </div>
       </div>

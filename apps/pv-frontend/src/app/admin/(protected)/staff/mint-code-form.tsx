@@ -10,6 +10,7 @@ import {
   TextInput,
 } from "@/components/admin/form-controls";
 import { mintCodeAction, type MintCodeState } from "./actions";
+import { ShareCode } from "./share-code";
 
 const INITIAL: MintCodeState = { error: null };
 
@@ -56,6 +57,7 @@ export function MintCodeForm() {
             Code created — this is shown once:
           </p>
           <p className="mt-1 font-mono text-2xl font-bold tracking-wider">{state.code}</p>
+          <ShareCode code={state.code} />
         </div>
       ) : null}
     </div>
