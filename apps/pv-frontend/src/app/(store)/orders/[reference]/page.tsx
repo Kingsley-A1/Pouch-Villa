@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle, Circle } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, Circle, DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { getOrderByReference } from "@pv/backend/services/orders";
 import { listProofsForOrder } from "@pv/backend/services/payments";
 import { readSettings, pick } from "@pv/backend/services/settings";
 import { formatKobo } from "@pv/backend/domain/money";
 import { describeStatus } from "@pv/backend/domain/order-status";
 import { normaliseOrderReference } from "@pv/backend/domain/reference";
+import { staffHasPermission } from "@pv/backend/services/roles";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AwaitingConfirmation } from "@/components/awaiting-confirmation";
 import { getCustomerPrincipal } from "@/server/customer-session";
+import { getStaffPrincipal } from "@/server/session";
 import { hasOrderAccess } from "@/server/order-access";
 import { ProofUpload } from "./proof-upload";
 import { TransferDetails } from "./transfer-details";
@@ -41,7 +43,27 @@ export default async function OrderPage({ params, searchParams }: Params) {
   const customer = await getCustomerPrincipal();
   const owned = customer !== null && order.customerId === customer.customerId;
   const granted = await hasOrderAccess(reference);
-  if (!owned && !granted) redirect(`/track?reference=${encodeURIComponent(reference)}`);
+  if (!owned && !granted) {
+    /*
+      A staff member who lands here goes to the admin, not to /track.
+
+      This is the path a scanned receipt takes. The QR opens this page because
+      that is the one URL that means "this order" to everybody — but a staff
+      member holding a customer's receipt has no customer session and no
+      placement grant, so without this they would be asked to prove a phone
+      number that is not theirs, on a page that would then show them less than
+      the admin already does.
+
+      It grants nothing. `order.view` is re-derived from the database here
+      exactly as it is on the screen being redirected to, and a staff member
+      without it falls through to /track like anyone else.
+    */
+    const staff = await getStaffPrincipal();
+    if (staff !== null && (await staffHasPermission(staff.staffId, "order.view"))) {
+      redirect(`/admin/orders/${order.id}`);
+    }
+    redirect(`/track?reference=${encodeURIComponent(reference)}`);
+  }
 
   const [proofs, settings] = await Promise.all([
     listProofsForOrder(order.id),
@@ -193,6 +215,41 @@ export default async function OrderPage({ params, searchParams }: Params) {
                 }))}
               />
             ) : null}
+
+            {/*
+              The order's paperwork, on the page the order lives on.
+
+              The invoice exists from the moment the order does. The payment
+              receipt only appears once something has actually been sent to be
+              receipted — offering a receipt against a transfer nobody has made
+              would be offering a document that says nothing true.
+            */}
+            <div className="card-surface p-5">
+              <h2 className="text-lg font-bold">Documents</h2>
+              <ul className="mt-3 grid gap-2">
+                <li>
+                  <a
+                    href={`/api/v1/orders/${order.id}/receipt?kind=invoice`}
+                    className="button-ghost w-full"
+                  >
+                    <DownloadSimple size={18} weight="bold" aria-hidden="true" />
+                    Invoice (PDF)
+                  </a>
+                </li>
+                {proofs.length > 0 ? (
+                  <li>
+                    <a
+                      href={`/api/v1/orders/${order.id}/receipt?kind=receipt`}
+                      className="button-ghost w-full"
+                    >
+                      <DownloadSimple size={18} weight="bold" aria-hidden="true" />
+                      Payment receipt (PDF)
+                    </a>
+                  </li>
+                ) : null}
+              </ul>
+              <p className="help mt-3">Each one carries a QR code that opens this order.</p>
+            </div>
 
             <div className="card-surface p-5">
               <h2 className="text-lg font-bold">Keep this reference</h2>

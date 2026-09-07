@@ -43,6 +43,12 @@ export type SettingKey =
   // deployment, which is the same reason the rest of this registry exists.
   | "store.hero_headline"
   | "store.hero_subtitle"
+  // The sentence at the foot of an invoice or receipt. Policy wording, which §4
+  // names outright — "Payment is due when the order is placed" is a term of
+  // trade, and the day it stops being true it must change without a deployment.
+  // Unset means the block is left off the document rather than filled with a
+  // plausible default nobody agreed to (§0 rule 2).
+  | "store.invoice_terms"
   | "delivery.free_threshold_kobo"
   | "policy.about"
   | "policy.returns"

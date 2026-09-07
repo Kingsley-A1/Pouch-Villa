@@ -102,6 +102,21 @@ export function StoreSidebar({ signedIn, brands }: { signedIn: boolean; brands: 
     <aside
       className={cn(
         "hidden shrink-0 border-r border-(--pv-line) lg:block",
+        // `relative z-30` is what keeps the brand flyout in front of the page.
+        //
+        // Taking the menu out of the scrolling nav stopped it being *clipped*,
+        // but it was still being *painted over* — by the hero category slides,
+        // which carry `isolation: isolate` and so each open a stacking context
+        // of their own. Two stacking contexts at `z-index: auto` are painted in
+        // document order, and `<main>` comes after this `<aside>`, so the slide
+        // won every time however high the panel's own z-index went: a z-index
+        // only ranks siblings inside one context, and the panel was not in the
+        // slide's.
+        //
+        // Naming a level here puts the whole sidebar in front of everything in
+        // `main`, and below the header at `z-40`, which is the order these three
+        // things should have been in all along.
+        "relative z-30",
         "transition-[width] duration-175 ease-out motion-reduce:transition-none",
         open ? "w-60" : "w-[4.5rem]",
       )}

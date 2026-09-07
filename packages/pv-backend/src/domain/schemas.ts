@@ -227,6 +227,7 @@ export const STORE_SETTING_FIELDS = [
   "store.contact_email",
   "store.hero_headline",
   "store.hero_subtitle",
+  "store.invoice_terms",
 ] as const;
 
 /**
@@ -269,6 +270,10 @@ export const storeSettingsFormSchema = z.object({
   "store.contact_email": z.string().trim().email().max(320).or(z.literal("")),
   "store.hero_headline": z.string().trim().max(200),
   "store.hero_subtitle": z.string().trim().max(300),
+  // The terms printed at the foot of every invoice and receipt. Kept short
+  // because the block has a fixed height on the page — five lines at most, and
+  // the renderer truncates rather than letting it push the layout around.
+  "store.invoice_terms": z.string().trim().max(400),
 });
 
 export const announcementSettingsFormSchema = z.object({

@@ -21,6 +21,7 @@ export function StoreSettingsForm({
   contactEmail,
   heroHeadline,
   heroSubtitle,
+  invoiceTerms,
 }: {
   address: SettingValue;
   hours: SettingValue;
@@ -28,6 +29,7 @@ export function StoreSettingsForm({
   contactEmail: SettingValue;
   heroHeadline: SettingValue;
   heroSubtitle: SettingValue;
+  invoiceTerms: SettingValue;
 }) {
   const [state, formAction] = useActionState(saveStoreSettingsAction, INITIAL_ACTION_STATE);
 
@@ -92,6 +94,27 @@ export function StoreSettingsForm({
             defaultValue={heroSubtitle.present ? heroSubtitle.value : ""}
           />
           <OriginBadge value={heroSubtitle} />
+        </Field>
+      </fieldset>
+
+      {/*
+        Printed on every invoice and payment receipt, and blank until somebody
+        writes it. §4 puts terms of trade in the admin rather than in source, and
+        §0 rule 2 is why an empty value leaves the block off the document
+        entirely instead of printing a term nobody agreed to.
+      */}
+      <fieldset className="grid gap-4 border-t border-(--pv-line) pt-4">
+        <legend className="text-sm font-bold">Invoices and receipts</legend>
+        <Field
+          label="Terms & Conditions"
+          name="store.invoice_terms"
+          hint="Printed at the foot of every invoice and receipt. One per line, up to five lines. Leave blank to print none."
+        >
+          <TextArea
+            name="store.invoice_terms"
+            defaultValue={invoiceTerms.present ? invoiceTerms.value : ""}
+          />
+          <OriginBadge value={invoiceTerms} />
         </Field>
       </fieldset>
 

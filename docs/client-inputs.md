@@ -146,7 +146,33 @@ Verbal review with the client. Four items, transcribed as given, with what was d
 
 ---
 
-## 7. Not yet supplied
+## 7. Invoice reference layout — 2026-09-07
+
+Supplied as a one-page PDF, `Pouch_Villa_Invoice_Refrence.md.pdf`, described by
+the client as _"I made the reference"_. It is a mock rather than a real order:
+invoice #001, a placeholder customer name, and a single line reading _"The brief
+description of the item purchased derived from the item description but kept in a
+controlled size."_
+
+| What it shows                                 | What was built                                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Shop name top-left, `INVOICE` top-right       | Both, with the mark beneath the heading as drawn                                         |
+| Bill To against Invoice # and Invoice Date    | Both, plus fulfilment; the **order reference is the invoice number**                     |
+| `DESCRIPTION` / `AMOUNT` table                | Both, with the description wrapped to two lines then truncated — their "controlled size" |
+| `TOTAL` with a naira sign, two decimal places | Both. The ₦ is drawn as artwork — no standard PDF font can encode it (ADR 0015)          |
+| `Terms & Conditions` heading and one sentence | Heading and block are built. **The sentence is not in source** — see below               |
+| `Powered by Invoice Home`                     | Replaced with `Powered by Bespoke Invoice`, as instructed                                |
+
+**The terms sentence is deliberately not shipped.** _"Payment is due exactly when
+the order is placed"_ is policy wording, which §4 keeps out of source. It is now
+`store.invoice_terms`, editable at **Settings → Store details → Invoices and
+receipts**, and the block is left off the document until somebody types it. That
+is the one item outstanding before the generated invoice matches this reference
+exactly.
+
+---
+
+## 8. Not yet supplied
 
 Blocking or near-blocking, in rough priority order:
 
@@ -164,5 +190,6 @@ Blocking or near-blocking, in rough priority order:
 | 10  | Privacy policy inputs — retention, lawful basis, NDPR posture | Privacy page                       |
 | 11  | Order-status vocabulary matching how they actually operate    | Order state machine                |
 | 12  | Production domain + DNS control                               | Deployment, OAuth callbacks        |
+| 13  | Invoice terms & conditions wording (§7)                       | The terms block on every invoice   |
 
 **Rule for the build:** never invent any of these. Missing operational data renders as an explicit _awaiting confirmation_ state, and every one of them is admin-editable at runtime — no contact detail, price, policy line or business fact is ever hardcoded. See [`AGENTS.md`](../AGENTS.md) § _No hardcoded business facts_.

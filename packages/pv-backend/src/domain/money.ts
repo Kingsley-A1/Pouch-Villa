@@ -72,3 +72,23 @@ const NAIRA_FORMAT = new Intl.NumberFormat("en-NG", {
 export function formatKobo(amount: Kobo): string {
   return NAIRA_FORMAT.format(koboToNaira(amount));
 }
+
+/**
+ * The same amount with no currency mark and two decimal places, for a document
+ * that draws its own.
+ *
+ * Two differences from `formatKobo`, both deliberate. There is no ₦, because the
+ * invoice renderer sets that symbol as artwork — no standard PDF font can encode
+ * U+20A6 — and a stray one inside the number would be dropped mid-string. And
+ * the kobo are shown even when they are zero: `formatKobo` drops `.00` as noise
+ * on a price tag, but a receipt is a financial record, and a total that reads
+ * `10,000` invites the question that `10,000.00` does not.
+ */
+const DOCUMENT_AMOUNT_FORMAT = new Intl.NumberFormat("en-NG", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatKoboForDocument(amount: Kobo): string {
+  return DOCUMENT_AMOUNT_FORMAT.format(koboToNaira(amount));
+}

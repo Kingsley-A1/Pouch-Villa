@@ -14,10 +14,27 @@ export class EmailNotConfiguredError extends Error {
   }
 }
 
+/**
+ * A file to travel with the message.
+ *
+ * Bytes rather than a link, and deliberately so for the one thing that uses it:
+ * a customer's invoice. A link would have to be either public — a document with
+ * a name and an address on it, readable by anyone who guessed the URL — or
+ * authorised, which means the person who most wants to keep the file has to sign
+ * in to get it. An attachment is neither. It arrives with the message, it works
+ * offline, and it is the shape a receipt has taken since before email.
+ */
+export type EmailAttachment = {
+  filename: string;
+  content: Uint8Array;
+  contentType: string;
+};
+
 export type SendEmailInput = {
   to: string;
   subject: string;
   content: Omit<TransactionalEmailInput, "brandName">;
+  attachments?: readonly EmailAttachment[];
 };
 
 /**
@@ -70,6 +87,17 @@ export async function sendEmail(input: SendEmailInput): Promise<void> {
       subject: input.subject,
       html: rendered.html,
       text: rendered.text,
+      // Omitted entirely when there is nothing to attach: Resend rejects an
+      // empty `attachments` array rather than treating it as none.
+      ...(input.attachments && input.attachments.length > 0
+        ? {
+            attachments: input.attachments.map((attachment) => ({
+              filename: attachment.filename,
+              content: Buffer.from(attachment.content).toString("base64"),
+              content_type: attachment.contentType,
+            })),
+          }
+        : {}),
     }),
   });
 

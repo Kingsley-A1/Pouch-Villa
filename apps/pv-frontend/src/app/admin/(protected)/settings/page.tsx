@@ -27,6 +27,7 @@ export default async function SettingsAdminPage() {
     "store.locations",
     "store.hero_headline",
     "store.hero_subtitle",
+    "store.invoice_terms",
     "policy.about",
     "policy.returns",
     "policy.privacy",
@@ -61,6 +62,7 @@ export default async function SettingsAdminPage() {
           contactEmail={pick(settings, "store.contact_email")}
           heroHeadline={pick(settings, "store.hero_headline")}
           heroSubtitle={pick(settings, "store.hero_subtitle")}
+          invoiceTerms={pick(settings, "store.invoice_terms")}
         />
       </EditableSettingsSection>
       <EditableSettingsSection

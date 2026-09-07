@@ -278,6 +278,42 @@ try {
     results.push(`CSP ok on every route, ${nonced} script tags, all nonced`);
   }
 
+  /*
+    The order-document route, asserted to *load* rather than to render.
+
+    It builds a PDF, which pulls pdf-lib, a QR encoder and a 13KB base64 logo
+    module into a serverless function. None of that is exercised by a typecheck,
+    a unit test or a `next build` — those run under a different module resolver
+    than the bundled function does, and the failure mode is an import that
+    resolves everywhere except in production.
+
+    An anonymous request for an order id that cannot exist takes the route all
+    the way through its imports, its session lookup and a real database query
+    before returning 404 at the authorisation check. So a 404 here proves the
+    module graph loaded; a 500 is the bundling failure this exists to catch.
+
+    Only the deliberate 404 is acceptable. Nothing is asserted about the PDF
+    itself — producing one needs an order and a session, which the unit tests
+    cover and this cannot.
+  */
+  if (process.env.DATABASE_URL?.trim()) {
+    const missingOrder = "00000000-0000-4000-8000-000000000000";
+    for (const kind of ["invoice", "receipt"]) {
+      const route = `/api/v1/orders/${missingOrder}/receipt?kind=${kind}`;
+      const response = await fetch(`${origin}${route}`, { redirect: "manual" });
+      if (response.status !== 404) {
+        throw new Error(
+          `${route} returned HTTP ${response.status}; an unauthorised request for a ` +
+            "non-existent order must be refused with 404. A 500 here is usually a " +
+            "module that cannot be resolved inside the bundled function — pdf-lib, " +
+            "qrcode, or the generated logo asset.\n" +
+            serverOutput,
+        );
+      }
+      results.push(`404 ${route}`);
+    }
+  }
+
   for (const route of protectedAdminRoutes) {
     const response = await fetch(`${origin}${route}`, { redirect: "manual" });
     // Next answers a redirecting Server Component with 307.

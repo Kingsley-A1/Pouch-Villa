@@ -32,6 +32,23 @@
   --pv-warning: #a15c00;
   --pv-danger: #b42318;
 
+  /*
+   * The success *panel*, which is a different job from `--pv-success`.
+   *
+   * `--pv-success` is an ink: a tick, a word, a line of confirmation text drawn
+   * on whatever ground is behind it. On the storefront that ground is red, so
+   * the token there is a pale mint chosen to be readable *on red* — and filling
+   * a box with it would produce a panel whose own text has nowhere to go.
+   *
+   * A panel needs three values that agree with each other, so it has three. The
+   * pair is stated on every ground, including the red one, which is why the
+   * "payment received" screen is recognisably green in a shop that is otherwise
+   * entirely red.
+   */
+  --pv-success-panel: #eaf7f0;
+  --pv-success-panel-line: #b9e3cd;
+  --pv-success-panel-ink: #0b4a2f;
+
   /* Surfaces. `--pv-page` is the paper; `--pv-surface` is a card on it. */
   --pv-page: #ffffff;
   --pv-surface: #ffffff;
@@ -85,6 +102,10 @@
     --pv-warning: #fbbf24;
     --pv-danger: #f87171;
 
+    --pv-success-panel: #10261c;
+    --pv-success-panel-line: rgba(74, 222, 128, 0.34);
+    --pv-success-panel-ink: #b8f2cf;
+
     --pv-page: #141211;
     --pv-surface: #1b1817;
     --pv-surface-raised: #232020;
@@ -110,6 +131,10 @@
   --pv-success: #4ade80;
   --pv-warning: #fbbf24;
   --pv-danger: #f87171;
+
+  --pv-success-panel: #10261c;
+  --pv-success-panel-line: rgba(74, 222, 128, 0.34);
+  --pv-success-panel-ink: #b8f2cf;
 
   --pv-page: #141211;
   --pv-surface: #1b1817;
@@ -215,6 +240,13 @@
   --pv-success: #b8f2cf;
   --pv-warning: #ffe08a;
   --pv-danger: #ffd0cb;
+
+  /* Kept light against the red ground rather than remapped to it. This panel is
+     the one moment in the shop that is deliberately not red — the point of it is
+     that somebody who has just paid can see at a glance that something changed. */
+  --pv-success-panel: #eaf7f0;
+  --pv-success-panel-line: #9ed7b8;
+  --pv-success-panel-ink: #0b4a2f;
 
   /* Darker and heavier than on paper — a shadow on a saturated ground has to be
      a shadow, not a grey haze. */
@@ -495,7 +527,8 @@
    as a last resort; icons never shrink. */
 .button-primary,
 .button-secondary,
-.button-ghost {
+.button-ghost,
+.button-on-success {
   display: inline-flex;
   min-height: 3rem;
   align-items: center;
@@ -517,7 +550,8 @@
 }
 .button-primary > svg,
 .button-secondary > svg,
-.button-ghost > svg {
+.button-ghost > svg,
+.button-on-success > svg {
   flex: none;
 }
 .button-primary {
@@ -557,6 +591,29 @@
   border-color: color-mix(in srgb, var(--pv-line) 55%, var(--pv-muted));
   background: var(--pv-cream);
 }
+/*
+ * The primary action *inside* a success panel, which cannot be `.button-primary`.
+ *
+ * On the storefront `--pv-red` is remapped to white, so a primary button there
+ * is a white slab with dark red text. That is right on a red page and nearly
+ * invisible on the pale green one the payment confirmation uses. Tailwind cannot
+ * patch over it either: these button rules are unlayered, and unlayered CSS beats
+ * every cascade layer, utilities included.
+ *
+ * So the panel's own ink becomes the fill and its ground becomes the text —
+ * which keeps the pair legible wherever the panel's three tokens are restated,
+ * rather than hard-coding a green that only works on paper.
+ */
+.button-on-success {
+  border: 1px solid var(--pv-success-panel-ink);
+  background: var(--pv-success-panel-ink);
+  color: var(--pv-success-panel);
+}
+.button-on-success:hover {
+  background: color-mix(in srgb, var(--pv-success-panel-ink) 88%, black);
+  transform: translateY(-1px);
+}
+
 .button-primary:disabled,
 .button-secondary:disabled,
 .button-ghost:disabled {
@@ -1005,6 +1062,7 @@ nav[aria-label="Breadcrumb"] + .section-space {
 .button-primary:active,
 .button-secondary:active,
 .button-ghost:active,
+.button-on-success:active,
 .pv-slide-cta:active {
   transform: translateY(1px) scale(0.985);
 }

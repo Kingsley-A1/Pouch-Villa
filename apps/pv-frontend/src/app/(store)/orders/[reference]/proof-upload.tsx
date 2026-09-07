@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, UploadSimple, WarningCircle } from "@phosphor-icons/react";
+import { CheckCircle, DownloadSimple, UploadSimple, WarningCircle } from "@phosphor-icons/react";
 import Link from "next/link";
 import { describeUploadFailure } from "@/lib/upload-error";
 
@@ -28,8 +28,15 @@ const MAX_BYTES = 8 * 1024 * 1024;
 
 type Phase = "idle" | "requesting" | "uploading" | "checking" | "done" | "error";
 
-/** Long enough to read the confirmation, short enough not to feel stuck. */
-const LEAVE_AFTER_MS = 4000;
+/**
+ * Long enough to read the confirmation and reach the receipt, short enough not
+ * to feel stuck.
+ *
+ * Longer than it was. The confirmation now carries a download the customer might
+ * actually want to use, and four seconds is not enough time to notice a button,
+ * decide, and press it before the page moves out from under you.
+ */
+const LEAVE_AFTER_MS = 9000;
 
 export function ProofUpload({
   orderId,
@@ -120,24 +127,56 @@ export function ProofUpload({
     }
   }
 
+  /**
+   * The confirmation, in its own colour.
+   *
+   * Green rather than the shop's red, and the only green surface in the
+   * storefront. This is the one screen a customer reaches immediately after
+   * parting with money on trust, and the question in their head is binary — did
+   * that work. A card in the same palette as everything else answers it in the
+   * same voice as everything else. The panel tokens are stated on every ground
+   * (see `globals.css`), so it is green on paper, in dark mode, and against the
+   * red shop alike.
+   *
+   * `role="status"` announces the whole panel once to a screen reader, which is
+   * why the tick is `aria-hidden` and the heading carries the meaning.
+   */
   if (phase === "done") {
     return (
-      <div className="card-surface grid gap-3 p-5 text-center" role="status">
+      <div
+        role="status"
+        className="grid gap-3 border border-(--pv-success-panel-line) bg-(--pv-success-panel) p-5 text-center text-(--pv-success-panel-ink)"
+      >
         <CheckCircle
           size={44}
           weight="fill"
           aria-hidden="true"
-          className="justify-self-center text-(--pv-success)"
+          className="justify-self-center text-(--pv-success-panel-ink)"
         />
-        <h2 className="text-lg font-bold">Receipt received</h2>
-        <p className="text-sm text-(--pv-muted)">
-          We will check it against the transfer and confirm {reference} shortly. You will get an
-          email either way.
+        <h2 className="text-lg font-bold">Thank you — we have your payment</h2>
+        <p className="text-sm">
+          Your receipt for {reference} is with us and being reviewed. You will get an email as soon
+          as it is confirmed, and there is nothing else you need to do.
         </p>
-        <Link href={destination} className="button-primary mt-1 justify-self-center">
+
+        {/*
+          A plain link, not a fetch: the response is a file, and letting the
+          browser handle a download is the one thing it does better than any
+          code we could write around it. It also means the button works with
+          JavaScript broken, and on the phones where a blob download does not.
+        */}
+        <a
+          href={`/api/v1/orders/${orderId}/receipt?kind=receipt`}
+          className="button-on-success mt-1 justify-self-center"
+        >
+          <DownloadSimple size={18} weight="bold" aria-hidden="true" />
+          Download your receipt
+        </a>
+
+        <Link href={destination} className="text-sm font-bold underline">
           {signedIn ? "Go to your account" : "Back to the shop"}
         </Link>
-        <p className="help">Taking you there in a moment.</p>
+        <p className="text-xs opacity-80">Taking you there in a moment.</p>
       </div>
     );
   }
