@@ -881,20 +881,44 @@ export async function getBrandBySlug(
  * row per model the shop stocks for — so the storefront loads it whole and
  * filters it in memory rather than querying on every keystroke.
  */
-export type StorefrontDevice = { id: string; slug: string; name: string; brandName: string };
+export type StorefrontDevice = {
+  id: string;
+  slug: string;
+  name: string;
+  brandName: string;
+  /**
+   * The class the model sits in — iPhone, Galaxy Tab — or a typed absence.
+   *
+   * Optional everywhere it is read. A brand with no classes is not a broken
+   * brand, it is a brand nobody has needed to sort yet, and the finder groups
+   * only where there is a grouping.
+   */
+  lineName: string | null;
+};
 
 export async function listDevices(): Promise<StorefrontDevice[]> {
-  const rows = await query<{ id: string; slug: string; name: string; brand_name: string }>(
-    `SELECT d.id, d.slug, d.name, b.name AS brand_name
-       FROM device d JOIN brand b ON b.id = d.brand_id
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    brand_name: string;
+    line_name: string | null;
+  }>(
+    // `NULLS FIRST` so a brand's unfiled models lead rather than being stranded
+    // after every class — a shop part-way through sorting them still reads.
+    `SELECT d.id, d.slug, d.name, b.name AS brand_name, l.name AS line_name
+       FROM device d
+       JOIN brand b ON b.id = d.brand_id
+       LEFT JOIN device_line l ON l.id = d.line_id AND l.deleted_at IS NULL
       WHERE b.deleted_at IS NULL
-      ORDER BY b.sort_order, d.sort_order, d.name`,
+      ORDER BY b.sort_order, l.sort_order NULLS FIRST, l.name, d.sort_order, d.name`,
   );
   return rows.map((row) => ({
     id: row.id,
     slug: row.slug,
     name: row.name,
     brandName: row.brand_name,
+    lineName: row.line_name,
   }));
 }
 
@@ -907,13 +931,20 @@ export async function listDevices(): Promise<StorefrontDevice[]> {
  * what to render rather than being handed a fabricated "fits everything".
  */
 export async function listCompatibleDevices(productId: string): Promise<StorefrontDevice[]> {
-  const rows = await query<{ id: string; slug: string; name: string; brand_name: string }>(
-    `SELECT d.id, d.slug, d.name, b.name AS brand_name
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    brand_name: string;
+    line_name: string | null;
+  }>(
+    `SELECT d.id, d.slug, d.name, b.name AS brand_name, l.name AS line_name
        FROM product_compatibility pc
        JOIN device d ON d.id = pc.device_id
        JOIN brand b ON b.id = d.brand_id
+       LEFT JOIN device_line l ON l.id = d.line_id AND l.deleted_at IS NULL
       WHERE pc.product_id = $1 AND b.deleted_at IS NULL
-      ORDER BY b.sort_order, d.sort_order, d.name`,
+      ORDER BY b.sort_order, l.sort_order NULLS FIRST, l.name, d.sort_order, d.name`,
     [productId],
   );
   return rows.map((row) => ({
@@ -921,6 +952,7 @@ export async function listCompatibleDevices(productId: string): Promise<Storefro
     slug: row.slug,
     name: row.name,
     brandName: row.brand_name,
+    lineName: row.line_name,
   }));
 }
 
