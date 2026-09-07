@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import type { AdminProduct } from "@pv/backend/services/products";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
@@ -20,6 +20,7 @@ import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { MAX_MEDIA, MIN_MEDIA, MediaPicker, type PickedFile } from "./media-picker";
 import { MoneyInput } from "@/components/admin/money-input";
 import { formatKobo, parseNairaToKobo } from "@pv/backend/domain/money";
+import { groupByDeviceClass } from "@pv/backend/domain/device-groups";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -154,6 +155,36 @@ export function ProductForm({
   }
 
   const brandName = brands.find((brand) => brand.id === values.brandId)?.name ?? null;
+
+  /**
+   * The compatibility list, arranged the way the admin thinks about it.
+   *
+   * `listAllDevices` already returns brand order, then class order, then model
+   * order, so this only has to split the run — never re-sort it, or the
+   * arrangement chosen on the classes screen would be quietly overridden.
+   *
+   * The product's own make is lifted to the top so the boxes somebody is most
+   * likely to tick are the first ones they see.
+   */
+  const devicesByBrandThenClass = useMemo(() => {
+    const byBrand = new Map<string, AdminDevice[]>();
+    for (const device of devices) {
+      const existing = byBrand.get(device.brandName);
+      if (existing === undefined) byBrand.set(device.brandName, [device]);
+      else existing.push(device);
+    }
+
+    const grouped = [...byBrand].map(([brand, models]) => ({
+      brandName: brand,
+      classes: groupByDeviceClass(models),
+    }));
+
+    if (brandName === null) return grouped;
+    return [
+      ...grouped.filter((group) => group.brandName === brandName),
+      ...grouped.filter((group) => group.brandName !== brandName),
+    ];
+  }, [devices, brandName]);
 
   return (
     <form action={formAction} className="panel-bracket grid gap-5 p-5">
@@ -321,23 +352,49 @@ export function ProductForm({
           <p className="mt-1 text-xs text-(--pv-muted)">
             Powers &ldquo;show me what fits my device&rdquo;. Leave blank if it fits anything.
           </p>
-          <div className="mt-2 grid max-h-64 gap-1.5 overflow-y-auto">
-            {devices.map((device) => (
-              <label
-                key={device.id}
-                className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
-              >
-                <input
-                  type="checkbox"
-                  name="deviceIds"
-                  value={device.id}
-                  defaultChecked={editingDeviceIds.has(device.id)}
-                  className="h-5 w-5 accent-(--pv-red)"
-                />
-                <span className="text-sm">
-                  {device.brandName} {device.name}
-                </span>
-              </label>
+          {/*
+            Grouped by make, then by that make's device classes.
+
+            A flat list is unusable once Apple holds twenty iPhones and eight
+            iPads — the person ticking boxes has to read every line to find the
+            eight they want. Headings turn that into scanning.
+
+            The make chosen for the product leads, because the pouch being
+            filed is usually for that make. It is not filtered to it: plenty of
+            accessory makers fit other people's phones, and hiding the rest
+            would make those products impossible to tag.
+          */}
+          <div className="mt-2 grid max-h-72 gap-1 overflow-y-auto">
+            {devicesByBrandThenClass.map(({ brandName, classes }) => (
+              <div key={brandName} className="grid gap-1">
+                <p className="sticky top-0 bg-(--pv-surface) pt-2 text-xs font-bold tracking-[.08em] text-(--pv-muted) uppercase">
+                  {brandName}
+                </p>
+                {classes.map(({ lineName, devices: models }) => (
+                  <div key={`${brandName}-${lineName ?? "other"}`} className="grid gap-1">
+                    {/* Only where the make actually has classes. A brand nobody
+                        has sorted keeps the flat list it has always had. */}
+                    {lineName === null ? null : (
+                      <p className="pl-1 text-xs font-semibold text-(--pv-ink)">{lineName}</p>
+                    )}
+                    {models.map((device) => (
+                      <label
+                        key={device.id}
+                        className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
+                      >
+                        <input
+                          type="checkbox"
+                          name="deviceIds"
+                          value={device.id}
+                          defaultChecked={editingDeviceIds.has(device.id)}
+                          className="h-5 w-5 accent-(--pv-red)"
+                        />
+                        <span className="text-sm">{device.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
         </fieldset>
