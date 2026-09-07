@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { PasswordField } from "@/components/password-field";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { completeResetAction, requestResetAction } from "../actions";
 
@@ -34,7 +35,7 @@ export function ResetFlow({ passwordHint }: { passwordHint: string }) {
   );
 
   return (
-    <div className="grid gap-8">
+    <div className="auth-form grid gap-8">
       <form action={requestAction} className="grid gap-4">
         <label className="grid gap-1.5">
           <span className="text-sm font-bold">Email</span>
@@ -45,16 +46,16 @@ export function ResetFlow({ passwordHint }: { passwordHint: string }) {
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="field min-h-11"
+            className="field"
           />
         </label>
         <Problem message={requestState.error} />
         {requestState.message ? (
-          <p role="status" className="rounded-xl bg-(--pv-wash) px-4 py-3 text-sm">
+          <p role="status" className="auth-note bg-(--pv-wash) px-4 py-3 text-sm">
             {requestState.message}
           </p>
         ) : null}
-        <button className="button-secondary min-h-11">
+        <button className="button-secondary">
           {sent ? "Send another code" : "Send me a code"}
         </button>
       </form>
@@ -73,25 +74,28 @@ export function ResetFlow({ passwordHint }: { passwordHint: string }) {
               pattern="[0-9]{6}"
               maxLength={6}
               required
-              className="field min-h-11 tracking-[0.4em]"
+              className="field tracking-[0.4em]"
             />
           </label>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-bold">New password</span>
-            <input
+          {/* Not a wrapping <label>: it would enclose the reveal button, which
+              a label may not contain. See the same note in `auth-forms`. */}
+          <div className="grid gap-1.5">
+            <label htmlFor="password" className="text-sm font-bold">
+              New password
+            </label>
+            <PasswordField
               name="password"
-              type="password"
               autoComplete="new-password"
               required
               aria-describedby="reset-password-hint"
-              className="field min-h-11"
+              className="field field-trailing"
             />
             <span id="reset-password-hint" className="text-xs text-(--pv-muted)">
               {passwordHint}
             </span>
-          </label>
+          </div>
           <Problem message={completeState.error} />
-          <button className="button-primary min-h-11">Set new password</button>
+          <button className="button-primary">Set new password</button>
         </form>
       ) : null}
 
@@ -109,7 +113,7 @@ function Problem({ message }: { message: string | null }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-[color-mix(in_srgb,var(--pv-danger)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-danger)_10%,var(--pv-surface))] px-4 py-3 text-sm text-(--pv-danger)"
+      className="auth-note border border-[color-mix(in_srgb,var(--pv-danger)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-danger)_10%,var(--pv-surface))] px-4 py-3 text-sm text-(--pv-danger)"
     >
       {message}
     </p>

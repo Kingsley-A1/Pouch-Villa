@@ -3,17 +3,36 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { PasswordField } from "@/components/password-field";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { registerAction, signInAction } from "./actions";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
+/**
+ * What the last failed attempt was given, so the form can redraw with it.
+ *
+ * React resets a form once its action resolves. That is right for one that
+ * succeeded and wrong for one that did not — a mistyped password used to take
+ * the email address with it, so every retry began by typing an address the shop
+ * had just been told. Because the reset restores each input to its
+ * `defaultValue`, handing the value back through `defaultValue` is enough: the
+ * reset lands on the value rather than on an empty string.
+ *
+ * The password is deliberately not among them. It is never sent back from the
+ * server (see `keep` in `actions.ts`), so it is the one field that clears — which
+ * is also the one field somebody retrying actually wants cleared.
+ */
+function previous(state: ActionState, name: string): string {
+  return state.values?.[name] ?? "";
+}
 
 function Problem({ message }: { message: string | null }) {
   if (message === null) return null;
   return (
     <p
       role="alert"
-      className="rounded-xl border border-[color-mix(in_srgb,var(--pv-danger)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-danger)_10%,var(--pv-surface))] px-4 py-3 text-sm text-(--pv-danger)"
+      className="auth-note border border-[color-mix(in_srgb,var(--pv-danger)_35%,var(--pv-line))] bg-[color-mix(in_srgb,var(--pv-danger)_10%,var(--pv-surface))] px-4 py-3 text-sm text-(--pv-danger)"
     >
       {message}
     </p>
@@ -31,7 +50,11 @@ function GoogleBlock({ clientId, next }: { clientId: string | null; next: string
   if (clientId === null) return null;
   return (
     <>
-      <GoogleSignInButton flow="customer" next={next} />
+      {/* The wrapper is what the stylesheet squares and borders — the button
+          itself belongs to a shared component used on the admin too. */}
+      <div className="auth-google">
+        <GoogleSignInButton flow="customer" next={next} />
+      </div>
       <p className="flex items-center gap-3 text-xs font-bold tracking-wider text-(--pv-muted) uppercase">
         <span className="h-px flex-1 bg-(--pv-line)" />
         or
@@ -56,9 +79,9 @@ export function SignInForm({
   );
 
   return (
-    <div className="grid gap-5">
+    <div className="auth-form grid gap-5">
       {notice ? (
-        <p role="status" className="rounded-xl bg-(--pv-wash) px-4 py-3 text-sm">
+        <p role="status" className="auth-note bg-(--pv-wash) px-4 py-3 text-sm">
           {notice}
         </p>
       ) : null}
@@ -74,21 +97,30 @@ export function SignInForm({
             type="email"
             autoComplete="email"
             required
-            className="field min-h-11"
+            defaultValue={previous(state, "email")}
+            className="field"
           />
         </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-bold">Password</span>
-          <input
+        {/*
+          A wrapping <label> would put the reveal button inside it, which is
+          invalid — a label may not contain interactive content other than the
+          field it labels — and makes clicking the eye also act on the input.
+          `htmlFor` against the id PasswordField sets from `name` does the same
+          job with none of that.
+        */}
+        <div className="grid gap-1.5">
+          <label htmlFor="password" className="text-sm font-bold">
+            Password
+          </label>
+          <PasswordField
             name="password"
-            type="password"
             autoComplete="current-password"
             required
-            className="field min-h-11"
+            className="field field-trailing"
           />
-        </label>
+        </div>
         <Problem message={state.error} />
-        <button className="button-primary min-h-11">Sign in</button>
+        <button className="button-primary">Sign in</button>
       </form>
 
       <p className="text-sm text-(--pv-muted)">
@@ -124,14 +156,19 @@ export function RegisterForm({
   );
 
   return (
-    <div className="grid gap-5">
+    <div className="auth-form grid gap-5">
       <GoogleBlock clientId={googleClientId} next={next} />
 
       <form action={formAction} className="grid gap-4">
         <input type="hidden" name="next" value={next} />
         <label className="grid gap-1.5">
           <span className="text-sm font-bold">Full name</span>
-          <input name="fullName" autoComplete="name" className="field min-h-11" />
+          <input
+            name="fullName"
+            autoComplete="name"
+            defaultValue={previous(state, "fullName")}
+            className="field"
+          />
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-bold">Email</span>
@@ -140,7 +177,8 @@ export function RegisterForm({
             type="email"
             autoComplete="email"
             required
-            className="field min-h-11"
+            defaultValue={previous(state, "email")}
+            className="field"
           />
         </label>
         <label className="grid gap-1.5">
@@ -152,25 +190,32 @@ export function RegisterForm({
             order reference plus this number, so someone who leaves it out has a
             slower time finding an order later.
           */}
-          <input name="phone" type="tel" autoComplete="tel" className="field min-h-11" />
+          <input
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            defaultValue={previous(state, "phone")}
+            className="field"
+          />
           <span className="text-xs text-(--pv-muted)">Used to look up your order later.</span>
         </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-bold">Password</span>
-          <input
+        <div className="grid gap-1.5">
+          <label htmlFor="password" className="text-sm font-bold">
+            Password
+          </label>
+          <PasswordField
             name="password"
-            type="password"
             autoComplete="new-password"
             required
             aria-describedby="password-hint"
-            className="field min-h-11"
+            className="field field-trailing"
           />
           <span id="password-hint" className="text-xs text-(--pv-muted)">
             {passwordHint}
           </span>
-        </label>
+        </div>
         <Problem message={state.error} />
-        <button className="button-primary min-h-11">Create account</button>
+        <button className="button-primary">Create account</button>
       </form>
 
       <p className="text-sm text-(--pv-muted)">

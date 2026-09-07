@@ -30,7 +30,7 @@ export default async function SignInPage({
 
   return (
     <section className="section-space">
-      <div className="container-shell max-w-md">
+      <div className="container-shell max-w-lg">
         <h1 className="section-title">Sign in</h1>
         <p className="mt-3 text-(--pv-muted)">
           Track your orders, keep your details, and save what you like.

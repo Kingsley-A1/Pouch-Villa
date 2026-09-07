@@ -321,6 +321,14 @@ Settled by the client on 6 September:
 - **How far "square" goes — answered.** _Square what holds content, keep the radius on what you
   press or type into._ Built in slice 1, and asserted in `tests/corner-radius.test.ts` so the next
   find-and-replace cannot quietly take the radius off the buttons too.
+
+  **Amended 7 September, for the account forms only.** Seeing the sign-in page, the client asked for
+  "a square border so that it looks aligned". The real complaint was the border rather than the
+  radius: `.field` mixes `--pv-line` with `--pv-muted`, and on the red storefront `--pv-line` is
+  white at 24% alpha, so the fields had edges nobody could see and the column did not read as one
+  form. The fix states a visible border and squares the corners, **scoped to `.auth-form`** — the
+  rule above still holds everywhere else, and `corner-radius.test.ts` still passes unchanged.
+
 - **One list or two — answered.** A `hero_slide` table, as recommended. "Clearance Sales" is not a
   category, and inventing one to hold a banner would put a fake row in the shopper's own navigation.
 - **The drill-down — specified.** Category → brands → model → products, with the brand step as logo
