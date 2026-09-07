@@ -160,8 +160,19 @@ describeDb("staff access via role codes", () => {
     expect(rows[0]?.code_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("refuses a CEO code redeemed by an address other than the pinned one", async () => {
+  /**
+   * The pin protects one code: the bootstrap CEO code, minted from a terminal
+   * before anybody can sign in to the admin. So the window it applies in is
+   * "no active CEO exists", and the suite makes that window itself rather than
+   * assuming the shared database is empty of them.
+   */
+  it("pins the first CEO to the bootstrap address while no CEO exists", async () => {
     const pinned = testEmail();
+    const stoodDown = await query<{ id: string }>(
+      `UPDATE staff SET status = 'suspended'
+        WHERE role_code = 'CEO' AND status = 'active' AND deleted_at IS NULL
+    RETURNING id`,
+    );
     process.env.BOOTSTRAP_CEO_EMAIL = pinned;
     try {
       const minted = await mint("CEO");
@@ -169,6 +180,28 @@ describeDb("staff access via role codes", () => {
       await expect(redeem(minted.code, testEmail())).rejects.toBeInstanceOf(RoleCodeRejectedError);
       // The rejection must not have consumed the code.
       await expect(redeem(minted.code, pinned)).resolves.toMatchObject({ role: "CEO" });
+    } finally {
+      delete process.env.BOOTSTRAP_CEO_EMAIL;
+      for (const row of stoodDown) {
+        await query("UPDATE staff SET status = 'active' WHERE id = $1", [row.id]);
+      }
+    }
+  });
+
+  /**
+   * The client's report: the first CEO redeemed fine and the second was refused
+   * with a message about the code being expired. The pin was being applied to
+   * every CEO code forever, not only to the bootstrap one — so the shop could
+   * only ever have the CEO whose address sat in an environment variable.
+   */
+  it("lets a CEO invite another CEO once one exists, pin or no pin", async () => {
+    const first = await mint("CEO");
+    await redeem(first.code, testEmail());
+
+    process.env.BOOTSTRAP_CEO_EMAIL = testEmail();
+    try {
+      const second = await mint("CEO");
+      await expect(redeem(second.code, testEmail())).resolves.toMatchObject({ role: "CEO" });
     } finally {
       delete process.env.BOOTSTRAP_CEO_EMAIL;
     }

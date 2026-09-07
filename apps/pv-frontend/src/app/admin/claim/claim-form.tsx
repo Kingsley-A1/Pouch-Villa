@@ -9,6 +9,7 @@ import {
   SubmitButton,
   TextInput,
 } from "@/components/admin/form-controls";
+import { CodeCells } from "@/components/admin/code-cells";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { claimWithPassword } from "./actions";
 
@@ -25,16 +26,12 @@ export function ClaimForm({ googleClientId }: { googleClientId: string | null })
   return (
     <div className="grid gap-6">
       <form action={formAction} className="panel-bracket grid gap-4 p-5">
-        <Field label="Role code" name="code" hint="Given to you by the CEO or a manager">
-          <TextInput
-            name="code"
-            required
-            autoComplete="off"
-            autoCapitalize="characters"
-            placeholder="XXXX-XXXX"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-          />
+        <Field
+          label="Role code"
+          name="code"
+          hint="Given to you by the CEO or a manager. Type the letters only — the dash is not part of it."
+        >
+          <CodeCells name="code" value={code} onChange={setCode} />
         </Field>
         <Field label="Full name" name="fullName">
           <TextInput name="fullName" required autoComplete="name" />

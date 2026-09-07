@@ -9,7 +9,8 @@ import {
 } from "../auth/role-codes";
 import { hashPassword } from "../auth/password";
 import { recordAudit } from "./audit";
-import { assertNotLastCeo } from "./roles";
+import { assertNotLastCeo, hasActiveCeo } from "./roles";
+import { ceoRedemptionIsPinnedOut } from "../auth/ceo-bootstrap-pin";
 import { revokeAllStaffSessions } from "../auth/staff-session";
 import { syncAdminSearchDocument } from "./admin-search-index";
 
@@ -151,9 +152,26 @@ export async function redeemRoleCode(
     const rejection = roleCodeRejection(record);
     if (rejection !== null) throw new RoleCodeRejectedError(rejection);
 
-    const pinned = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
-    if (record.role_code === "CEO" && pinned && pinned !== email) {
-      throw new RoleCodeRejectedError("email_mismatch");
+    /**
+     * The bootstrap pin, applied only while it is still bootstrap. The rule
+     * itself lives in `auth/ceo-bootstrap-pin` and is unit tested there; what
+     * happens here is only reading the two facts it needs.
+     *
+     * The CEO lookup is skipped unless a pin is actually configured and would
+     * otherwise bite, so an ordinary redemption costs no extra query.
+     */
+    if (record.role_code === "CEO") {
+      const pinnedEmail = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
+      const couldBite = Boolean(pinnedEmail) && pinnedEmail !== email;
+      const pinnedOut =
+        couldBite &&
+        ceoRedemptionIsPinnedOut({
+          role: record.role_code,
+          pinnedEmail,
+          redeemingEmail: email,
+          ceoExists: await hasActiveCeo(tx),
+        });
+      if (pinnedOut) throw new RoleCodeRejectedError("email_mismatch");
     }
 
     const clash = await tx.query("SELECT id FROM staff WHERE email = $1 AND deleted_at IS NULL", [

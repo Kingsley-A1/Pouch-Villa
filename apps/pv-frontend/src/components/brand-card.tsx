@@ -39,7 +39,7 @@ export function BrandCard({ brand, href }: { brand: StorefrontBrand; href: strin
         both sit correctly. `object-contain`, never `cover`: a cropped logo is a
         damaged logo, and the client was explicit about the mark being exact.
       */}
-      <span className="grid aspect-square place-items-center bg-(--pv-wash) p-5">
+      <span className="grid aspect-square place-items-center bg-(--pv-wash) p-6 sm:p-7">
         {logo === null ? (
           // Not an empty box. The brand's initial, drawn large, so a shop
           // halfway through uploading its logos still looks deliberate.
@@ -56,7 +56,11 @@ export function BrandCard({ brand, href }: { brand: StorefrontBrand; href: strin
             width={logo.width}
             height={logo.height}
             sizes="(max-width: 640px) 45vw, 22vw"
-            className="max-h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            // Held to a share of the well rather than filling it. The client
+            // asked for smaller marks: at full width a wordmark like OPPO ran
+            // edge to edge and read as a banner rather than a logo, and a square
+            // glyph beside it looked twice the size for the same box.
+            className="max-h-[62%] w-[72%] object-contain transition-transform duration-300 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
         )}
       </span>
