@@ -7,6 +7,7 @@ import {
   getCategoryBySlug,
   listDevicesInCategoryForBrand,
 } from "@pv/backend/services/catalogue";
+import { groupByDeviceClass } from "@pv/backend/domain/device-groups";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { ChoiceTile } from "@/components/choice-tile";
 import { InstantFilter } from "@/components/instant-filter";
@@ -93,20 +94,38 @@ export default async function BrowseBrandPage({ params }: Params) {
             />
           ) : null}
 
-          <ul
-            data-filter-scope="models"
-            className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-          >
-            {models.map((model) => (
-              <li key={model.id} data-filter-label={`${brand.name} ${model.name}`}>
-                <ChoiceTile
-                  href={`/shop?category=${category.slug}&device=${model.slug}`}
-                  title={model.name}
-                  detail={`${model.productCount} ${model.productCount === 1 ? "item" : "items"}`}
-                />
-              </li>
-            ))}
-          </ul>
+          {/*
+            Grouped by device class, in the order set on the classes screen —
+            so a make that sells phones and tablets does not offer thirty tiles
+            in one undifferentiated grid.
+
+            A make with no classes renders as one unlabelled grid, exactly as it
+            did before classes existed. The filter above still matches across
+            every group, because the label lives on each cell.
+          */}
+          {groupByDeviceClass(models).map(({ lineName, devices: grouped }) => (
+            <section key={lineName ?? "unfiled"} className="mt-8">
+              {lineName === null ? null : (
+                <h2 className="mb-3 text-sm font-bold tracking-[.08em] text-(--pv-muted) uppercase">
+                  {lineName}
+                </h2>
+              )}
+              <ul
+                data-filter-scope="models"
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+              >
+                {grouped.map((model) => (
+                  <li key={model.id} data-filter-label={`${brand.name} ${model.name}`}>
+                    <ChoiceTile
+                      href={`/shop?category=${category.slug}&device=${model.slug}`}
+                      title={model.name}
+                      detail={`${model.productCount} ${model.productCount === 1 ? "item" : "items"}`}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
 
           <Link
             href={results}

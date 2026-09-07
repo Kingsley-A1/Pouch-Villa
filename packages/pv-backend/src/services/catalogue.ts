@@ -807,7 +807,14 @@ export async function listChildCategoriesForBrand(
   }));
 }
 
-export type DeviceChoice = { id: string; slug: string; name: string; productCount: number };
+export type DeviceChoice = {
+  id: string;
+  slug: string;
+  name: string;
+  productCount: number;
+  /** The class it sits in, so the step can group rather than list thirty tiles. */
+  lineName: string | null;
+};
 
 /**
  * The models of one make that this category actually stocks something for —
@@ -828,10 +835,20 @@ export async function listDevicesInCategoryForBrand(
   categorySlug: string,
   brandSlug: string,
 ): Promise<DeviceChoice[]> {
-  const rows = await query<{ id: string; slug: string; name: string; product_count: string }>(
-    `SELECT d.id, d.slug, d.name, count(DISTINCT p.id)::STRING AS product_count
+  const rows = await query<{
+    id: string;
+    slug: string;
+    name: string;
+    line_name: string | null;
+    product_count: string;
+  }>(
+    // Ordered by the class order the CEO set, then the model's own, so the
+    // grouping downstream renders in the arrangement chosen in the admin.
+    `SELECT d.id, d.slug, d.name, l.name AS line_name,
+            count(DISTINCT p.id)::STRING AS product_count
        FROM device d
        JOIN brand b ON b.id = d.brand_id AND b.slug = $2 AND b.deleted_at IS NULL
+       LEFT JOIN device_line l ON l.id = d.line_id AND l.deleted_at IS NULL
        JOIN product_compatibility pcp ON pcp.device_id = d.id
        JOIN product p ON p.id = pcp.product_id
         AND p.deleted_at IS NULL AND p.status = 'published'
@@ -840,8 +857,8 @@ export async function listDevicesInCategoryForBrand(
                WHERE pc.product_id = p.id
                  AND pc.category_id IN (${categorySubtreeIds("$1")})
             )
-      GROUP BY d.id, d.slug, d.name, d.sort_order
-      ORDER BY d.sort_order, d.name`,
+      GROUP BY d.id, d.slug, d.name, d.sort_order, l.name, l.sort_order
+      ORDER BY l.sort_order NULLS FIRST, l.name, d.sort_order, d.name`,
     [categorySlug, brandSlug],
   );
   return rows.map((row) => ({
@@ -849,6 +866,7 @@ export async function listDevicesInCategoryForBrand(
     slug: row.slug,
     name: row.name,
     productCount: Number(row.product_count),
+    lineName: row.line_name,
   }));
 }
 
