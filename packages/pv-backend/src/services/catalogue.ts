@@ -693,16 +693,30 @@ export type StorefrontBrand = {
 };
 
 /**
- * The brands with something published inside a category — step two of the shop's
- * browse path: a category, then a brand, then the sub-category, then the product.
+ * Every make the shop stocks, with how much of it is in this category — step two
+ * of the browse path: a category, then a brand, then the model, then the product.
  *
- * Scoped to the category rather than listed globally, which is the whole point.
- * A flat list of every brand mixes phone makers with accessory makers and offers
- * combinations that do not exist; asked inside "Pouch" it can only answer with
- * brands that really have pouches, so every choice on the screen leads somewhere.
+ * **The category no longer decides which brands exist, only their counts.** It
+ * used to: a brand appeared here only if it had a published product filed under
+ * this category. That read as a bug to the client, and fairly — they had set up
+ * and photographed a dozen makes and the Pouches step offered three, with no
+ * indication the others were even known about. Filing is also the easiest thing
+ * to get wrong in the admin, so the strict version punished a mis-tagged product
+ * by hiding a whole brand.
  *
- * The count is rendered, so it is a count and not an `EXISTS`. It tells a
- * shopper which way is worth going before they spend a tap finding out.
+ * Nothing here strands a shopper. A make with nothing in this category still
+ * leads somewhere honest: `/browse/[category]/[brand]` redirects to the filtered
+ * shop when it has no models to offer, and that page says which filter emptied
+ * it and offers a way back out.
+ *
+ * A brand with no published products *anywhere* is still excluded. That is not
+ * the client's complaint and a card for it could only ever lead to an empty
+ * page — there is no filing mistake to forgive, because there is nothing filed.
+ *
+ * Written as a scalar subquery rather than a `count(...) FILTER (WHERE EXISTS …)`
+ * over a join: this cluster decorrelates correlated subqueries inside aggregates
+ * and that is exactly the shape that broke the product page (decisions/0013).
+ * The pattern here is the one `listTopCategoryCards` already proves works.
  */
 export async function listBrandsInCategory(categorySlug: string): Promise<StorefrontBrand[]> {
   const rows = await query<{
@@ -714,22 +728,25 @@ export async function listBrandsInCategory(categorySlug: string): Promise<Storef
     logo_width: string | null;
     logo_height: string | null;
   }>(
-    `SELECT b.id, b.slug, b.name, count(p.id)::STRING AS product_count,
+    `SELECT b.id, b.slug, b.name,
+            (SELECT count(DISTINCT p.id)::STRING
+               FROM product p
+               JOIN product_category pc ON pc.product_id = p.id
+              WHERE p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published'
+                AND pc.category_id IN (${categorySubtreeIds("$1")})) AS product_count,
             m.content_hash AS logo_hash, m.width AS logo_width, m.height AS logo_height
        FROM brand b
-       JOIN product p ON p.brand_id = b.id AND p.deleted_at IS NULL AND p.status = 'published'
        LEFT JOIN catalogue_media m ON m.brand_id = b.id
       WHERE b.deleted_at IS NULL AND b.is_active
         AND EXISTS (
-          SELECT 1 FROM product_category pc
-           WHERE pc.product_id = p.id
-             AND pc.category_id IN (${categorySubtreeIds("$1")})
+          SELECT 1 FROM product p2
+           WHERE p2.brand_id = b.id AND p2.deleted_at IS NULL AND p2.status = 'published'
         )
-      GROUP BY b.id, b.slug, b.name, b.sort_order, m.content_hash, m.width, m.height
       ORDER BY b.sort_order, b.name`,
     [categorySlug],
   );
-  return rows.map((row) => ({
+
+  const brands = rows.map((row) => ({
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -738,6 +755,17 @@ export async function listBrandsInCategory(categorySlug: string): Promise<Storef
       ? catalogueImageFrom("brand", row.id, row.logo_hash, row.logo_width, row.logo_height)
       : null,
   }));
+
+  /**
+   * Makes with stock in this category first, each group still in the order the
+   * CEO set in the admin.
+   *
+   * Sorted here rather than in SQL because ordering on a computed column means
+   * either repeating the whole subquery in the `ORDER BY` or ordering on a
+   * `::STRING` alias, which sorts "10" before "2". The list is one row per
+   * brand, so this costs nothing worth moving into the query.
+   */
+  return brands.sort((a, b) => Number(b.productCount > 0) - Number(a.productCount > 0));
 }
 
 /**
