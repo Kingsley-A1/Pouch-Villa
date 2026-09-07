@@ -4,7 +4,7 @@ import { requirePermission } from "@/server/session";
 import { getProductForEdit } from "@pv/backend/services/products";
 import { listAllBrands } from "@pv/backend/services/brands";
 import { listAllCategories } from "@pv/backend/services/categories";
-import { listAllDevices } from "@pv/backend/services/devices";
+import { listAllDeviceLines, listAllDevices } from "@pv/backend/services/devices";
 import { listProductMedia } from "@pv/backend/services/media";
 import { listCollectionIdsForProduct, listCollections } from "@pv/backend/services/home-sections";
 import { isStorageConfigured } from "@pv/backend/storage/r2";
@@ -30,15 +30,17 @@ export default async function EditProductPage({ params }: Params) {
   await requirePermission("product.manage");
   const { id } = await params;
   const storageConfigured = isStorageConfigured();
-  const [product, brands, categories, devices, media, collections, memberOf] = await Promise.all([
-    getProductForEdit(id),
-    listAllBrands(),
-    listAllCategories(),
-    listAllDevices(),
-    storageConfigured ? listProductMedia(id) : Promise.resolve([]),
-    listCollections(),
-    listCollectionIdsForProduct(id),
-  ]);
+  const [product, brands, categories, devices, deviceLines, media, collections, memberOf] =
+    await Promise.all([
+      getProductForEdit(id),
+      listAllBrands(),
+      listAllCategories(),
+      listAllDevices(),
+      listAllDeviceLines(),
+      storageConfigured ? listProductMedia(id) : Promise.resolve([]),
+      listCollections(),
+      listCollectionIdsForProduct(id),
+    ]);
   if (product === null) notFound();
 
   const boundUpdate = updateProductAction.bind(null, id) as (
@@ -75,6 +77,7 @@ export default async function EditProductPage({ params }: Params) {
         brands={brands}
         categories={categories}
         devices={devices}
+        deviceLines={deviceLines}
         collections={collections}
         memberOfCollectionIds={memberOf}
         editing={product}

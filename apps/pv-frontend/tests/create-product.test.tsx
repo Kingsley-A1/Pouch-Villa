@@ -53,6 +53,7 @@ function renderScreen() {
       brands={[]}
       categories={[]}
       devices={[]}
+      deviceLines={[]}
       collections={[]}
     />,
   );

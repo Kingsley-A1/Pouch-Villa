@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requirePermission } from "@/server/session";
 import { listAllBrands } from "@pv/backend/services/brands";
 import { listAllCategories } from "@pv/backend/services/categories";
-import { listAllDevices } from "@pv/backend/services/devices";
+import { listAllDeviceLines, listAllDevices } from "@pv/backend/services/devices";
 import { listCollections } from "@pv/backend/services/home-sections";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { createProductAction } from "../actions";
@@ -13,10 +13,11 @@ export const metadata: Metadata = { title: "New product" };
 
 export default async function NewProductPage() {
   await requirePermission("product.manage");
-  const [brands, categories, devices, collections] = await Promise.all([
+  const [brands, categories, devices, deviceLines, collections] = await Promise.all([
     listAllBrands(),
     listAllCategories(),
     listAllDevices(),
+    listAllDeviceLines(),
     listCollections(),
   ]);
 
@@ -29,6 +30,7 @@ export default async function NewProductPage() {
         brands={brands}
         categories={categories}
         devices={devices}
+        deviceLines={deviceLines}
         collections={collections}
       />
     </div>

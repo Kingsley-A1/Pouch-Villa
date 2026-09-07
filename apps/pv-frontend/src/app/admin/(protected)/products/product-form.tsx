@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import type { AdminProduct } from "@pv/backend/services/products";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
-import type { AdminDevice } from "@pv/backend/services/devices";
+import type { AdminDevice, AdminDeviceLine } from "@pv/backend/services/devices";
 import {
   Field,
   FormError,
@@ -44,6 +44,7 @@ export function ProductForm({
   brands,
   categories,
   devices,
+  deviceLines,
   collections,
   memberOfCollectionIds,
   editing,
@@ -55,6 +56,8 @@ export function ProductForm({
   brands: AdminBrand[];
   categories: AdminCategory[];
   devices: AdminDevice[];
+  /** The device classes staff have set up, for narrowing the model list. */
+  deviceLines: AdminDeviceLine[];
   /** Hand-picked home-page sections this product can be placed into. */
   collections: { id: string; title: string }[];
   memberOfCollectionIds?: string[];
@@ -69,8 +72,10 @@ export function ProductForm({
   const collectsMedia = creating && pickedFiles !== undefined && onPickedFilesChange !== undefined;
 
   const editingCategoryIds = new Set(editing?.categoryIds ?? []);
-  const editingDeviceIds = new Set(editing?.deviceIds ?? []);
   const editingCollectionIds = new Set(memberOfCollectionIds ?? []);
+  // Memoised because `hiddenTicks` depends on it: a fresh Set every render
+  // would recompute that on every keystroke in the name field.
+  const editingDeviceIds = useMemo(() => new Set(editing?.deviceIds ?? []), [editing?.deviceIds]);
 
   const [values, setValues] = useState<Draft>({
     name: editing?.name ?? "",
@@ -95,6 +100,15 @@ export function ProductForm({
    * over a product whose price had just been typed two fields above it.
    */
   const [priceNaira, setPriceNaira] = useState("");
+  /**
+   * Which class of the chosen make the model list is narrowed to.
+   *
+   * A filter, not a field. It is never submitted and the product carries no
+   * class of its own — the product is filed under a make, and the class only
+   * decides how much of that make's model list is on screen while somebody
+   * ticks boxes.
+   */
+  const [deviceClassId, setDeviceClassId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   // Until someone types, an unfinished draft is offered rather than applied.
   const [touched, setTouched] = useState(false);
@@ -129,6 +143,9 @@ export function ProductForm({
 
   function update<K extends keyof Draft>(field: K, value: Draft[K]) {
     setTouched(true);
+    // A class belongs to one make, so changing the make has to drop the filter.
+    // Otherwise an iPad filter survives a switch to Samsung and empties the list.
+    if (field === "brandId") setDeviceClassId("");
     setValues((current) => ({ ...current, [field]: value }));
   }
 
@@ -156,35 +173,52 @@ export function ProductForm({
 
   const brandName = brands.find((brand) => brand.id === values.brandId)?.name ?? null;
 
+  /** The chosen make's device classes, for the filter below the brand field. */
+  const classesForBrand = useMemo(
+    () => deviceLines.filter((line) => line.brandId === values.brandId),
+    [deviceLines, values.brandId],
+  );
+
   /**
-   * The compatibility list, arranged the way the admin thinks about it.
+   * The models a shopper could be buying this for.
    *
-   * `listAllDevices` already returns brand order, then class order, then model
-   * order, so this only has to split the run — never re-sort it, or the
-   * arrangement chosen on the classes screen would be quietly overridden.
+   * **Narrowed to the make on the product, not merely sorted by it.** Offering
+   * every make at once means offering every model the shop knows, which turned
+   * this section into a scroll rather than a choice — and the boxes that matter
+   * are always the ones for the make being filed.
    *
-   * The product's own make is lifted to the top so the boxes somebody is most
-   * likely to tick are the first ones they see.
+   * With no make chosen there is nothing to narrow by, so everything is offered.
+   * That is the deliberate escape: a universal pouch, or one from an accessory
+   * maker that fits other people's phones, is filed under no make and can still
+   * be ticked against anything.
+   *
+   * `listAllDevices` already returns brand, then class, then model order, so
+   * this splits the run and never re-sorts — re-sorting here would override the
+   * arrangement made on the classes screen.
    */
-  const devicesByBrandThenClass = useMemo(() => {
-    const byBrand = new Map<string, AdminDevice[]>();
-    for (const device of devices) {
-      const existing = byBrand.get(device.brandName);
-      if (existing === undefined) byBrand.set(device.brandName, [device]);
-      else existing.push(device);
-    }
+  const shownDevices = useMemo(() => {
+    const forBrand =
+      values.brandId === ""
+        ? devices
+        : devices.filter((device) => device.brandId === values.brandId);
+    if (deviceClassId === "") return forBrand;
+    return forBrand.filter((device) => device.lineId === deviceClassId);
+  }, [devices, values.brandId, deviceClassId]);
 
-    const grouped = [...byBrand].map(([brand, models]) => ({
-      brandName: brand,
-      classes: groupByDeviceClass(models),
-    }));
+  const shownByClass = useMemo(() => groupByDeviceClass(shownDevices), [shownDevices]);
 
-    if (brandName === null) return grouped;
-    return [
-      ...grouped.filter((group) => group.brandName === brandName),
-      ...grouped.filter((group) => group.brandName !== brandName),
-    ];
-  }, [devices, brandName]);
+  /**
+   * Saved compatibility for models the filter is currently hiding.
+   *
+   * An unchecked box posts nothing, so without carrying these forward as hidden
+   * inputs, editing a product and then narrowing the list would silently delete
+   * every tick outside the filter. Only bites on edit — a new product has
+   * nothing saved yet.
+   */
+  const hiddenTicks = useMemo(() => {
+    const visible = new Set(shownDevices.map((device) => device.id));
+    return [...editingDeviceIds].filter((deviceId) => !visible.has(deviceId));
+  }, [shownDevices, editingDeviceIds]);
 
   return (
     <form action={formAction} className="panel-bracket grid gap-5 p-5">
@@ -284,6 +318,44 @@ export function ProductForm({
             ))}
           </Select>
         </Field>
+
+        {/*
+          The make's device classes, appearing the moment a make that has any is
+          chosen.
+
+          Unnamed, because it is not submitted: the product has no class of its
+          own, and this narrows the model list further down. A make with no
+          classes gets no control at all rather than an empty select — the same
+          rule the storefront follows, so a tier nobody filled in never shows up
+          as a thing to choose.
+        */}
+        {classesForBrand.length > 0 ? (
+          <Field
+            label="Device class"
+            name="deviceClassFilter"
+            hint="Narrows the models below. Not saved on the product."
+          >
+            {/*
+              A raw select, not the shared `Select`, which derives its id from
+              its `name`. This control has no name on purpose — the same rule the
+              storefront finder follows for its brand select — so it needs to
+              carry its own id for the label to reach it.
+            */}
+            <select
+              id="deviceClassFilter"
+              value={deviceClassId}
+              onChange={(event) => setDeviceClassId(event.target.value)}
+              className="field min-h-11 w-full"
+            >
+              <option value="">All classes</option>
+              {classesForBrand.map((line) => (
+                <option key={line.id} value={line.id}>
+                  {line.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
       </div>
 
       <fieldset>
@@ -353,50 +425,66 @@ export function ProductForm({
             Powers &ldquo;show me what fits my device&rdquo;. Leave blank if it fits anything.
           </p>
           {/*
-            Grouped by make, then by that make's device classes.
-
-            A flat list is unusable once Apple holds twenty iPhones and eight
-            iPads — the person ticking boxes has to read every line to find the
-            eight they want. Headings turn that into scanning.
-
-            The make chosen for the product leads, because the pouch being
-            filed is usually for that make. It is not filtered to it: plenty of
-            accessory makers fit other people's phones, and hiding the rest
-            would make those products impossible to tag.
+            A tick on a model the filter has since hidden is still submitted, as
+            a hidden input. Without this, narrowing to iPad after ticking an
+            iPhone would silently un-tick it: an unchecked box posts nothing, so
+            the compatibility would be lost with nothing on screen to say so.
           */}
-          <div className="mt-2 grid max-h-72 gap-1 overflow-y-auto">
-            {devicesByBrandThenClass.map(({ brandName, classes }) => (
-              <div key={brandName} className="grid gap-1">
-                <p className="sticky top-0 bg-(--pv-surface) pt-2 text-xs font-bold tracking-[.08em] text-(--pv-muted) uppercase">
-                  {brandName}
-                </p>
-                {classes.map(({ lineName, devices: models }) => (
-                  <div key={`${brandName}-${lineName ?? "other"}`} className="grid gap-1">
-                    {/* Only where the make actually has classes. A brand nobody
-                        has sorted keeps the flat list it has always had. */}
-                    {lineName === null ? null : (
-                      <p className="pl-1 text-xs font-semibold text-(--pv-ink)">{lineName}</p>
-                    )}
-                    {models.map((device) => (
-                      <label
-                        key={device.id}
-                        className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
-                      >
-                        <input
-                          type="checkbox"
-                          name="deviceIds"
-                          value={device.id}
-                          defaultChecked={editingDeviceIds.has(device.id)}
-                          className="h-5 w-5 accent-(--pv-red)"
-                        />
-                        <span className="text-sm">{device.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+          {hiddenTicks.map((deviceId) => (
+            <input key={deviceId} type="hidden" name="deviceIds" value={deviceId} />
+          ))}
+
+          {/*
+            Narrowed to the make chosen above, then to the class if one is
+            picked. Offering every make at once meant offering every model the
+            shop knows, which made this a scroll rather than a choice.
+
+            Where the make has nothing recorded the section says so and names
+            the screen that fixes it, rather than showing an empty box that
+            reads as a fault in the form.
+          */}
+          {shownDevices.length === 0 ? (
+            <p className="mt-2 rounded-xl border border-dashed border-(--pv-line) p-4 text-xs text-(--pv-muted)">
+              {brandName === null
+                ? "No devices recorded yet. Add them under Devices."
+                : `No ${brandName} models are recorded yet. Add them under Devices, or leave this blank if the product fits anything.`}
+            </p>
+          ) : (
+            <div className="mt-2 grid max-h-72 gap-1 overflow-y-auto">
+              {shownByClass.map(({ lineName, devices: models }) => (
+                <div key={lineName ?? "unfiled"} className="grid gap-1">
+                  {/* Only where the make has classes, and only while more than
+                      one is on screen — a heading above the single class
+                      somebody just filtered to says nothing. */}
+                  {lineName === null || shownByClass.length < 2 ? null : (
+                    <p className="sticky top-0 bg-(--pv-surface) pt-2 text-xs font-bold tracking-[.08em] text-(--pv-muted) uppercase">
+                      {lineName}
+                    </p>
+                  )}
+                  {models.map((device) => (
+                    <label
+                      key={device.id}
+                      className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
+                    >
+                      <input
+                        type="checkbox"
+                        name="deviceIds"
+                        value={device.id}
+                        defaultChecked={editingDeviceIds.has(device.id)}
+                        className="h-5 w-5 accent-(--pv-red)"
+                      />
+                      {/* The make is already on the field above, so repeating it
+                          on thirty rows is noise. With no make chosen the list
+                          spans them all and needs it. */}
+                      <span className="text-sm">
+                        {values.brandId === "" ? `${device.brandName} ${device.name}` : device.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </fieldset>
       ) : null}
 

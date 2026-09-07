@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { AdminBrand } from "@pv/backend/services/brands";
 import type { AdminCategory } from "@pv/backend/services/categories";
-import type { AdminDevice } from "@pv/backend/services/devices";
+import type { AdminDevice, AdminDeviceLine } from "@pv/backend/services/devices";
 import type { ActionState } from "@/lib/action-state";
 import { CheckCircle, Plus, Warning } from "@phosphor-icons/react";
 import { LoadingLine } from "@/components/loading-line";
@@ -47,12 +47,14 @@ export function CreateProduct({
   brands,
   categories,
   devices,
+  deviceLines,
   collections,
 }: {
   action: (prev: ActionState, formData: FormData) => Promise<CreateResult>;
   brands: AdminBrand[];
   categories: AdminCategory[];
   devices: AdminDevice[];
+  deviceLines: AdminDeviceLine[];
   collections: { id: string; title: string }[];
 }) {
   const router = useRouter();
@@ -165,6 +167,7 @@ export function CreateProduct({
         brands={brands}
         categories={categories}
         devices={devices}
+        deviceLines={deviceLines}
         collections={collections}
         pickedFiles={files}
         onPickedFilesChange={setFiles}
