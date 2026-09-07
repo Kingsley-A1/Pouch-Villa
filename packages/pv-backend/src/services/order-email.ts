@@ -3,7 +3,8 @@ import { describeStatus, type OrderStatus } from "../domain/order-status";
 import { queryOne, query } from "../db/client";
 import type { EmailBlock } from "./email-template";
 import { readSettings, type SettingKey, type SettingValue } from "./settings";
-import { sendEmail, sendOperationsEmail } from "./email";
+import { sendEmail, sendOperationsEmail, type EmailAttachment } from "./email";
+import { buildOrderDocument } from "./order-documents";
 
 /**
  * Transactional email for orders. Business facts come from the settings store,
@@ -70,6 +71,36 @@ function orderItems(lines: LineRow[]): EmailBlock {
   };
 }
 
+/**
+ * The invoice PDF, or nothing at all.
+ *
+ * A failure here must not cost the customer their order confirmation. The email
+ * carries the items, the total and the transfer details in its own body — the
+ * attachment is the convenient copy, not the message — so a rendering fault
+ * degrades to an email without a file rather than to no email.
+ *
+ * Only the error's name is logged. §5 forbids a recipient or a document path
+ * reaching a log, and this runs on a path that has both to hand.
+ */
+async function invoiceAttachment(orderId: string): Promise<EmailAttachment[]> {
+  try {
+    const document = await buildOrderDocument(orderId, "invoice");
+    if (document === null) return [];
+    return [
+      {
+        filename: document.filename,
+        content: document.bytes,
+        contentType: document.contentType,
+      },
+    ];
+  } catch (error) {
+    console.error("Invoice attachment failed", {
+      name: error instanceof Error ? error.name : typeof error,
+    });
+    return [];
+  }
+}
+
 export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
   const loaded = await loadOrder(orderId);
   if (loaded === null) return;
@@ -95,9 +126,12 @@ export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
       ]
     : [{ type: "paragraph", text: "We will send you the transfer details shortly." }];
 
+  const attachments = await invoiceAttachment(orderId);
+
   await sendEmail({
     to: order.contact_email,
     subject: `Your order ${order.reference}`,
+    attachments,
     content: {
       title: "Order received",
       preheader: `We received order ${order.reference}.`,
@@ -114,6 +148,18 @@ export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
           type: "paragraph",
           text: "Once you have paid, upload your transfer receipt so we can confirm it.",
         },
+        // Said only when it is true. `invoiceAttachment` degrades to nothing
+        // rather than failing the send, and an email that points at an
+        // attachment which is not there sends the reader looking for a file
+        // they will never find.
+        ...(attachments.length > 0
+          ? [
+              {
+                type: "paragraph" as const,
+                text: "Your invoice is attached to this email as a PDF.",
+              },
+            ]
+          : []),
       ],
       footer: "Keep this email for your records.",
     },

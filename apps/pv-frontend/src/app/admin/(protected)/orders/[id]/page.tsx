@@ -6,6 +6,7 @@ import { listProofsForOrder } from "@pv/backend/services/payments";
 import { availableTransitions, describeStatus } from "@pv/backend/domain/order-status";
 import { formatKobo } from "@pv/backend/domain/money";
 import { formatPhoneLocal } from "@pv/backend/domain/phone";
+import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { requirePermission } from "@/server/session";
 import { StatusControl } from "./status-control";
 
@@ -150,6 +151,44 @@ export default async function OrderDetailPage({ params }: Params) {
                 </div>
               ) : null}
             </dl>
+          </section>
+
+          {/*
+            The two documents this order produces, both readable here.
+
+            The client asked to see "the payment invoice and the order invoice"
+            in one place, and this is the screen a staff member is already on
+            when a customer rings up about either. They are the same bytes the
+            customer downloads, from the same route — so what staff read on the
+            phone is exactly what the customer is holding, which is the entire
+            point of the call.
+          */}
+          <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
+            <h2 className="text-lg font-bold">Documents</h2>
+            <ul className="mt-3 grid gap-2">
+              <li>
+                <a
+                  href={`/api/v1/orders/${order.id}/receipt?kind=invoice`}
+                  className="button-ghost w-full"
+                >
+                  <DownloadSimple size={18} weight="bold" aria-hidden="true" />
+                  Order invoice (PDF)
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`/api/v1/orders/${order.id}/receipt?kind=receipt`}
+                  className="button-ghost w-full"
+                >
+                  <DownloadSimple size={18} weight="bold" aria-hidden="true" />
+                  Payment receipt (PDF)
+                </a>
+              </li>
+            </ul>
+            <p className="mt-3 text-xs text-(--pv-muted)">
+              The payment receipt states where the payment has actually got to, so it is safe to
+              send before a transfer has been confirmed.
+            </p>
           </section>
 
           <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">

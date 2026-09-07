@@ -22,7 +22,8 @@ pouch-villa/                     pnpm workspace, two packages, one deployment
 │   ├── src/domain/              Pure: money, slugs, phone numbers, state machines
 │   ├── src/auth/                Sessions, passwords, role codes, permissions
 │   ├── src/db/                  Pooled client, retry-aware transactions, migrator
-│   ├── src/services/            Business logic — 39 modules
+│   ├── src/services/            Business logic — 40 modules
+│   ├── src/documents/           Invoice and receipt PDFs, QR codes, baked logo
 │   ├── src/storage/             Cloudflare R2, image validation and derivatives
 │   ├── migrations/              13 forward-only, checksummed SQL files
 │   └── tests/                   Unit and live-database integration
@@ -30,7 +31,7 @@ pouch-villa/                     pnpm workspace, two packages, one deployment
 └── apps/pv-frontend/            @pv/frontend — Next 16 App Router
     ├── src/app/(store)/         Storefront
     ├── src/app/admin/           claim · login · verify-email · (protected)/…
-    ├── src/app/api/v1/          17 versioned route handlers — the contract
+    ├── src/app/api/v1/          18 versioned route handlers — the contract
     ├── src/components/          Presentational only. No fetching, no rules.
     ├── src/lib/                 Browser-safe helpers. Pure.
     ├── src/server/              Thin adapters: cookies, redirects, dispatch
@@ -253,6 +254,41 @@ log and a driver error frequently carries all three.
 Mail is grouped by what it is about: `account-email`, `order-email`,
 `contact-email`, `review-email`, `staff-email`. All render through
 `email-template.ts`, which escapes every value.
+
+The order confirmation carries the invoice PDF as an attachment. Building it can
+fail without costing the customer their confirmation: `invoiceAttachment` returns
+nothing on error, and the "your invoice is attached" line is printed only when a
+file actually is.
+
+---
+
+### Order documents
+
+`src/documents/` renders the two PDFs an order produces, and knows nothing about
+the database. `invoice-pdf.ts` takes a finished page description and draws it;
+`services/order-documents.ts` is what turns an order and the settings store into
+that description. The split is what keeps the layout testable without a cluster,
+and what stops the invoice and the receipt drifting into two designs.
+
+| Document        | Says                                                                     | Exists from         |
+| --------------- | ------------------------------------------------------------------------ | ------------------- |
+| Invoice         | what was ordered and what it costs                                       | the order is placed |
+| Payment receipt | what has been received against it, and whether anyone has checked it yet | a proof is uploaded |
+
+Three things that are not obvious from the code:
+
+- **No standard PDF font can set ₦.** The total's naira sign is drawn as an N
+  with two bars; every other string is folded into WinAnsi by `toWinAnsi` first,
+  because pdf-lib _throws_ on an unencodable character rather than degrading.
+- **The QR code is a link, never an entitlement.** It opens `/orders/{reference}`,
+  where authority is re-derived exactly as for anyone typing the URL.
+- **The logo is a generated source module**, not a file read at runtime — a
+  bundler cannot fail to trace an import. Re-run
+  `packages/pv-backend/scripts/generate-pdf-logo.mjs` if the artwork changes.
+
+Both documents are served by one route, `GET /api/v1/orders/{orderId}/receipt`,
+to the customer and to staff alike. See
+[`docs/decisions/0015-order-documents.md`](docs/decisions/0015-order-documents.md).
 
 ---
 
