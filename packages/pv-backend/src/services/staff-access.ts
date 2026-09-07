@@ -10,6 +10,7 @@ import {
 import { hashPassword } from "../auth/password";
 import { recordAudit } from "./audit";
 import { assertNotLastCeo, hasActiveCeo } from "./roles";
+import { ceoRedemptionIsPinnedOut } from "../auth/ceo-bootstrap-pin";
 import { revokeAllStaffSessions } from "../auth/staff-session";
 import { syncAdminSearchDocument } from "./admin-search-index";
 
@@ -152,32 +153,25 @@ export async function redeemRoleCode(
     if (rejection !== null) throw new RoleCodeRejectedError(rejection);
 
     /**
-     * The bootstrap pin, applied only while it is still bootstrap.
+     * The bootstrap pin, applied only while it is still bootstrap. The rule
+     * itself lives in `auth/ceo-bootstrap-pin` and is unit tested there; what
+     * happens here is only reading the two facts it needs.
      *
-     * `BOOTSTRAP_CEO_EMAIL` exists to protect one specific code: the first CEO
-     * code, minted from the command line by whoever has the deployment, printed
-     * to a terminal and possibly a log. Pinning it to one mailbox means seeing
-     * that code is not by itself enough to become CEO.
-     *
-     * It was being applied to *every* CEO code ever redeemed, which is a
-     * different and much stronger claim: that Pouch Villa may only ever have one
-     * CEO, the one whose address happens to sit in an environment variable. That
-     * is not what the variable is for, and it is not what the client wants — the
-     * CLI that mints the bootstrap code even refuses to run once a CEO exists
-     * and tells you to invite the next one from the admin instead. Doing exactly
-     * that then failed, with a message about the code being expired.
-     *
-     * Once a CEO exists the pin has nothing left to protect. A CEO code can only
-     * have been minted by a signed-in CEO through the admin, which is a stronger
-     * control than an environment variable: it needs a live session and the
-     * `staff.manage` permission, and it writes an audit record naming who issued
-     * it. So the check applies only in the window the bootstrap code lives in.
+     * The CEO lookup is skipped unless a pin is actually configured and would
+     * otherwise bite, so an ordinary redemption costs no extra query.
      */
     if (record.role_code === "CEO") {
-      const pinned = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
-      if (pinned && pinned !== email && !(await hasActiveCeo(tx))) {
-        throw new RoleCodeRejectedError("email_mismatch");
-      }
+      const pinnedEmail = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
+      const couldBite = Boolean(pinnedEmail) && pinnedEmail !== email;
+      const pinnedOut =
+        couldBite &&
+        ceoRedemptionIsPinnedOut({
+          role: record.role_code,
+          pinnedEmail,
+          redeemingEmail: email,
+          ceoExists: await hasActiveCeo(tx),
+        });
+      if (pinnedOut) throw new RoleCodeRejectedError("email_mismatch");
     }
 
     const clash = await tx.query("SELECT id FROM staff WHERE email = $1 AND deleted_at IS NULL", [
