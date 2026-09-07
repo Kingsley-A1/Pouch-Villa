@@ -47,6 +47,25 @@ describe("category mosaic", () => {
     expect(screen.getAllByText("A").length).toBeGreaterThan(0);
   });
 
+  /**
+   * The halo loops forever. The global reduced-motion rule collapses every
+   * duration to 0.01ms, which on an infinite animation is a strobe aimed at
+   * exactly the people who asked for less motion — `pv-loop` is the opt-in that
+   * stops it properly, so losing it is worse than losing the animation.
+   */
+  it("keeps the pulsing button opted in to the reduced-motion stop", () => {
+    const { container } = render(<CategoryMosaic categories={[withPhoto]} />);
+
+    const haloed = container.querySelectorAll(".pv-cta-halo");
+    expect(haloed.length).toBeGreaterThan(0);
+    for (const element of haloed) expect(element.className).toContain("pv-loop");
+  });
+
+  it("scrims the photograph on the phone as well as the deck", () => {
+    const { container } = render(<CategoryMosaic categories={[withPhoto]} />);
+    expect(container.querySelector(".pv-cat-scrim")).not.toBeNull();
+  });
+
   it("shows nothing at all when the shop has no top categories", () => {
     const { container } = render(<CategoryMosaic categories={[]} />);
     expect(container).toBeEmptyDOMElement();

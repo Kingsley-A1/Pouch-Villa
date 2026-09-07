@@ -80,9 +80,11 @@ function MobileStack({ categories }: { categories: CategoryCard[] }) {
               sizes="(max-width: 640px) 100vw, 50vw"
               className="pv-cat-photo"
             />
-            {/* The same wash the deck uses, so a bright photograph cannot take
-                the name below AA on either presentation. */}
-            <span aria-hidden="true" className="absolute inset-0 bg-[rgba(40,0,3,0.34)]" />
+            {/* The same scrim the deck uses, so a bright photograph cannot take
+                the name below AA on either presentation. Strongest across the
+                middle where the words are, easing off at the edges — which is
+                what lets the picture itself stay bright. */}
+            <span aria-hidden="true" className="pv-cat-scrim absolute inset-0" />
 
             <span className="pv-cat-card-body">
               <span className="pv-cat-card-title">{category.name}</span>
@@ -91,7 +93,14 @@ function MobileStack({ categories }: { categories: CategoryCard[] }) {
                 // Staggered per card so a column of them arrives in order
                 // rather than all at once. Capped, or the fifth card would sit
                 // blank for most of a second.
-                className={cn("pv-cat-card-cta", CARD_DELAYS[Math.min(index, 3)])}
+                //
+                // `pv-loop` is what stops the halo under prefers-reduced-motion:
+                // the global rule collapses durations to 0.01ms, which on an
+                // infinite animation is a strobe rather than a stop.
+                className={cn(
+                  "pv-cat-card-cta pv-cta-halo pv-loop",
+                  CARD_DELAYS[Math.min(index, 3)],
+                )}
               >
                 Shop now
               </span>
@@ -140,7 +149,7 @@ function DesktopDeck({ categories }: { categories: CategoryCard[] }) {
               {/* The name arrives first, then the button — the order the client
                   described, and the order somebody reads them in anyway. */}
               <p className="pv-cat-title">{category.name}</p>
-              <Link href={`/browse/${category.slug}`} className="pv-cat-cta">
+              <Link href={`/browse/${category.slug}`} className="pv-cat-cta pv-cta-halo pv-loop">
                 Shop Now
               </Link>
             </div>

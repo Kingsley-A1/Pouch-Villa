@@ -23,6 +23,15 @@
 
   --pv-red: #e30613;
   --pv-red-dark: #b9020c;
+  /*
+   * The brand ink itself, which `.storefront` deliberately does not remap.
+   *
+   * `--pv-red` is a *role* — "the accent that means actionable" — and on the red
+   * storefront that role is carried by white. This is the colour, for the few
+   * places that need the actual red rather than the role: the pulse around the
+   * category button, which has to read as Pouch Villa's red on a photograph.
+   */
+  --pv-brand-red: #e30613;
   --pv-ink: #171717;
   --pv-muted: #66615f;
   --pv-line: #e8e3df;
@@ -935,13 +944,23 @@ nav[aria-label="Breadcrumb"] + .section-space {
   overflow: hidden;
 }
 
-/* Blurred and pulled back a little.
+/* Nearly sharp, and nearly full brightness.
 
-   Not decoration: the name is white text over an arbitrary photograph the CEO
-   uploaded, and nothing else keeps it above 4.5:1 on a picture nobody has
-   measured. `scale(1.06)` hides the transparent edge a blur leaves behind —
-   without it the slide shows a soft grey frame where the filter runs out. */
-/* Painted below the wash and the words, so every element carrying this class
+   It was `blur(3px) brightness(0.72)` under a flat 34% wash, and the client's
+   note was that the pictures looked blurry and dark. They were — but the blur
+   and the dimming were doing real work: the name is white text over an
+   arbitrary photograph the CEO uploaded, and something has to keep it legible
+   on a picture nobody has measured.
+
+   So the work moves rather than going away. The photograph comes back up to 95%
+   and to a blur you have to look for, and the darkening concentrates into the
+   middle band where the words actually sit — see `.pv-cat-scrim`. The result is
+   a brighter, sharper picture *and* better contrast where it is needed.
+
+   `scale(1.03)` still hides the transparent edge the blur leaves behind; drop
+   the blur entirely and this can go with it.
+
+   Painted below the scrim and the words, so every element carrying this class
    MUST sit inside a stacking context — `isolation: isolate` on the frame, as
    `.pv-cat-slide` has, or Tailwind's `isolate` as the mobile card has. A
    negative z-index inside a plain `position: relative` parent goes behind that
@@ -949,19 +968,94 @@ nav[aria-label="Breadcrumb"] + .section-space {
    flat red squares with no picture and no fallback letter. */
 .pv-cat-photo {
   z-index: -2;
-  filter: blur(3px) brightness(0.72);
-  transform: scale(1.06);
+  filter: blur(1px) brightness(0.95);
+  transform: scale(1.03);
 }
 
-/* A second, even wash on top. The blur alone still leaves a bright photograph
-   bright; this puts a known floor under the contrast rather than trusting the
-   image. */
+/* The scrim that makes white text safe over an unknown photograph.
+
+   Strongest across the middle, where the name and the button sit, and easing
+   off towards the edges where nothing is written — which is what buys back the
+   brightness the flat wash used to take from the whole picture.
+
+   Measured in a browser, not assumed, over the worst case — a white photograph.
+   Both configurations sampled at the bands the text actually occupies:
+
+                          before                    after
+     title band           rgb(135,121,122) 4.16:1   rgb(121,97,98)   5.68:1
+     "Shop now" band      rgb(135,121,122) 4.16:1   rgb(124,101,102) 5.37:1
+     picture edge         rgb(135,121,122) 4.16:1   rgb(166,152,152) 2.78:1
+
+   The edge is where the brightness comes back, and nothing is written there.
+   Where text *is* written the contrast improves — which matters more than it
+   looks: at 4.16:1 the old treatment was **below AA** for the 12.8px "Shop
+   now", so this fixes a real defect rather than only answering a note about
+   how the pictures looked. The name is large text and needed only 3:1 either
+   way.
+
+   One declaration, used by both presentations, so the phone and the desktop
+   deck cannot drift into treating the same photograph differently. */
+.pv-cat-scrim {
+  background: radial-gradient(
+    ellipse 92% 62% at 50% 50%,
+    rgba(40, 0, 3, 0.6) 0%,
+    rgba(40, 0, 3, 0.56) 55%,
+    rgba(40, 0, 3, 0.16) 100%
+  );
+}
+
 .pv-cat-slide::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: rgba(40, 0, 3, 0.34);
+  background: radial-gradient(
+    ellipse 92% 62% at 50% 50%,
+    rgba(40, 0, 3, 0.6) 0%,
+    rgba(40, 0, 3, 0.56) 55%,
+    rgba(40, 0, 3, 0.16) 100%
+  );
+}
+
+/* A slow red pulse around the category button — the client's "subtle brand red
+   animation".
+
+   Drawn on a pseudo-element and animated with opacity and transform only. An
+   animated `box-shadow` repaints the element every frame, and this loops for as
+   long as the home page is open on the busiest page in the shop; opacity and
+   transform are composited and cost the main thread nothing.
+
+   Square, because the button is. A rounded halo around a square button reads as
+   a mistake rather than a glow.
+
+   It carries `pv-loop`, which is what actually stops it under
+   `prefers-reduced-motion` — the global rule collapses durations to 0.01ms, and
+   on an infinite animation that is a strobe rather than a stop. */
+.pv-cta-halo {
+  position: relative;
+}
+
+.pv-cta-halo::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  pointer-events: none;
+  border: 1px solid var(--pv-brand-red);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--pv-brand-red) 55%, transparent);
+  opacity: 0;
+  animation: pv-cta-halo 2.8s ease-in-out infinite;
+}
+
+@keyframes pv-cta-halo {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
 }
 
 .pv-cat-body {
