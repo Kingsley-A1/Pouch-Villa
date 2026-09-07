@@ -894,6 +894,12 @@ nav[aria-label="Breadcrumb"] + .section-space {
    uploaded, and nothing else keeps it above 4.5:1 on a picture nobody has
    measured. `scale(1.06)` hides the transparent edge a blur leaves behind —
    without it the slide shows a soft grey frame where the filter runs out. */
+/* Painted below the wash and the words, so every element carrying this class
+   MUST sit inside a stacking context — `isolation: isolate` on the frame, as
+   `.pv-cat-slide` has, or Tailwind's `isolate` as the mobile card has. A
+   negative z-index inside a plain `position: relative` parent goes behind that
+   parent's own background, which is how the phone's category cards rendered as
+   flat red squares with no picture and no fallback letter. */
 .pv-cat-photo {
   z-index: -2;
   filter: blur(3px) brightness(0.72);

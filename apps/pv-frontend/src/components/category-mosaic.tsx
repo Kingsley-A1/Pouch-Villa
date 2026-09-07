@@ -63,7 +63,15 @@ function MobileStack({ categories }: { categories: CategoryCard[] }) {
             href={`/browse/${category.slug}`}
             className={cn(
               "group relative grid aspect-square place-items-center overflow-hidden",
-              "rounded-none bg-(--pv-surface) text-center",
+              // `isolate` is load-bearing, not tidiness. `.pv-cat-photo` paints
+              // at `z-index: -2`, and a negative-z child only stays above its
+              // parent's own background while that parent is a stacking
+              // context. Without it the photograph — and the lettered fallback,
+              // which carries the same class — painted *behind* this card's
+              // `bg-(--pv-surface)`, so every category on a phone was a plain
+              // red square. `.pv-cat-slide` has carried `isolation: isolate`
+              // from the start, which is why the desktop deck never showed it.
+              "isolate rounded-none bg-(--pv-surface) text-center",
               "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
             )}
           >

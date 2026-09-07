@@ -68,8 +68,17 @@ export function BrandCard({ brand, href }: { brand: StorefrontBrand; href: strin
       */}
       <span className="border-t border-(--pv-line) px-3 py-2.5">
         <span className="block truncate text-sm font-bold">{name}</span>
+        {/*
+          A make the shop stocks but has nothing filed under this category says
+          so, rather than reading "0 items" — which looks like a fault in the
+          shop rather than an answer about this shelf. The card still leads
+          somewhere: the step beyond it redirects to the filtered shop, which
+          names the filter that emptied it.
+        */}
         <span className="mt-0.5 block text-xs text-(--pv-muted)">
-          {productCount} {productCount === 1 ? "item" : "items"}
+          {productCount === 0
+            ? "See the full range"
+            : `${productCount} ${productCount === 1 ? "item" : "items"}`}
         </span>
       </span>
     </Link>
