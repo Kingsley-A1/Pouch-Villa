@@ -117,6 +117,22 @@ export async function setRolePermissions(
   });
 }
 
+/**
+ * Whether the shop has a CEO at all.
+ *
+ * This is the bootstrap question, and it is different from "is this the last
+ * CEO". Before the answer is true, nobody can sign in to the admin to invite
+ * anyone; after it, every further code comes from an authenticated CEO.
+ */
+export async function hasActiveCeo(tx: Queryable): Promise<boolean> {
+  const result = await tx.query(
+    `SELECT 1 FROM staff
+      WHERE role_code = 'CEO' AND status = 'active' AND deleted_at IS NULL
+      LIMIT 1`,
+  );
+  return result.rows.length > 0;
+}
+
 async function countOtherActiveCeos(tx: Queryable, excludingStaffId: string): Promise<number> {
   const result = await tx.query(
     `SELECT count(*)::INT AS total

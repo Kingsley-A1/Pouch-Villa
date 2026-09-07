@@ -9,7 +9,7 @@ import {
 } from "../auth/role-codes";
 import { hashPassword } from "../auth/password";
 import { recordAudit } from "./audit";
-import { assertNotLastCeo } from "./roles";
+import { assertNotLastCeo, hasActiveCeo } from "./roles";
 import { revokeAllStaffSessions } from "../auth/staff-session";
 import { syncAdminSearchDocument } from "./admin-search-index";
 
@@ -151,9 +151,33 @@ export async function redeemRoleCode(
     const rejection = roleCodeRejection(record);
     if (rejection !== null) throw new RoleCodeRejectedError(rejection);
 
-    const pinned = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
-    if (record.role_code === "CEO" && pinned && pinned !== email) {
-      throw new RoleCodeRejectedError("email_mismatch");
+    /**
+     * The bootstrap pin, applied only while it is still bootstrap.
+     *
+     * `BOOTSTRAP_CEO_EMAIL` exists to protect one specific code: the first CEO
+     * code, minted from the command line by whoever has the deployment, printed
+     * to a terminal and possibly a log. Pinning it to one mailbox means seeing
+     * that code is not by itself enough to become CEO.
+     *
+     * It was being applied to *every* CEO code ever redeemed, which is a
+     * different and much stronger claim: that Pouch Villa may only ever have one
+     * CEO, the one whose address happens to sit in an environment variable. That
+     * is not what the variable is for, and it is not what the client wants — the
+     * CLI that mints the bootstrap code even refuses to run once a CEO exists
+     * and tells you to invite the next one from the admin instead. Doing exactly
+     * that then failed, with a message about the code being expired.
+     *
+     * Once a CEO exists the pin has nothing left to protect. A CEO code can only
+     * have been minted by a signed-in CEO through the admin, which is a stronger
+     * control than an environment variable: it needs a live session and the
+     * `staff.manage` permission, and it writes an audit record naming who issued
+     * it. So the check applies only in the window the bootstrap code lives in.
+     */
+    if (record.role_code === "CEO") {
+      const pinned = process.env.BOOTSTRAP_CEO_EMAIL?.trim().toLowerCase();
+      if (pinned && pinned !== email && !(await hasActiveCeo(tx))) {
+        throw new RoleCodeRejectedError("email_mismatch");
+      }
     }
 
     const clash = await tx.query("SELECT id FROM staff WHERE email = $1 AND deleted_at IS NULL", [

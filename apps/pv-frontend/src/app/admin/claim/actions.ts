@@ -14,6 +14,19 @@ import { toActionError, type ActionState } from "@/lib/action-state";
 const GENERIC_CODE_ERROR =
   "That code could not be used. It may be wrong, expired, already used, or revoked.";
 
+/**
+ * The one rejection worth naming.
+ *
+ * Every other reason stays deliberately vague, because distinguishing "expired"
+ * from "never existed" tells someone probing which codes are real. This one
+ * carries no such signal and can now only happen during bootstrap, before any
+ * CEO exists — the person hitting it is the operator who set the variable, and
+ * the generic message sent them looking for an expiry that was never the cause.
+ */
+const PINNED_CODE_ERROR =
+  "The first CEO account is pinned to a specific email address by BOOTSTRAP_CEO_EMAIL. " +
+  "Use that address, or clear the variable.";
+
 export async function claimWithPassword(
   _prev: ActionState,
   formData: FormData,
@@ -38,7 +51,9 @@ export async function claimWithPassword(
       // did not send — the person can request a fresh code from that screen.
     });
   } catch (error) {
-    if (error instanceof RoleCodeRejectedError) return { error: GENERIC_CODE_ERROR };
+    if (error instanceof RoleCodeRejectedError) {
+      return { error: error.reason === "email_mismatch" ? PINNED_CODE_ERROR : GENERIC_CODE_ERROR };
+    }
     if (error instanceof EmailAlreadyRegisteredError) return { error: error.message };
     return toActionError(error, "That account could not be created.");
   }
