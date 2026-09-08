@@ -258,6 +258,16 @@ story.append(Spacer(1, 8))
 story.append(Paragraph(
     "At the bottom you choose <b>Publish it now</b> or <b>Save as a draft</b>. "
     "Publishing is the default. A draft is visible only to staff.", S["body"]))
+story.append(Paragraph("When you sell the last one", S["h2"]))
+story.append(Paragraph(
+    "On the product list, every product has an <b>Out of stock</b> button next to "
+    "Edit and View. Press it, confirm, and every size or colour of that product "
+    "goes to zero at once — no need to open it and do them one at a time while "
+    "somebody is waiting.", S["body"]))
+story.append(Paragraph(
+    "Nothing is lost. The stock history still shows what you had and who cleared "
+    "it, and you put stock back the normal way when the next delivery arrives.",
+    S["body"]))
 story.append(panel("Why the price is required", [
     "Publishing without one would put a product in front of a customer that "
     "they cannot buy. Save it as a draft instead and add the price later.",
@@ -315,7 +325,7 @@ story.append(table([
 ], [34 * mm, 24 * mm, W - 58 * mm]))
 story.append(Spacer(1, 8))
 story.append(Paragraph(
-    "A customer tracks their own order with the reference and the phone number "
+    "A customer tracks their own order with the reference and the WhatsApp number "
     "they gave. Both are required — a reference alone travels in a bank "
     "transfer, and it should not be enough to open somebody's address.",
     S["body"]))
