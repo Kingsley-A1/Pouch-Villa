@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { checkoutSchema } from "@pv/backend/domain/schemas";
 import { placeOrder } from "@pv/backend/services/orders";
-import { sendOrderPlacedEmail } from "@pv/backend/services/order-email";
+import { sendCounterOrderAlert, sendOrderPlacedEmail } from "@pv/backend/services/order-email";
 import { toActionError, type ActionState } from "@/lib/action-state";
 import { clearCartCookie, resolveExistingCartId } from "@/server/cart-session";
 import { establishCustomerSession, getCustomerPrincipal } from "@/server/customer-session";
@@ -42,6 +42,9 @@ export async function placeOrderAction(
     deliveryLandmark: formData.get("deliveryLandmark") || null,
     customerNote: formData.get("customerNote") || null,
     createAccount: formData.get("createAccount") === "on",
+    paymentTiming: formData.get("paymentTiming") || "online",
+    preferredPaymentMethod: formData.get("preferredPaymentMethod") || "bank_transfer",
+    preferredPickupLocal: formData.get("preferredPickupLocal") || null,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the highlighted fields." };
@@ -72,6 +75,13 @@ export async function placeOrderAction(
     if (!placed.replayed) {
       await clearCartCookie().catch(() => {});
       dispatchEmail("Order confirmation", sendOrderPlacedEmail(placed.orderId));
+      /*
+        The shop is told about a counter order, because a counter order is a
+        person who will walk in expecting it to be ready. `sendCounterOrderAlert`
+        returns without sending for every other kind, so the branch lives in one
+        place rather than here and in the API route.
+      */
+      dispatchEmail("Counter order alert", sendCounterOrderAlert(placed.orderId));
     }
 
     /**

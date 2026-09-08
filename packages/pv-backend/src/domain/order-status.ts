@@ -1,4 +1,5 @@
 import type { PermissionCode } from "../auth/permission-codes";
+import type { PaymentTiming } from "./payment-method";
 
 /**
  * The order lifecycle, as a single typed transition table.
@@ -259,6 +260,23 @@ const STATUS_DESCRIPTIONS: Readonly<Record<OrderStatus, string>> = {
   cancelled: "Cancelled",
 };
 
-export function describeStatus(status: OrderStatus): string {
+/**
+ * One status, two truthful sentences.
+ *
+ * `awaiting_payment` means the same thing in both cases — the money has not
+ * arrived — but "Waiting for your transfer" is false to a customer who is
+ * bringing cash to the counter, and reading it is what made the checkout look
+ * broken. The state does not differ, so it is not a ninth status; only the
+ * sentence differs, so it is a lookup.
+ */
+const COUNTER_DESCRIPTIONS: Partial<Record<OrderStatus, string>> = {
+  awaiting_payment: "Reserved for you — pay when you collect",
+  proof_submitted: "We are checking your payment",
+};
+
+export function describeStatus(status: OrderStatus, timing: PaymentTiming = "online"): string {
+  if (timing === "on_collection") {
+    return COUNTER_DESCRIPTIONS[status] ?? STATUS_DESCRIPTIONS[status];
+  }
   return STATUS_DESCRIPTIONS[status];
 }

@@ -7,7 +7,12 @@ import { listProofsForOrder } from "@pv/backend/services/payments";
 import { readSettings, pick } from "@pv/backend/services/settings";
 import { formatKobo } from "@pv/backend/domain/money";
 import { describeStatus } from "@pv/backend/domain/order-status";
+import {
+  describePaymentMethod,
+  needsTransferInstructions,
+} from "@pv/backend/domain/payment-method";
 import { normaliseOrderReference } from "@pv/backend/domain/reference";
+import { formatLagos } from "@pv/backend/domain/lagos-time";
 import { staffHasPermission } from "@pv/backend/services/roles";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AwaitingConfirmation } from "@/components/awaiting-confirmation";
@@ -77,6 +82,21 @@ export default async function OrderPage({ params, searchParams }: Params) {
 
   const awaitingPayment = order.status === "awaiting_payment" || order.status === "proof_submitted";
 
+  /*
+    What this person actually has to do next.
+
+    Before counter payment existed, an unpaid order meant one thing and the page
+    showed one thing: an account number and a receipt-upload box. For somebody who
+    chose to bring cash, both were instructions for a task they were never going
+    to perform — the client's word for it was "broken", and they were right.
+
+    A transfer is still a transfer wherever it is made, so somebody who picked
+    "transfer in store" gets the account details and the upload box exactly as an
+    online buyer does. Only cash and the POS lose them.
+  */
+  const payingAtCounter = order.paymentTiming === "on_collection";
+  const showTransfer = awaitingPayment && needsTransferInstructions(order.preferredPaymentMethod);
+
   return (
     <>
       <Breadcrumbs trail={[{ label: `Order ${order.reference}` }]} />
@@ -84,7 +104,9 @@ export default async function OrderPage({ params, searchParams }: Params) {
         <div className="container-shell grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-start">
           <div>
             <p className="eyebrow">Order {order.reference}</p>
-            <h1 className="section-title mt-1">{describeStatus(order.status)}</h1>
+            <h1 className="section-title mt-1">
+              {describeStatus(order.status, order.paymentTiming)}
+            </h1>
 
             {/*
               Said here rather than by redirecting to the account itself. The
@@ -128,7 +150,7 @@ export default async function OrderPage({ params, searchParams }: Params) {
                     )}
                     <div>
                       <p className="font-semibold">
-                        {entry.note ?? describeStatus(entry.toStatus)}
+                        {entry.note ?? describeStatus(entry.toStatus, order.paymentTiming)}
                       </p>
                       <time className="help" dateTime={entry.occurredAt.toISOString()}>
                         {formatLagos(entry.occurredAt)}
@@ -183,7 +205,47 @@ export default async function OrderPage({ params, searchParams }: Params) {
               should be. An invented placeholder that reaches a customer is
               worse than an honest blank.
             */}
-            {awaitingPayment ? (
+            {/*
+              The counter card leads for a counter order: the reference is the
+              only thing this customer has to arrive with, so it is the first
+              thing on the page rather than something below an account number
+              they do not need.
+            */}
+            {payingAtCounter && awaitingPayment ? (
+              <div className="card-surface p-5">
+                <h2 className="text-lg font-bold">Paying when you collect</h2>
+                <p className="mt-2 text-sm">
+                  Your order is reserved. Nothing to send now — pay at the counter when you come in.
+                </p>
+                <dl className="mt-4 grid gap-2 text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-(--pv-muted)">Quote this</dt>
+                    <dd className="font-extrabold tracking-wide">{order.reference}</dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-(--pv-muted)">Paying with</dt>
+                    <dd className="font-semibold">
+                      {describePaymentMethod(order.preferredPaymentMethod)}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-(--pv-muted)">Amount</dt>
+                    <dd className="font-extrabold tabular-nums">{formatKobo(order.totalKobo)}</dd>
+                  </div>
+                  {order.preferredPickupAt !== null ? (
+                    <div className="flex items-baseline justify-between gap-3">
+                      <dt className="text-(--pv-muted)">You said</dt>
+                      <dd className="font-semibold">{formatLagos(order.preferredPickupAt)}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                <p className="help mt-3">
+                  You can change how you pay when you get here. Bringing something else is fine.
+                </p>
+              </div>
+            ) : null}
+
+            {showTransfer ? (
               bankKnown ? (
                 <TransferDetails
                   accountName={accountName.value}
@@ -202,7 +264,12 @@ export default async function OrderPage({ params, searchParams }: Params) {
               )
             ) : null}
 
-            {awaitingPayment ? (
+            {/*
+              The upload box follows the transfer details, and disappears with
+              them. A receipt only exists for a transfer, so offering the box to
+              somebody bringing cash asks them to photograph nothing.
+            */}
+            {showTransfer ? (
               <ProofUpload
                 orderId={order.id}
                 reference={order.reference}
@@ -266,13 +333,4 @@ export default async function OrderPage({ params, searchParams }: Params) {
       </section>
     </>
   );
-}
-
-/** §6: timestamps are stored UTC and rendered in Africa/Lagos. */
-function formatLagos(value: Date): string {
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(value);
 }

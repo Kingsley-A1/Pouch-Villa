@@ -6,7 +6,7 @@ import {
   type SettingKey,
   type SettingValue,
 } from "@pv/backend/services/settings";
-import { sendOrderPlacedEmail } from "@pv/backend/services/order-email";
+import { sendCounterOrderAlert, sendOrderPlacedEmail } from "@pv/backend/services/order-email";
 import { created, fail, idempotencyKey, parseJson, requestContext, toApiError } from "@/server/api";
 import { clearCartCookie, resolveExistingCartId } from "@/server/cart-session";
 import { getCustomerPrincipal } from "@/server/customer-session";
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
   // A confirmation email is a courtesy, not part of placing the order. If Resend
   // is unconfigured or down, the customer still has their reference on screen.
   dispatchEmail("Order confirmation", sendOrderPlacedEmail(placed.orderId));
+  dispatchEmail("Counter order alert", sendCounterOrderAlert(placed.orderId));
 
   return created({
     orderId: placed.orderId,

@@ -227,6 +227,13 @@ story.append(panel("Two things worth knowing", [
     "Suspending someone ends their access immediately. The last CEO cannot be "
     "suspended or removed, so the shop can never lock itself out.",
 ]))
+story.append(panel("If your counter staff are Employees", [
+    "Recording a payment needs the same permission as approving a transfer "
+    "receipt, and an Employee does not have it to start with. If the person on "
+    "your counter is an Employee, open <b>Admin &rarr; Roles</b>, choose "
+    "Employee and switch on the payment permission. You can do that yourself, "
+    "and change it back whenever you like.",
+]))
 story.append(PageBreak())
 
 # ---------------------------------------------------- 4. Adding a product ---
@@ -295,9 +302,10 @@ story.append(PageBreak())
 # ---------------------------------------------------- 6. Orders -------------
 story += head("Orders", "From placed to delivered")
 story.append(Paragraph(
-    "Customers pay by bank transfer and upload a receipt. Your job is to check "
-    "it and move the order along.", S["body"]))
-story.append(Paragraph("The path an order takes", S["h2"]))
+    "Customers pay in one of two ways: by transfer before they get the goods, or "
+    "in the shop when they collect. Your job is the same either way — confirm the "
+    "money, then move the order along.", S["body"]))
+story.append(Paragraph("Paying by transfer", S["h2"]))
 story.append(table([
     ["Step", "Who", "Where"],
     ["1. Order placed", "Customer", "They get a reference and your bank details."],
@@ -311,6 +319,33 @@ story.append(Paragraph(
     "they gave. Both are required — a reference alone travels in a bank "
     "transfer, and it should not be enough to open somebody's address.",
     S["body"]))
+story.append(Paragraph("Paying in the shop", S["h2"]))
+story.append(Paragraph(
+    "A customer who chooses to collect can say they will pay when they arrive, "
+    "and whether that will be cash, the POS, or a transfer they make at the "
+    "counter. They are not shown your bank details or asked for a receipt for "
+    "money they have not sent.", S["body"]))
+story.append(Paragraph(
+    "You are emailed when one of these is placed, with the reference, the phone "
+    "number, what they said they would pay with and when they said they were "
+    "coming. The same orders are listed under <b>Coming in to pay</b> on the "
+    "Payments screen, soonest first.", S["body"]))
+story.append(Spacer(1, 4))
+story.append(table([
+    ["When they walk in", "What you do"],
+    ["They give you the reference",
+     "Search it in the admin, or scan the QR on their receipt."],
+    ["You take the money",
+     "Press <b>Take payment</b>, tap Cash, POS or Transfer, press Record payment."],
+    ["That is it",
+     "The order is confirmed, the customer is emailed, and the till record says "
+     "what you actually took."],
+], [46 * mm, W - 46 * mm]))
+story.append(Spacer(1, 6))
+story.append(Paragraph(
+    "Tap whatever they really paid with, not what they picked online. Somebody "
+    "who chose cash and then used the POS is recorded as POS — that is what makes "
+    "the day's takings add up.", S["body"]))
 story.append(panel("Payment proofs are financial documents", [
     "They hold bank details, so they are stored privately and every time one is "
     "opened it is recorded. Open them inside the admin rather than sharing a "

@@ -4,11 +4,15 @@ import { notFound } from "next/navigation";
 import { getOrderById } from "@pv/backend/services/orders";
 import { listProofsForOrder } from "@pv/backend/services/payments";
 import { availableTransitions, describeStatus } from "@pv/backend/domain/order-status";
+import { describePaymentMethod } from "@pv/backend/domain/payment-method";
+import { formatLagos } from "@pv/backend/domain/lagos-time";
+import { readSettlement } from "@pv/backend/services/counter-payments";
 import { formatKobo } from "@pv/backend/domain/money";
 import { formatPhoneLocal } from "@pv/backend/domain/phone";
 import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { requirePermission } from "@/server/session";
 import { StatusControl } from "./status-control";
+import { CounterPayment } from "./counter-payment";
 
 export const metadata: Metadata = { title: "Order" };
 export const dynamic = "force-dynamic";
@@ -22,7 +26,20 @@ export default async function OrderDetailPage({ params }: Params) {
   const order = await getOrderById(id);
   if (order === null) notFound();
 
-  const proofs = await listProofsForOrder(order.id);
+  const [proofs, settlement] = await Promise.all([
+    listProofsForOrder(order.id),
+    readSettlement(order.id),
+  ]);
+
+  /*
+    The counter control appears only where money is genuinely outstanding on an
+    order somebody is coming in to pay for. Offering it on a delivery order would
+    invite a staff member to mark cash taken for goods that have not left the
+    shop, and offering it on a settled order is how a payment gets recorded twice.
+  */
+  const takingPaymentAtCounter =
+    order.paymentTiming === "on_collection" &&
+    (order.status === "awaiting_payment" || order.status === "proof_submitted");
 
   const steps = availableTransitions(order.status, order.fulfilment).map((transition) => ({
     status: transition.to,
@@ -38,7 +55,9 @@ export default async function OrderDetailPage({ params }: Params) {
 
       <div className="mt-3 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="font-mono text-2xl font-bold">{order.reference}</h1>
-        <span className="status-pill bg-(--pv-wash)">{describeStatus(order.status)}</span>
+        <span className="status-pill bg-(--pv-wash)">
+          {describeStatus(order.status, order.paymentTiming)}
+        </span>
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem] lg:items-start">
@@ -86,7 +105,7 @@ export default async function OrderDetailPage({ params }: Params) {
             <ol className="mt-3 grid gap-2 text-sm">
               {order.timeline.map((entry, index) => (
                 <li key={`${entry.toStatus}-${index}`} className="flex justify-between gap-4">
-                  <span>{entry.note ?? describeStatus(entry.toStatus)}</span>
+                  <span>{entry.note ?? describeStatus(entry.toStatus, order.paymentTiming)}</span>
                   <time
                     className="flex-none text-xs text-(--pv-muted)"
                     dateTime={entry.occurredAt.toISOString()}
@@ -100,6 +119,61 @@ export default async function OrderDetailPage({ params }: Params) {
         </div>
 
         <div className="grid gap-5">
+          {/*
+            First in the column, above "Next step", because for these orders it is
+            the step. A customer is standing at the counter while this screen is
+            open, and making the staff member scroll past four cards to find the
+            button is the whole difference between a good counter and a queue.
+          */}
+          {takingPaymentAtCounter ? (
+            <section className="rounded-2xl border-2 border-(--pv-red) bg-(--pv-surface) p-5">
+              <h2 className="text-lg font-bold">Take payment</h2>
+              <p className="mt-1 text-sm text-(--pv-muted)">
+                Collecting and paying in store. They said{" "}
+                <span className="font-semibold text-(--pv-ink)">
+                  {describePaymentMethod(order.preferredPaymentMethod).toLowerCase()}
+                </span>
+                {order.preferredPickupAt === null
+                  ? "."
+                  : `, coming ${formatLagos(order.preferredPickupAt)}.`}
+              </p>
+              <div className="mt-4">
+                <CounterPayment
+                  orderId={order.id}
+                  amountLabel={formatKobo(order.totalKobo)}
+                  preferred={order.preferredPaymentMethod}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          {/*
+            What the money actually arrived as, once it has. The preference above
+            is what they said; this is what the till took, and a reconciliation
+            needs the second one.
+          */}
+          {settlement !== null ? (
+            <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
+              <h2 className="text-lg font-bold">Paid</h2>
+              <dl className="mt-3 grid gap-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="help">Method</dt>
+                  <dd className="font-semibold">{describePaymentMethod(settlement.method)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="help">Amount</dt>
+                  <dd className="font-extrabold tabular-nums">{formatKobo(order.totalKobo)}</dd>
+                </div>
+                {settlement.note !== null ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="help">Reference</dt>
+                    <dd className="font-semibold break-all">{settlement.note}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+
           <section className="rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5">
             <h2 className="text-lg font-bold">Next step</h2>
             <div className="mt-3">
@@ -219,12 +293,4 @@ export default async function OrderDetailPage({ params }: Params) {
       </div>
     </div>
   );
-}
-
-function formatLagos(value: Date): string {
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(value);
 }

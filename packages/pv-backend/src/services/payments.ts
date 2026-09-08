@@ -313,8 +313,12 @@ export async function acceptProof(
       [proofId, actor.staffId],
     );
     await tx.query(
+      // `settled_method` is stated rather than left null: an accepted proof is a
+      // bank transfer by definition, and a confirmed payment with no method on it
+      // is a hole in the same till reconciliation the counter payments feed.
       `UPDATE payment
-          SET status = 'confirmed', confirmed_at = now(), confirmed_by = $2,
+          SET status = 'confirmed', settled_method = 'bank_transfer',
+              confirmed_at = now(), confirmed_by = $2,
               reference_note = coalesce($3, reference_note), updated_at = now()
         WHERE order_id = $1`,
       [proof.order_id, actor.staffId, note ?? null],

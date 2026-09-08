@@ -3,6 +3,7 @@ import { MINIMUM_PASSWORD_LENGTH } from "../auth/password";
 import { STAFF_ROLES } from "../auth/role-codes";
 import { normalisePhone } from "./phone";
 import { SECTION_LAYOUTS } from "./section-layout";
+import { PAYMENT_METHODS, PAYMENT_TIMINGS } from "./payment-method";
 
 /**
  * Validation schemas shared between a form (a Server Action) and, eventually, the
@@ -393,6 +394,21 @@ export const checkoutSchema = z
     customerNote: z.string().trim().max(1000).nullable().default(null),
     // ADR 0002: ticked by default, and a real choice.
     createAccount: z.coerce.boolean().default(true),
+
+    // How and when they mean to pay. Defaulted to the online transfer that was
+    // the only option before this existed, so an older client — the POS the
+    // client already runs, say — keeps working without sending these at all.
+    paymentTiming: z.enum(PAYMENT_TIMINGS).default("online"),
+    preferredPaymentMethod: z.enum(PAYMENT_METHODS).default("bank_transfer"),
+    // The wall-clock time the customer typed, in Lagos. Resolved to an instant
+    // by the service — a schema that parsed it here would have to know the
+    // offset, and that knowledge belongs in one place.
+    preferredPickupLocal: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Choose a date and time")
+      .nullable()
+      .default(null),
   })
   .refine((value) => value.fulfilment !== "delivery" || Boolean(value.deliveryAddress?.trim()), {
     message: "Enter the delivery address",
@@ -401,7 +417,43 @@ export const checkoutSchema = z
   .refine((value) => value.fulfilment !== "delivery" || value.deliveryZoneId !== null, {
     message: "Choose a delivery area",
     path: ["deliveryZoneId"],
-  });
+  })
+  /*
+    The two rules migration 0015 could not write as a table CHECK, enforced at
+    the boundary instead. There is no counter on a delivery: paying on collection
+    requires something to collect.
+  */
+  .refine((value) => value.paymentTiming !== "on_collection" || value.fulfilment === "pickup", {
+    message: "Paying in the shop is only available when you collect your order",
+    path: ["paymentTiming"],
+  })
+  .refine((value) => value.preferredPickupLocal === null || value.fulfilment === "pickup", {
+    message: "A collection time only applies to an order you are collecting",
+    path: ["preferredPickupLocal"],
+  })
+  /*
+    Cash and the POS terminal only exist at the counter. Someone paying before
+    they arrive is making a transfer, whatever they meant to select — and an
+    order that claims otherwise would send the shop looking for cash nobody
+    brought.
+  */
+  .refine(
+    (value) =>
+      value.paymentTiming === "on_collection" || value.preferredPaymentMethod === "bank_transfer",
+    {
+      message: "Cash and card are only available when you pay in the shop",
+      path: ["preferredPaymentMethod"],
+    },
+  );
+
+/** What a staff member records when they take money over the counter. */
+export const counterPaymentSchema = z.object({
+  orderId: z.string().uuid(),
+  method: z.enum(PAYMENT_METHODS),
+  // What they can point at later: a POS terminal's stub number, a transfer's
+  // narration. Never the customer's card or account number.
+  note: z.string().trim().max(500).nullable().default(null),
+});
 
 export const orderTrackingSchema = z.object({
   reference: z.string().trim().min(1, "Enter your order reference").max(40),

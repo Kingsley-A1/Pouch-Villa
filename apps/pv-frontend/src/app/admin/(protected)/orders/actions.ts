@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { orderStatusChangeSchema } from "@pv/backend/domain/schemas";
+import { counterPaymentSchema, orderStatusChangeSchema } from "@pv/backend/domain/schemas";
 import { getOrderById, transitionOrder, transitionOrders } from "@pv/backend/services/orders";
 import { sendOrderStatusEmail, sendPaymentConfirmedEmail } from "@pv/backend/services/order-email";
 import { checkTransition, isOrderStatus, type OrderStatus } from "@pv/backend/domain/order-status";
 import { dispatchEmail } from "@/server/notify";
 import { toActionError, type ActionState } from "@/lib/action-state";
-import { requirePermission } from "@/server/session";
+import { recordCounterPayment } from "@pv/backend/services/counter-payments";
+import { describePaymentMethodForStaff } from "@pv/backend/domain/payment-method";
+import { currentRequestContext, requirePermission } from "@/server/session";
 
 /**
  * Advancing an order.
@@ -84,6 +86,56 @@ export async function transitionOrderAction(
  * cannot, four move and two are named. Refusing all six because of an order a
  * colleague had already cancelled would be the more surprising outcome.
  */
+/**
+ * Records money taken over the counter.
+ *
+ * A separate action from `transitionOrderAction` on purpose. That one answers
+ * "where has this order got to"; this one answers "what did we take, and as
+ * what" — and only the second produces a financial record. Routing a counter
+ * payment through the generic status change would move the order and leave the
+ * payment row saying `expected`, which is the gap this closes.
+ */
+export async function recordCounterPaymentAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = counterPaymentSchema.safeParse({
+    orderId: formData.get("orderId"),
+    method: formData.get("method"),
+    note: formData.get("note") || null,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Choose how the customer paid." };
+  }
+
+  // The same permission that confirms a transfer proof. Taking cash and accepting
+  // a receipt are the same authority — deciding the shop has been paid — and
+  // giving them separate permissions would let a role hold one and not the other
+  // for no reason anybody could explain.
+  const principal = await requirePermission("payment.confirm");
+  const context = await currentRequestContext();
+
+  let recorded;
+  try {
+    recorded = await recordCounterPayment(
+      parsed.data,
+      { staffId: principal.staffId },
+      { ip: context.ip },
+    );
+  } catch (error) {
+    return toActionError(error, "That payment could not be recorded.");
+  }
+
+  dispatchEmail("Payment confirmed", sendPaymentConfirmedEmail(recorded.orderId));
+  revalidatePath(`/admin/orders/${recorded.orderId}`);
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/payments");
+  return {
+    error: null,
+    message: `${describePaymentMethodForStaff(recorded.method)} payment recorded for ${recorded.reference}.`,
+  };
+}
+
 export async function bulkTransitionAction(formData: FormData): Promise<void> {
   const orderIds = formData.getAll("orderIds").filter((id): id is string => typeof id === "string");
   const status = formData.get("status");

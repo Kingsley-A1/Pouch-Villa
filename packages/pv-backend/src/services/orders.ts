@@ -10,6 +10,8 @@ import {
   type TransitionActor,
 } from "../domain/order-status";
 import { normalisePhone } from "../domain/phone";
+import type { PaymentMethod, PaymentTiming } from "../domain/payment-method";
+import { lagosLocalToInstant } from "../domain/lagos-time";
 import { generateOrderReference } from "../domain/reference";
 import { recordAudit } from "./audit";
 import { syncAdminSearchDocument, syncPaymentSearchDocumentsForOrder } from "./admin-search-index";
@@ -105,6 +107,19 @@ export type PlaceOrderInput = {
   createAccount: boolean;
   /** Present when the shopper was already signed in. */
   customerId?: string | null;
+
+  /**
+   * When and how they mean to pay, and when they say they are coming.
+   *
+   * All optional, all defaulted to the online transfer that was the only option
+   * before counter payment existed — so a caller that predates this, including
+   * the POS the client already runs, keeps placing valid orders without knowing
+   * these fields exist.
+   */
+  paymentTiming?: PaymentTiming;
+  preferredPaymentMethod?: PaymentMethod;
+  /** A Lagos wall-clock time, "YYYY-MM-DDTHH:mm". Resolved to an instant here. */
+  preferredPickupLocal?: string | null;
 };
 
 export type PlacedOrder = {
@@ -163,6 +178,20 @@ export async function placeOrder(
   if (input.fulfilment === "delivery" && !input.deliveryAddress?.trim()) {
     throw new DeliveryDetailsRequiredError();
   }
+
+  /*
+    The counter rules, enforced where every caller passes — the API route and the
+    Server Action both land here, and migration 0015 explains why they cannot be
+    a table CHECK. Coerced rather than refused: an order that names cash on a
+    delivery is a caller's mistake, and the safe reading is the one the shop can
+    actually fulfil, which is the transfer the customer would have to make anyway.
+  */
+  const timing: PaymentTiming =
+    input.fulfilment === "pickup" ? (input.paymentTiming ?? "online") : "online";
+  const preferredMethod: PaymentMethod =
+    timing === "on_collection" ? (input.preferredPaymentMethod ?? "cash") : "bank_transfer";
+  const pickupAt =
+    input.fulfilment === "pickup" ? lagosLocalToInstant(input.preferredPickupLocal) : null;
 
   return withTransaction(async (tx) => {
     // ---------------------------------------------------------------------
@@ -321,8 +350,9 @@ export async function placeOrder(
         `INSERT INTO customer_order
            (reference, customer_id, contact_name, contact_email, contact_phone, fulfilment,
             delivery_zone_id, delivery_lga, delivery_address, delivery_landmark,
-            subtotal_kobo, delivery_fee_kobo, total_kobo, customer_note)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            subtotal_kobo, delivery_fee_kobo, total_kobo, customer_note,
+            payment_timing, preferred_payment_method, preferred_pickup_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
          ON CONFLICT (reference) DO NOTHING
          RETURNING id`,
         [
@@ -340,6 +370,9 @@ export async function placeOrder(
           deliveryFeeKobo,
           totalKobo,
           input.customerNote ?? null,
+          timing,
+          preferredMethod,
+          pickupAt,
         ],
       );
       orderId = (inserted.rows[0] as { id: string } | undefined)?.id ?? null;
@@ -415,6 +448,8 @@ export async function placeOrder(
       after: {
         reference,
         fulfilment: input.fulfilment,
+        paymentTiming: timing,
+        preferredPaymentMethod: preferredMethod,
         subtotalKobo,
         deliveryFeeKobo,
         totalKobo,
@@ -545,6 +580,11 @@ export type Order = {
   reference: string;
   status: OrderStatus;
   fulfilment: Fulfilment;
+  paymentTiming: PaymentTiming;
+  /** What the customer said at checkout. Never what they actually paid with. */
+  preferredPaymentMethod: PaymentMethod;
+  /** When they said they were coming, where they said. */
+  preferredPickupAt: Date | null;
   customerId: string | null;
   contactName: string;
   contactEmail: string;
@@ -566,6 +606,9 @@ type OrderRow = {
   reference: string;
   status: OrderStatus;
   fulfilment: Fulfilment;
+  payment_timing: PaymentTiming;
+  preferred_payment_method: PaymentMethod;
+  preferred_pickup_at: Date | null;
   customer_id: string | null;
   contact_name: string;
   contact_email: string;
@@ -620,6 +663,9 @@ async function hydrate(tx: Queryable | null, row: OrderRow): Promise<Order> {
     reference: row.reference,
     status: row.status,
     fulfilment: row.fulfilment,
+    paymentTiming: row.payment_timing,
+    preferredPaymentMethod: row.preferred_payment_method,
+    preferredPickupAt: row.preferred_pickup_at,
     customerId: row.customer_id,
     contactName: row.contact_name,
     contactEmail: row.contact_email,
@@ -658,7 +704,9 @@ async function hydrate(tx: Queryable | null, row: OrderRow): Promise<Order> {
  * use. Passing one straight to `kobo()` throws, which is the branded type doing
  * exactly its job.
  */
-const ORDER_COLUMNS = `id, reference, status, fulfilment, customer_id, contact_name, contact_email,
+const ORDER_COLUMNS = `id, reference, status, fulfilment,
+                       payment_timing, preferred_payment_method, preferred_pickup_at,
+                       customer_id, contact_name, contact_email,
                        contact_phone, delivery_lga, delivery_address, delivery_landmark,
                        subtotal_kobo::STRING AS subtotal_kobo,
                        delivery_fee_kobo::STRING AS delivery_fee_kobo,
