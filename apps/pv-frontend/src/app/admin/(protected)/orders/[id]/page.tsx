@@ -189,7 +189,7 @@ export default async function OrderDetailPage({ params }: Params) {
                 <dd className="font-semibold">{order.contactName}</dd>
               </div>
               <div>
-                <dt className="help">Phone</dt>
+                <dt className="help">WhatsApp</dt>
                 <dd className="font-semibold">{formatPhoneLocal(order.contactPhone)}</dd>
               </div>
               <div>

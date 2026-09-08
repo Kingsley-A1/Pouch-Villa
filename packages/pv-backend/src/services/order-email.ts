@@ -402,7 +402,7 @@ export async function sendCounterOrderAlert(orderId: string): Promise<void> {
           rows: [
             { label: "Order reference", value: order.reference },
             { label: "Customer", value: order.contact_name },
-            { label: "Phone", value: order.contact_phone },
+            { label: "WhatsApp", value: order.contact_phone },
             { label: "Coming in", value: when },
             { label: "Paying with", value: describePaymentMethod(order.preferred_payment_method) },
             { label: "To collect", value: formatKobo(kobo(Number(order.total_kobo))) },

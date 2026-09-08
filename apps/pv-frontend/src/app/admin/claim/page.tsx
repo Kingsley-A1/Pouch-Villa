@@ -17,7 +17,7 @@ export default async function ClaimPage({
       <h1 className="text-2xl font-bold">Claim staff access</h1>
       <p className="mt-2 text-sm text-(--pv-muted)">
         Enter the role code you were given. It creates your account and sets your access level —
-        CEO, Manager or Employee.
+        CEO, Manager or Staff.
       </p>
       <div className="mt-8 grid gap-5">
         <GoogleSignInProblem reason={googleReason(params.google)} />

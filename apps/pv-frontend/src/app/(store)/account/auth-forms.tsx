@@ -183,7 +183,7 @@ export function RegisterForm({
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-bold">
-            Phone <span className="font-normal text-(--pv-muted)">(optional)</span>
+            WhatsApp number <span className="font-normal text-(--pv-muted)">(optional)</span>
           </span>
           {/*
             Optional, but worth asking for: order tracking is authorised by the

@@ -12,7 +12,7 @@ Decisions only Pouch Villa can make. Each one states what we do **in the meantim
 | Q2  | Two-tier category mapping sign-off                      | 🟡 Navigation, filters  | Open               |
 | Q3  | Is this platform or bizblock the system of record?      | 🔴 Inventory, migration | Open               |
 | Q4  | Bank account for transfer payment                       | 🟡 Checkout             | Open               |
-| Q5  | Who is CEO / Manager / Employee?                        | 🟡 RBAC seeding         | Open               |
+| Q5  | Who is CEO / Manager / Staff?                           | 🟡 RBAC seeding         | Open               |
 | Q6  | Order status vocabulary                                 | 🟡 Order state machine  | Open               |
 | Q7  | Vector logo + exact brand values                        | 🟡 Design sign-off      | Open               |
 | Q8  | Delivery zones, fees, timeframes                        | 🟡 Order totals         | Open               |
@@ -63,7 +63,7 @@ Scope item 08 names a _"Pouch Villa account"_. We have no account name, number o
 It will be set at .env and the stil managed by admin in setting
 ---
 
-### 🟡 Q5 — Who holds the CEO, Manager and Employee accounts?
+### 🟡 Q5 — Who holds the CEO, Manager and Staff accounts?
 
 Scope requires three admin tiers with the CEO defining the other two. We have no names or emails.
 

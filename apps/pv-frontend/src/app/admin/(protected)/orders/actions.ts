@@ -20,7 +20,7 @@ import { currentRequestContext, requirePermission } from "@/server/session";
  * required is whatever the **state machine** says this particular transition
  * needs, not a single blanket one: confirming a payment needs `payment.confirm`,
  * while moving an order along the fulfilment path needs `order.manage`, and an
- * Employee may hold one without the other.
+ * Staff member may hold one without the other.
  */
 export async function transitionOrderAction(
   _previous: ActionState,

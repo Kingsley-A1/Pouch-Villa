@@ -108,19 +108,19 @@ describeDb("staff access via role codes", () => {
   });
 
   it("accepts the code as displayed, with its grouping dashes", async () => {
-    const minted = await mint("EMPLOYEE");
+    const minted = await mint("STAFF");
     const grouped = minted.code.replace(/(.{4})/, "$1-");
-    await expect(redeem(grouped)).resolves.toMatchObject({ role: "EMPLOYEE" });
+    await expect(redeem(grouped)).resolves.toMatchObject({ role: "STAFF" });
   });
 
   it("consumes a single-use code so it cannot be redeemed twice", async () => {
-    const minted = await mint("EMPLOYEE");
+    const minted = await mint("STAFF");
     await redeem(minted.code);
     await expect(redeem(minted.code)).rejects.toBeInstanceOf(RoleCodeRejectedError);
   });
 
   it("honours a multi-use code up to its limit and no further", async () => {
-    const minted = await mint("EMPLOYEE", { maxUses: 2 });
+    const minted = await mint("STAFF", { maxUses: 2 });
     await redeem(minted.code);
     await redeem(minted.code);
     await expect(redeem(minted.code)).rejects.toBeInstanceOf(RoleCodeRejectedError);
@@ -135,7 +135,7 @@ describeDb("staff access via role codes", () => {
   });
 
   it("refuses an expired code", async () => {
-    const minted = await mint("EMPLOYEE", { ttlMinutes: -1 });
+    const minted = await mint("STAFF", { ttlMinutes: -1 });
     await expect(redeem(minted.code)).rejects.toBeInstanceOf(RoleCodeRejectedError);
   });
 
@@ -144,14 +144,14 @@ describeDb("staff access via role codes", () => {
   });
 
   it("refuses a second account on the same email", async () => {
-    const first = await mint("EMPLOYEE");
-    const second = await mint("EMPLOYEE");
+    const first = await mint("STAFF");
+    const second = await mint("STAFF");
     const { email } = await redeem(first.code);
     await expect(redeem(second.code, email)).rejects.toBeInstanceOf(EmailAlreadyRegisteredError);
   });
 
   it("never stores the plaintext code", async () => {
-    const minted = await mint("EMPLOYEE");
+    const minted = await mint("STAFF");
     const rows = await query<{ code_hash: string }>(
       "SELECT code_hash FROM staff_role_code WHERE id = $1",
       [minted.id],
@@ -246,17 +246,17 @@ describeDb("runtime permission changes", () => {
   it("takes effect for a signed-in staff member without a deploy", async () => {
     const ceo = await mint("CEO");
     const actor = await redeem(ceo.code);
-    const employeeCode = await mint("EMPLOYEE");
+    const employeeCode = await mint("STAFF");
     const employee = await redeem(employeeCode.code);
 
     expect(await staffHasPermission(employee.staffId, "delivery.manage")).toBe(false);
 
-    const original = await permissionsForRole("EMPLOYEE");
+    const original = await permissionsForRole("STAFF");
     try {
-      await setRolePermissions(actor.staffId, "EMPLOYEE", [...original, "delivery.manage"]);
+      await setRolePermissions(actor.staffId, "STAFF", [...original, "delivery.manage"]);
       expect(await staffHasPermission(employee.staffId, "delivery.manage")).toBe(true);
     } finally {
-      await setRolePermissions(actor.staffId, "EMPLOYEE", original);
+      await setRolePermissions(actor.staffId, "STAFF", original);
     }
     expect(await staffHasPermission(employee.staffId, "delivery.manage")).toBe(false);
     await query("DELETE FROM audit_event WHERE entity_id = 'EMPLOYEE'");

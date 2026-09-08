@@ -22,7 +22,7 @@ export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 
 export class UnreachableEnquiryError extends Error {
   constructor() {
-    super("Leave an email address or a phone number so we can reply.");
+    super("Leave an email address or a WhatsApp number so we can reply.");
     this.name = "UnreachableEnquiryError";
   }
 }

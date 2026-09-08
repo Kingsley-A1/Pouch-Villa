@@ -19,7 +19,7 @@ import {
 function usage(): never {
   console.error(
     [
-      "Usage: pnpm --filter @pv/backend claim-code --role <CEO|MANAGER|EMPLOYEE> [options]",
+      "Usage: pnpm --filter @pv/backend claim-code --role <CEO|MANAGER|STAFF> [options]",
       "",
       "  --role <role>       Access level the code grants. Required.",
       "  --label <text>      A note for the admin list, e.g. who it was issued to.",

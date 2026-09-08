@@ -19,7 +19,7 @@ export default async function TrackPage({ searchParams }: Params) {
         <div className="container-shell">
           <h1 className="section-title">Track your order</h1>
           <p className="mt-3 max-w-prose text-(--pv-muted)">
-            Enter your reference and the phone number you gave when you ordered. We ask for both
+            Enter your reference and the WhatsApp number you gave when you ordered. We ask for both
             because a reference on its own travels in a bank transfer, and it should not be enough
             to open someone&rsquo;s address.
           </p>

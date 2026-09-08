@@ -103,7 +103,7 @@ export async function readDashboardTotals(): Promise<DashboardTotals> {
  *
  * This is the part of the dashboard that actually drives a working day: what is
  * waiting for a person. Each is returned with the permission it needs so the
- * caller can hide what a role cannot act on — showing an Employee a count they
+ * caller can hide what a role cannot act on — showing a Staff member a count they
  * are not allowed to open is worse than showing nothing.
  */
 export async function readAttentionQueues(): Promise<

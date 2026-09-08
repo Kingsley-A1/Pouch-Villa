@@ -92,7 +92,9 @@ export async function sendEnquiryAlert(enquiryId: string): Promise<void> {
           rows: [
             { label: "From", value: enquiry.name },
             ...(enquiry.email === null ? [] : [{ label: "Email", value: enquiry.email } as const]),
-            ...(enquiry.phone === null ? [] : [{ label: "Phone", value: enquiry.phone } as const]),
+            ...(enquiry.phone === null
+              ? []
+              : [{ label: "WhatsApp", value: enquiry.phone } as const]),
             ...(enquiry.subject === null
               ? []
               : [{ label: "Subject", value: enquiry.subject } as const]),

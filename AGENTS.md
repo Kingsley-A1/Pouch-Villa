@@ -140,7 +140,7 @@ Seed data is **clearly fictional and clearly labelled**, and no seed path ever r
 
 **Google sign-in is available to both, including the CEO.** That is a deliberate amendment to this file, recorded in [`docs/decisions/0002-access-and-verification.md`](docs/decisions/0002-access-and-verification.md), and it does not weaken the rule above. OAuth **authenticates; it never authorises**. Signing in with Google proves control of a mailbox and confers nothing else: it cannot create a staff account, cannot pick a role, and cannot raise one. A staff account exists only where a role code was redeemed, and the role is whatever that code carried. The two identity stacks still share no session, cookie, table or code path — a Google subject is resolved against one table or the other, never both.
 
-**Three staff access levels, and no more: CEO, Manager, Employee.** One code per level. Finer distinctions are permissions on a role, edited by the CEO at runtime — never a new tier and never a per-account override.
+**Three staff access levels, and no more: CEO, Manager, Staff.** One code per level. Finer distinctions are permissions on a role, edited by the CEO at runtime — never a new tier and never a per-account override.
 
 **Sessions**
 

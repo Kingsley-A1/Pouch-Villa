@@ -50,7 +50,7 @@ export function ContactForm() {
         </div>
         <div>
           <label className="label" htmlFor="phone">
-            Phone
+            WhatsApp number
           </label>
           <input id="phone" name="phone" className="field" inputMode="tel" autoComplete="tel" />
         </div>

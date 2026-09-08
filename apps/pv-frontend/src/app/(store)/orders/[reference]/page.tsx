@@ -325,7 +325,7 @@ export default async function OrderPage({ params, searchParams }: Params) {
                 <Link href="/track" className="font-semibold underline">
                   Track order
                 </Link>{" "}
-                using <strong>{order.reference}</strong> and the phone number on the order.
+                using <strong>{order.reference}</strong> and the WhatsApp number on the order.
               </p>
             </div>
           </aside>

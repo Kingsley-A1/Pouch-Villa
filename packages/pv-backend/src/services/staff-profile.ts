@@ -20,7 +20,7 @@ import { syncAdminSearchDocument } from "./admin-search-index";
  * from a request parameter, so no shape of input reaches another person's
  * account. That is what lets these run with no permission check beyond being
  * signed in — editing your own name is not an act of authority, and requiring
- * `staff.manage` for it would mean an Employee could not correct their own
+ * `staff.manage` for it would mean a Staff member could not correct their own
  * spelling while a Manager could rewrite everyone's.
  *
  * Three things are deliberately **not** editable here, and each one is a

@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: "Roles & Permissions" };
 
 export default async function RolesAdminPage() {
   await requirePermission("role.manage");
-  const [managerPermissions, employeePermissions] = await Promise.all([
+  const [managerPermissions, staffPermissions] = await Promise.all([
     permissionsForRole("MANAGER"),
-    permissionsForRole("EMPLOYEE"),
+    permissionsForRole("STAFF"),
   ]);
 
   return (
@@ -19,11 +19,11 @@ export default async function RolesAdminPage() {
         <h1 className="text-2xl font-bold">Roles &amp; Permissions</h1>
         <p className="mt-1 text-sm text-(--pv-muted)">
           The CEO role is protected and cannot be edited. Changes here take effect for a signed-in
-          Manager or Employee immediately, without a deploy.
+          Manager or Staff immediately, without a deploy.
         </p>
       </div>
       <RoleEditor role="MANAGER" granted={managerPermissions} />
-      <RoleEditor role="EMPLOYEE" granted={employeePermissions} />
+      <RoleEditor role="STAFF" granted={staffPermissions} />
     </div>
   );
 }

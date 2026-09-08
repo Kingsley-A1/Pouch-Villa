@@ -1,10 +1,13 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
 /**
- * Three access levels and no more. The scope names CEO, Manager and Employee, so
- * these are the roles — not a broader set the admin has to map onto them.
+ * Three access levels and no more: CEO, Manager and Staff — the client's own
+ * words for them. Not a broader set the admin has to map onto them.
+ *
+ * The third was called EMPLOYEE until migration 0016 renamed it, code and all,
+ * so that what an engineer reads here is what the CEO reads on screen.
  */
-export const STAFF_ROLES = ["CEO", "MANAGER", "EMPLOYEE"] as const;
+export const STAFF_ROLES = ["CEO", "MANAGER", "STAFF"] as const;
 export type StaffRoleCode = (typeof STAFF_ROLES)[number];
 
 export function isStaffRole(value: string): value is StaffRoleCode {

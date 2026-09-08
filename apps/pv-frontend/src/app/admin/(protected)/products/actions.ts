@@ -140,6 +140,44 @@ export async function setProductStatusAction(
   return { error: null };
 }
 
+/**
+ * Takes a product's whole stock to zero from the product list.
+ *
+ * The one thing staff need to do the moment they sell the last of something,
+ * without opening the product, finding each variant and zeroing them one at a
+ * time while a customer waits.
+ *
+ * `product.manage`, not `product.view`: this changes what the shop can sell.
+ */
+export async function markOutOfStockAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = formData.get("productId");
+  if (typeof id !== "string" || id.length === 0) {
+    return { error: "That product could not be found." };
+  }
+
+  const principal = await requirePermission("product.manage");
+  let zeroed: number;
+  try {
+    zeroed = await products.markProductOutOfStock(id, { staffId: principal.staffId });
+  } catch (error) {
+    return toActionError(error, "The stock could not be changed.");
+  }
+
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${id}/edit`);
+  // A customer looking at this product right now must stop being able to buy it,
+  // so the storefront's cached entry points go with it.
+  revalidatePath("/");
+  revalidatePath("/shop");
+  return {
+    error: null,
+    message: `Out of stock. ${zeroed} variant${zeroed === 1 ? "" : "s"} set to zero.`,
+  };
+}
+
 export async function deleteProductAction(id: string, reason: string) {
   const principal = await requirePermission("product.manage");
   await products.softDeleteProduct(id, reason, { staffId: principal.staffId });
