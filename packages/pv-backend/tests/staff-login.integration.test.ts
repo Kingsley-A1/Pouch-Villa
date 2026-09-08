@@ -32,8 +32,8 @@ function testEmail() {
   return `zz-login-${randomUUID()}@pv-integration.invalid`;
 }
 
-async function createEmployee(password = "correct-horse-battery") {
-  const minted = await mintRoleCode({ role: "EMPLOYEE" }, { staffId: null });
+async function createStaffMember(password = "correct-horse-battery") {
+  const minted = await mintRoleCode({ role: "STAFF" }, { staffId: null });
   created.codes.push(minted.id);
   const email = testEmail();
   const { staffId } = await redeemRoleCode({
@@ -74,12 +74,12 @@ describeDb("staff sessions", () => {
   afterAll(closePool);
 
   it("issues a session and verifies it", async () => {
-    const { staffId } = await createEmployee();
+    const { staffId } = await createStaffMember();
     const { token } = await issueStaffSession(staffId);
 
     const principal = await verifyStaffSession(token);
     expect(principal?.staffId).toBe(staffId);
-    expect(principal?.role).toBe("EMPLOYEE");
+    expect(principal?.role).toBe("STAFF");
   });
 
   it("rejects an unknown token", async () => {
@@ -87,7 +87,7 @@ describeDb("staff sessions", () => {
   });
 
   it("rejects a revoked session immediately", async () => {
-    const { staffId } = await createEmployee();
+    const { staffId } = await createStaffMember();
     const { token } = await issueStaffSession(staffId);
     expect(await verifyStaffSession(token)).not.toBeNull();
 
@@ -96,7 +96,7 @@ describeDb("staff sessions", () => {
   });
 
   it("rejects a session past its absolute expiry", async () => {
-    const { staffId } = await createEmployee();
+    const { staffId } = await createStaffMember();
     const { token } = await issueStaffSession(staffId);
     // An hour, not a second. `now()` is the database's clock and the check runs
     // against this process's clock; against a cloud cluster those differ by more
@@ -107,7 +107,7 @@ describeDb("staff sessions", () => {
   });
 
   it("rejects a session that has been idle too long", async () => {
-    const { staffId } = await createEmployee();
+    const { staffId } = await createStaffMember();
     const { token } = await issueStaffSession(staffId);
     await query("UPDATE staff_session SET last_seen_at = now() - interval '1 hour'");
     expect(await verifyStaffSession(token)).toBeNull();
@@ -119,11 +119,11 @@ describeDb("password login", () => {
   afterAll(closePool);
 
   it("succeeds with the correct password and fails with the wrong one", async () => {
-    const { email, password } = await createEmployee();
+    const { email, password } = await createStaffMember();
 
     const session = await loginWithPassword(email, password);
     expect(session.staffId).toBeTruthy();
-    expect(session.role).toBe("EMPLOYEE");
+    expect(session.role).toBe("STAFF");
 
     await expect(loginWithPassword(email, "wrong-password")).rejects.toBeInstanceOf(
       InvalidCredentialsError,
@@ -137,7 +137,7 @@ describeDb("password login", () => {
   });
 
   it("locks out after repeated failures on the same email", async () => {
-    const { email } = await createEmployee();
+    const { email } = await createStaffMember();
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await expect(loginWithPassword(email, "wrong")).rejects.toThrow();
@@ -146,7 +146,7 @@ describeDb("password login", () => {
   });
 
   it("refuses a suspended account even with the right password", async () => {
-    const { staffId, email, password } = await createEmployee();
+    const { staffId, email, password } = await createStaffMember();
     await setStaffStatus(staffId, "suspended", { staffId });
 
     await expect(loginWithPassword(email, password)).rejects.toBeInstanceOf(AccountSuspendedError);
@@ -158,7 +158,7 @@ describeDb("staff email verification", () => {
   afterAll(closePool);
 
   it("verifies the code Resend was asked to send", async () => {
-    const { staffId, email } = await createEmployee();
+    const { staffId, email } = await createStaffMember();
 
     await sendVerificationCode(staffId, email);
     const call = vi.mocked(sendEmail).mock.calls.at(-1)?.[0];
@@ -175,13 +175,13 @@ describeDb("staff email verification", () => {
   });
 
   it("rejects the wrong code without consuming a correct one already sent", async () => {
-    const { staffId, email } = await createEmployee();
+    const { staffId, email } = await createStaffMember();
     await sendVerificationCode(staffId, email);
     await expect(verifyEmailCode(staffId, "000000")).rejects.toBeInstanceOf(CodeInvalidError);
   });
 
   it("refuses to send a second code inside the cooldown", async () => {
-    const { staffId, email } = await createEmployee();
+    const { staffId, email } = await createStaffMember();
     await sendVerificationCode(staffId, email);
     await expect(sendVerificationCode(staffId, email)).rejects.toBeInstanceOf(CodeAlreadySentError);
   });

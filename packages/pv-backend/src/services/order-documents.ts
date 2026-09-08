@@ -233,7 +233,7 @@ function buildInvoice(order: Order, settings: Map<SettingKey, SettingValue>): In
     terms: terms(settings),
     qr: {
       payload: orderUrl(order),
-      caption: "Scan to open this order. You may be asked for the phone number on it.",
+      caption: "Scan to open this order. You may be asked for the WhatsApp number on it.",
     },
     footer: FOOTER_CREDIT,
   };
@@ -265,7 +265,7 @@ function buildReceipt(
     terms: terms(settings),
     qr: {
       payload: orderUrl(order),
-      caption: "Scan to open this order. You may be asked for the phone number on it.",
+      caption: "Scan to open this order. You may be asked for the WhatsApp number on it.",
     },
     footer: FOOTER_CREDIT,
   };

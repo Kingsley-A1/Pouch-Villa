@@ -32,7 +32,7 @@ describe("the CEO bootstrap pin", () => {
   });
 
   it("never applies to a manager or an employee", () => {
-    for (const role of ["MANAGER", "EMPLOYEE"]) {
+    for (const role of ["MANAGER", "STAFF"]) {
       expect(ceoRedemptionIsPinnedOut({ ...base, role })).toBe(false);
     }
   });

@@ -49,7 +49,7 @@ export function StaffProfileForm({
       </Field>
 
       <Field
-        label="Phone"
+        label="WhatsApp number"
         name="phone"
         hint="Optional. So the rest of the team can reach you about an order."
       >

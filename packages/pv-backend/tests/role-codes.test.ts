@@ -27,7 +27,7 @@ function record(overrides: Partial<RoleCodeRecord> = {}): RoleCodeRecord {
 
 describe("staff role codes", () => {
   it("offers exactly three access levels", () => {
-    expect(STAFF_ROLES).toEqual(["CEO", "MANAGER", "EMPLOYEE"]);
+    expect(STAFF_ROLES).toEqual(["CEO", "MANAGER", "STAFF"]);
     expect(isStaffRole("OWNER")).toBe(false);
     expect(isStaffRole("CEO")).toBe(true);
   });

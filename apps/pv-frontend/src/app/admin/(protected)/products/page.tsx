@@ -5,6 +5,7 @@ import { listAllProducts, type AdminProductSummary } from "@pv/backend/services/
 import { likeCountsFor } from "@pv/backend/services/likes";
 import { ArrowSquareOut, Heart, PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
+import { OutOfStockButton } from "./out-of-stock-button";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Products" };
@@ -131,6 +132,17 @@ function ProductRow({ product, likeCount }: { product: AdminProductSummary; like
             Publish it to view on the storefront
           </span>
         )}
+
+        {/*
+          Last, because it is the only one of the three that changes anything.
+          Edit and View are ways of looking; this one empties a shelf, so it does
+          not sit where a thumb reaching for "Edit" will find it.
+        */}
+        <OutOfStockButton
+          productId={product.id}
+          productName={product.name}
+          inStock={product.inStock}
+        />
       </div>
     </div>
   );

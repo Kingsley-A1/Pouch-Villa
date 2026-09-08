@@ -29,6 +29,24 @@ const REPLAY_SAFE = [
   /^ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?\S+\s+ALTER\s+COLUMN\b/i,
   /^INSERT\s+INTO\b[\s\S]*\bON\s+CONFLICT\b/i,
   /^DROP\s+\w+\s+IF\s+EXISTS\b/i,
+
+  /*
+    A value swap on one column: `UPDATE t SET c = 'new' WHERE c = 'old'`.
+
+    Safe by construction rather than by inspection — the backreference requires
+    the SET column and the WHERE column to be the same one, so the first run
+    leaves no row matching the WHERE and every later run touches nothing. That is
+    a stronger guarantee than "somebody checked it", which is the bar the rest of
+    this list holds to.
+
+    Deliberately narrow. An UPDATE against a different column, or with a
+    computed value, is not covered and should not be — those have to be argued
+    for individually, and this list is not the place to argue.
+  */
+  /^UPDATE\s+\w+\s+SET\s+(\w+)\s*=\s*'[^']*'\s+WHERE\s+\1\s*=\s*'[^']*'$/i,
+
+  // `DELETE FROM t WHERE c = 'literal'`: the second run finds nothing to delete.
+  /^DELETE\s+FROM\s+\w+\s+WHERE\s+\w+\s*=\s*'[^']*'$/i,
 ];
 
 /**

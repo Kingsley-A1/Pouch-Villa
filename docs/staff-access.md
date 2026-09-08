@@ -15,7 +15,7 @@ below. Signing in with Google proves control of a mailbox and confers nothing
 else: it cannot create a staff account, cannot pick a role, and cannot raise
 one.
 
-Three access levels, and no more: **CEO, Manager, Employee**. A code carries
+Three access levels, and no more: **CEO, Manager, Staff**. A code carries
 exactly one of them. Anything finer than that — can this manager confirm
 payments, can that employee moderate reviews — is a permission on the role,
 edited by the CEO at runtime in `/admin/roles`. It is never a fourth tier and
@@ -73,7 +73,7 @@ Once a CEO exists, every further hire is code-based through the UI — the CLI
 command is never used again:
 
 1. CEO opens `/admin/staff` → **Issue a role code**.
-2. Picks the level (Manager or Employee), labels it with who it's for,
+2. Picks the level (Manager or Staff), labels it with who it's for,
    sets how many times it can be used (usually 1) and how long it's valid.
 3. The plaintext code appears once, on screen. Read it aloud, message it,
    write it down — however you like, it's designed to survive being spoken.
@@ -120,13 +120,13 @@ Set in [`migrations/0002_permission_catalogue.sql`](../packages/pv-backend/migra
 as the starting grants — all editable by the CEO at runtime except the two
 marked CEO-only.
 
-| Role     | Starts with                                                                                                                                                                              |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CEO      | Every permission, always — re-asserted on every migration run so a newly added permission is never accidentally withheld.                                                                |
-| Manager  | Every permission except `role.manage` and `staff.manage`.                                                                                                                                |
-| Employee | `dashboard.view`, `product.view`, `order.view`, `order.manage`, `payment.view`, `customer.view`, `enquiry.manage` — day-to-day fulfilment. No money settings, no staff, no role editing. |
+| Role    | Starts with                                                                                                                                                                              |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CEO     | Every permission, always — re-asserted on every migration run so a newly added permission is never accidentally withheld.                                                                |
+| Manager | Every permission except `role.manage` and `staff.manage`.                                                                                                                                |
+| Staff   | `dashboard.view`, `product.view`, `order.view`, `order.manage`, `payment.view`, `customer.view`, `enquiry.manage` — day-to-day fulfilment. No money settings, no staff, no role editing. |
 
-Changing what a Manager or Employee can do is a CEO edit in `/admin/roles`,
+Changing what a Manager or Staff member can do is a CEO edit in `/admin/roles`,
 not a code change or a redeploy.
 
 ## What this deliberately does not do

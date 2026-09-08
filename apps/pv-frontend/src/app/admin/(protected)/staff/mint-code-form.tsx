@@ -26,7 +26,7 @@ export function MintCodeForm() {
       <form action={formAction} className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Access level" name="role">
-            <Select name="role" required defaultValue="EMPLOYEE">
+            <Select name="role" required defaultValue="STAFF">
               {STAFF_ROLES.map((role) => (
                 <option key={role} value={role}>
                   {role}

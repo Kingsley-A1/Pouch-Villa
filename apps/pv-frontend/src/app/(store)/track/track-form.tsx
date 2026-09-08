@@ -33,7 +33,7 @@ export function TrackForm({ defaultReference }: { defaultReference: string }) {
 
       <div>
         <label className="label" htmlFor="phone">
-          Phone number on the order
+          WhatsApp number on the order
         </label>
         <input
           id="phone"

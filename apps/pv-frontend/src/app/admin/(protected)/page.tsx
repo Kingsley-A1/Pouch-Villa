@@ -43,7 +43,7 @@ export const metadata: Metadata = { title: "Dashboard" };
  * — which change slowly and prompt no action — come last.
  *
  * Everything is gated by the permission that makes it actionable. Showing an
- * Employee a count they cannot open is worse than showing them nothing.
+ * a Staff member a count they cannot open is worse than showing them nothing.
  */
 export default async function DashboardPage() {
   const principal = await requireStaffPrincipal();
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
         out what is missing. Naming the gaps here, by consequence rather than by
         setting key, is the difference between that discovery happening now and
         it happening in front of a customer. Each row is filtered by the
-        permission that could close it: telling an Employee the bank details are
+        permission that could close it: telling a Staff member the bank details are
         missing is only noise, because they cannot set them.
       */}
       {visibleSetup.length > 0 ? (

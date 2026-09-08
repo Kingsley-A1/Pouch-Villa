@@ -100,7 +100,7 @@ apps/pv-frontend/             @pv/frontend — Next 16 App Router
 
 - **Stock is an append-only ledger.** Quantity is a sum, never a mutated counter — correct under CockroachDB's serializable isolation, and it yields a full stock history for free.
 - **Money is integer kobo** in a branded type a bare `number` cannot satisfy.
-- **Permissions are rows.** The CEO edits Manager and Employee grants at runtime; the CEO role is protected, and `role.manage`/`staff.manage` cannot be delegated to any other role.
+- **Permissions are rows.** The CEO edits Manager and Staff grants at runtime; the CEO role is protected, and `role.manage`/`staff.manage` cannot be delegated to any other role.
 - **Two identity stacks** sharing no session, cookie, table or code path. Google authenticates for both and authorises for neither — see [`decisions/0002-access-and-verification.md`](decisions/0002-access-and-verification.md).
 - **Variant axes are data**, so the catalogue absorbs a change in what is sold without a migration.
 - **Media is validated by magic bytes**, re-encoded to strip EXIF, and served as pre-generated WebP derivatives from immutable content-hashed keys.

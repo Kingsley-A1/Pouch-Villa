@@ -38,7 +38,7 @@ export function RoleEditor({
   role,
   granted,
 }: {
-  role: Extract<StaffRoleCode, "MANAGER" | "EMPLOYEE">;
+  role: Extract<StaffRoleCode, "MANAGER" | "STAFF">;
   granted: PermissionCode[];
 }) {
   const [state, formAction] = useActionState(saveRolePermissionsAction, INITIAL_ACTION_STATE);
@@ -50,7 +50,7 @@ export function RoleEditor({
       className="grid gap-4 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-5"
     >
       <input type="hidden" name="role" value={role} />
-      <h2 className="text-lg font-bold">{role === "MANAGER" ? "Manager" : "Employee"}</h2>
+      <h2 className="text-lg font-bold">{role === "MANAGER" ? "Manager" : "Staff"}</h2>
       <div className="grid gap-2">
         {PERMISSIONS.map((permission) => {
           const disabled = CEO_ONLY_PERMISSIONS.includes(permission);

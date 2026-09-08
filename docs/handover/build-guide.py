@@ -195,7 +195,7 @@ story.append(PageBreak())
 story += head("Access", "Signing in, and adding your team")
 story.append(Paragraph(
     "There are three access levels and no more: <b>CEO</b>, <b>Manager</b> and "
-    "<b>Employee</b>. Nothing is seeded — every account, including yours, exists "
+    "<b>Staff</b>. Nothing is seeded — every account, including yours, exists "
     "because somebody redeemed a role code.", S["body"]))
 
 story.append(Paragraph("Adding a staff member", S["h2"]))
@@ -218,7 +218,7 @@ story.append(table([
     ["Level", "Can do"],
     ["CEO", "Everything, including staff, roles and permissions."],
     ["Manager", "Whatever the CEO grants — set under Roles &amp; Permissions."],
-    ["Employee", "Whatever the CEO grants. Usually orders and products."],
+    ["Staff", "Whatever the CEO grants. Usually orders and products."],
 ], [32 * mm, W - 32 * mm]))
 story.append(Spacer(1, 8))
 story.append(panel("Two things worth knowing", [
@@ -227,11 +227,11 @@ story.append(panel("Two things worth knowing", [
     "Suspending someone ends their access immediately. The last CEO cannot be "
     "suspended or removed, so the shop can never lock itself out.",
 ]))
-story.append(panel("If your counter staff are Employees", [
+story.append(panel("If your counter people are on the Staff level", [
     "Recording a payment needs the same permission as approving a transfer "
-    "receipt, and an Employee does not have it to start with. If the person on "
-    "your counter is an Employee, open <b>Admin &rarr; Roles</b>, choose "
-    "Employee and switch on the payment permission. You can do that yourself, "
+    "receipt, and the Staff level does not have it to start with. If the person "
+    "on your counter is Staff, open <b>Admin &rarr; Roles</b>, choose "
+    "Staff and switch on the payment permission. You can do that yourself, "
     "and change it back whenever you like.",
 ]))
 story.append(PageBreak())

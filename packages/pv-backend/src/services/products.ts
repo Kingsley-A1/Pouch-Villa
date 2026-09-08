@@ -566,6 +566,72 @@ export async function adjustStock(
   });
 }
 
+export class NothingInStockError extends Error {
+  constructor() {
+    super("Nothing is in stock for that product.");
+    this.name = "NothingInStockError";
+  }
+}
+
+/**
+ * Takes every variant of a product down to zero in one action.
+ *
+ * The shop sells the last of something and needs the storefront to say so
+ * immediately. Doing that variant by variant through the stock form is four or
+ * five screens on a phone while a customer is still in front of you, and the
+ * product stays buyable throughout.
+ *
+ * Written as ledger entries, not as a counter set to zero (AGENTS.md §3). The
+ * history still says how much there was and that a person removed it, so a
+ * mistake is visible and correctable by adding stock back rather than by editing
+ * the past.
+ *
+ * One round trip. The current quantity per variant is derived inside the INSERT,
+ * which also closes the gap a read-then-write would leave — a sale landing
+ * between the two would otherwise be counted twice.
+ */
+export async function markProductOutOfStock(
+  productId: string,
+  actor: { staffId: string },
+  note = "Marked out of stock",
+): Promise<number> {
+  return withTransaction(async (tx) => {
+    const zeroed = await tx.query(
+      // The aggregate is scoped to this product's variants in a derived table
+      // rather than correlated per row — ADR 0013 records what CockroachDB does
+      // with a correlated subquery inside an aggregate, and it is not this.
+      `INSERT INTO stock_entry (variant_id, delta, reason, note, actor_id)
+       SELECT held.variant_id, -held.quantity, 'adjustment', $2, $3
+         FROM (
+           SELECT se.variant_id, sum(se.delta) AS quantity
+             FROM stock_entry se
+             JOIN product_variant v ON v.id = se.variant_id
+            WHERE v.product_id = $1 AND v.deleted_at IS NULL
+            GROUP BY se.variant_id
+         ) held
+        WHERE held.quantity > 0
+       RETURNING variant_id`,
+      [productId, note, actor.staffId],
+    );
+
+    // Nothing was in stock, so nothing changed. Told apart from success rather
+    // than reported as one: a staff member who pressed the button needs to know
+    // whether the shelf was already empty or their press did something.
+    if (zeroed.rows.length === 0) throw new NothingInStockError();
+
+    await recordAudit(tx, {
+      actorType: "staff",
+      actorId: actor.staffId,
+      action: "stock.marked_out_of_stock",
+      entityType: "product",
+      entityId: productId,
+      after: { variantsZeroed: zeroed.rows.length, note },
+    });
+
+    return zeroed.rows.length;
+  });
+}
+
 export async function listStockHistory(variantId: string) {
   return query<{
     id: string;

@@ -507,7 +507,7 @@ export const contactRequestSchema = z
     orderReference: z.string().trim().max(40).nullable().default(null),
   })
   .refine((value) => Boolean(value.email?.trim()) || Boolean(value.phone?.trim()), {
-    message: "Leave an email address or a phone number so we can reply",
+    message: "Leave an email address or a WhatsApp number so we can reply",
     path: ["email"],
   });
 

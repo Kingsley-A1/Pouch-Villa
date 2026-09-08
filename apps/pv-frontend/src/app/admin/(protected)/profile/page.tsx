@@ -26,7 +26,7 @@ const DATE_TIME = new Intl.DateTimeFormat("en-NG", {
  * A staff member's own account.
  *
  * No permission is required past being signed in. Every mutation behind this
- * screen is scoped to the session's own staff id, so an Employee editing their
+ * screen is scoped to the session's own staff id, so a Staff member editing their
  * own name is not exercising authority — and gating it on `staff.manage` would
  * have meant only the people who manage others could correct their own spelling.
  */

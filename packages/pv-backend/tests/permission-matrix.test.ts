@@ -20,7 +20,7 @@ import { STAFF_ROLES, type StaffRoleCode } from "../src/auth/role-codes";
 const describeDb = readOnlyDatabaseConfigured() ? describe : describe.skip;
 
 /** The intended matrix, written out in full rather than derived from the migration. */
-const EMPLOYEE_ALLOWED: readonly PermissionCode[] = [
+const STAFF_ALLOWED: readonly PermissionCode[] = [
   "dashboard.view",
   "product.view",
   "order.view",
@@ -33,7 +33,7 @@ const EMPLOYEE_ALLOWED: readonly PermissionCode[] = [
 function expected(role: StaffRoleCode, permission: PermissionCode): boolean {
   if (role === "CEO") return true;
   if (role === "MANAGER") return !CEO_ONLY_PERMISSIONS.includes(permission);
-  return EMPLOYEE_ALLOWED.includes(permission);
+  return STAFF_ALLOWED.includes(permission);
 }
 
 describeDb("permission matrix", () => {
@@ -51,7 +51,7 @@ describeDb("permission matrix", () => {
 
   it("has exactly three roles, no more", async () => {
     const rows = await query<{ code: string }>("SELECT code FROM staff_role ORDER BY rank");
-    expect(rows.map((r) => r.code)).toEqual(["CEO", "MANAGER", "EMPLOYEE"]);
+    expect(rows.map((r) => r.code)).toEqual(["CEO", "MANAGER", "STAFF"]);
   });
 
   it("protects the CEO role from editing", async () => {
@@ -80,7 +80,7 @@ describeDb("permission matrix", () => {
   it("grants no role but CEO a permission that confers full control", () => {
     for (const permission of CEO_ONLY_PERMISSIONS) {
       expect(granted.get("MANAGER")?.has(permission)).toBe(false);
-      expect(granted.get("EMPLOYEE")?.has(permission)).toBe(false);
+      expect(granted.get("STAFF")?.has(permission)).toBe(false);
       expect(granted.get("CEO")?.has(permission)).toBe(true);
     }
   });
@@ -93,7 +93,7 @@ describeDb("permission matrix", () => {
       "staff.manage",
       "product.manage",
     ] as const) {
-      expect(granted.get("EMPLOYEE")?.has(permission)).toBe(false);
+      expect(granted.get("STAFF")?.has(permission)).toBe(false);
     }
   });
 });

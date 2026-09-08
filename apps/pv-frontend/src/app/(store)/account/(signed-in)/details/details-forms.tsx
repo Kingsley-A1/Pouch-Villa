@@ -54,7 +54,7 @@ export function ProfileForm({
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-sm font-bold">Phone</span>
+        <span className="text-sm font-bold">WhatsApp number</span>
         <input
           name="phone"
           type="tel"

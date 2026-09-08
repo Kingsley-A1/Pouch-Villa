@@ -105,7 +105,7 @@ export function CheckoutForm({
 
             <div>
               <label className="label" htmlFor="contactPhone">
-                Phone number
+                WhatsApp number
               </label>
               <input
                 id="contactPhone"
@@ -118,7 +118,7 @@ export function CheckoutForm({
                 aria-describedby="phone-help"
               />
               <p className="help mt-1" id="phone-help">
-                We use this to reach you about delivery, and to open your order on the tracking
+                We reach you on WhatsApp about your order, and it opens your order on the tracking
                 page.
               </p>
             </div>
