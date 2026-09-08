@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CategoryMosaic } from "@/components/category-mosaic";
@@ -23,23 +25,43 @@ const withoutPhoto = {
 };
 
 /**
- * The bug this pins: `.pv-cat-photo` paints at `z-index: -2`, which only stays
- * above its parent's own background while that parent is a stacking context.
- * The mobile card was `relative` with a solid background and no `isolate`, so
- * every category on a phone rendered as a flat red square — no photograph, and
- * no lettered fallback either, since the fallback carries the same class.
+ * Read once: several of these assert a CSS rule the markup depends on.
+ *
+ * From the working directory rather than `import.meta.url`, which jsdom does not
+ * give as a `file:` URL. Vitest runs from the package root.
  */
+const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+
+/** The declarations inside one selector's block, whitespace collapsed. */
+function ruleBody(selector: string): string {
+  const at = css.indexOf(`${selector} {`);
+  if (at < 0) return "";
+  return css.slice(at, css.indexOf("}", at)).replace(/\s+/g, " ");
+}
+
 describe("category mosaic", () => {
   afterEach(cleanup);
 
-  it("gives the phone card a stacking context, so its artwork can paint", () => {
+  /**
+   * The bug this pins: `.pv-cat-photo` paints at `z-index: -2`, which only stays
+   * above its parent's own background while that parent is a stacking context.
+   * The old phone card was `relative` with a solid background and no `isolate`,
+   * so every category on a phone rendered as a flat red square — no photograph,
+   * and no lettered fallback either, since the fallback carries the same class.
+   *
+   * The card is gone and the slide is the frame at every width now, so the pairing
+   * is asserted across both halves: the photo really sits inside a slide, and the
+   * slide really carries the isolation. Checking only the markup would have
+   * missed the original bug, which lived in the stylesheet.
+   */
+  it("frames the artwork in a slide that is a stacking context", () => {
     const { container } = render(<CategoryMosaic categories={[withPhoto]} />);
 
     const photo = container.querySelector(".pv-cat-photo");
     expect(photo).not.toBeNull();
+    expect(photo?.closest(".pv-cat-slide")).not.toBeNull();
 
-    const frame = photo?.closest("a");
-    expect(frame?.className).toContain("isolate");
+    expect(ruleBody(".pv-cat-slide")).toContain("isolation: isolate");
   });
 
   it("draws a letter where no photograph has been set", () => {
@@ -61,9 +83,31 @@ describe("category mosaic", () => {
     for (const element of haloed) expect(element.className).toContain("pv-loop");
   });
 
-  it("scrims the photograph on the phone as well as the deck", () => {
-    const { container } = render(<CategoryMosaic categories={[withPhoto]} />);
-    expect(container.querySelector(".pv-cat-scrim")).not.toBeNull();
+  /** White name over an arbitrary photograph is only legible because of this. */
+  it("scrims every slide's photograph", () => {
+    expect(ruleBody(".pv-cat-slide::after")).toContain("radial-gradient");
+  });
+
+  /**
+   * The client asked for the deck on the phone too. It used to be a deck above
+   * `lg` and a stack of cards below, which meant both trees shipped in the HTML
+   * and a phone downloaded markup for a layout it would never show.
+   */
+  it("renders one deck rather than a second layout for phones", () => {
+    const { container } = render(<CategoryMosaic categories={[withPhoto, withoutPhoto]} />);
+
+    expect(container.querySelectorAll(".pv-cat-slide")).toHaveLength(2);
+    // No width-switching wrappers left: one presentation, sized by CSS.
+    expect(container.querySelector(".lg\\:hidden")).toBeNull();
+    expect(container.querySelector(".hidden.lg\\:block")).toBeNull();
+  });
+
+  /** A deck a visitor can swipe with the controls island stripped out. */
+  it("keeps the track a scroll-snap strip, not a JavaScript carousel", () => {
+    const { container } = render(<CategoryMosaic categories={[withPhoto, withoutPhoto]} />);
+
+    expect(container.querySelector(".pv-deck-track")).not.toBeNull();
+    expect(ruleBody(".pv-deck-track")).toContain("scroll-snap-type: x mandatory");
   });
 
   it("shows nothing at all when the shop has no top categories", () => {

@@ -1,5 +1,6 @@
 import { formatKoboForDocument } from "../domain/money";
 import { formatPhoneLocal } from "../domain/phone";
+import { describePaymentArrangement, describePaymentMethod } from "../domain/payment-method";
 import { absoluteSiteUrl } from "../domain/site-origin";
 import {
   renderInvoicePdf,
@@ -9,6 +10,7 @@ import {
 } from "../documents/invoice-pdf";
 import { getOrderById, type Order, type OrderLine } from "./orders";
 import { listProofsForOrder } from "./payments";
+import { readSettlement } from "./counter-payments";
 import { readSettings, type SettingKey, type SettingValue } from "./settings";
 
 /**
@@ -173,6 +175,12 @@ type PaymentState = {
   totalLabel: string;
   receivedAt: Date | null;
   confirmed: boolean;
+  /**
+   * What the money actually arrived as, once it has. Null until then — a receipt
+   * for an unsettled order must not name a method, because the customer has not
+   * chosen one yet in any sense the shop can stand behind.
+   */
+  settledMethod: string | null;
 };
 
 async function paymentState(order: Order): Promise<PaymentState> {
@@ -181,7 +189,11 @@ async function paymentState(order: Order): Promise<PaymentState> {
     order.status !== "proof_submitted" &&
     order.status !== "cancelled";
 
-  const proofs = await listProofsForOrder(order.id);
+  const [proofs, settlement] = await Promise.all([
+    listProofsForOrder(order.id),
+    readSettlement(order.id),
+  ]);
+  const settledMethod = settlement === null ? null : describePaymentMethod(settlement.method);
   const accepted = proofs.find((proof) => proof.status === "accepted");
   const pending = proofs.find((proof) => proof.status === "pending");
   const latest = accepted ?? pending ?? proofs[0] ?? null;
@@ -192,6 +204,7 @@ async function paymentState(order: Order): Promise<PaymentState> {
       totalLabel: "Total paid",
       receivedAt: accepted?.uploadedAt ?? latest?.uploadedAt ?? null,
       confirmed: true,
+      settledMethod,
     };
   }
 
@@ -201,6 +214,7 @@ async function paymentState(order: Order): Promise<PaymentState> {
       totalLabel: "Total due",
       receivedAt: pending.uploadedAt,
       confirmed: false,
+      settledMethod: null,
     };
   }
 
@@ -209,6 +223,7 @@ async function paymentState(order: Order): Promise<PaymentState> {
     totalLabel: "Total due",
     receivedAt: null,
     confirmed: false,
+    settledMethod: null,
   };
 }
 
@@ -226,6 +241,14 @@ function buildInvoice(order: Order, settings: Map<SettingKey, SettingValue>): In
       { label: "Invoice #", value: order.reference },
       { label: "Invoice date", value: lagosDate(order.placedAt) },
       { label: "Fulfilment", value: order.fulfilment === "pickup" ? "Collection" : "Delivery" },
+      // An amount owed with no way of settling it named is half a statement.
+      // This is the arrangement the customer chose at checkout — what the shop
+      // is expecting — which is the right thing on a document raised before any
+      // money has moved. What actually arrived belongs on the receipt.
+      {
+        label: "Payment method",
+        value: describePaymentArrangement(order.preferredPaymentMethod, order.paymentTiming),
+      },
     ],
     lines: invoiceLines(order),
     subtotals: subtotalRows(order),
@@ -248,6 +271,19 @@ function buildReceipt(
     { label: "Receipt #", value: order.reference },
     { label: "Order date", value: lagosDate(order.placedAt) },
     { label: "Payment", value: payment.status },
+    /*
+      Two different facts under one heading, and the order matters. Once money
+      has been taken this says what it arrived as — cash counted at the counter
+      is not a transfer, and a receipt claiming otherwise is wrong on the one
+      document a customer keeps. Before then it can only state the arrangement,
+      so it is labelled as one.
+    */
+    payment.settledMethod === null
+      ? {
+          label: "Method expected",
+          value: describePaymentArrangement(order.preferredPaymentMethod, order.paymentTiming),
+        }
+      : { label: "Paid with", value: payment.settledMethod },
   ];
   if (payment.receivedAt !== null) {
     meta.push({ label: "Received", value: lagosDateTime(payment.receivedAt) });
