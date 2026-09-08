@@ -158,6 +158,12 @@ story.append(Paragraph(
 story.append(Paragraph(
     "All of them live in <b>Admin &rarr; Settings</b>, and you can change any of "
     "them yourself at any time. Nothing here needs us.", S["body"]))
+story.append(Paragraph(
+    "You do not have to remember this page. Your dashboard shows a "
+    "<b>Before you open</b> list naming whatever is still missing, with the ones "
+    "that stop a sale marked and listed first. Each row links straight to the "
+    "screen that fixes it, and the whole list disappears once nothing is left.",
+    S["body"]))
 story.append(Spacer(1, 4))
 story.append(table([
     ["What", "Where it shows", "If you leave it"],
@@ -181,7 +187,7 @@ story.append(Spacer(1, 8))
 story.append(panel("The one that stops sales", [
     "Until the bank account is filled in, a customer can add to cart, check out "
     "and place an order — then reach a payment screen with no account to pay "
-    "into. Set this first.",
+    "into. Set this first. It sits at the top of the dashboard list until you do.",
 ], tone="alert"))
 story.append(PageBreak())
 
