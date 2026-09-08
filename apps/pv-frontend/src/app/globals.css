@@ -945,23 +945,42 @@ nav[aria-label="Breadcrumb"] + .section-space {
   }
 }
 
-/* The category showcase, desktop only (components/category-mosaic.tsx).
+/* The category showcase (components/category-mosaic.tsx).
 
    Shares `.pv-deck-track` with the hero, so both are the browser's own
    horizontal scroll with snap points rather than a carousel library. What is
    different here is the framing: the name sits over the middle of the picture
-   instead of in a corner, so the picture has to be treated to carry it. */
+   instead of in a corner, so the picture has to be treated to carry it.
+
+   One deck at every width. The shape is what changes, not the markup: a phone
+   gets a near-square tile it can swipe, a desktop gets the wide band the client
+   asked for. Two aspect ratios are cheaper than two DOM trees, which is what
+   this was before — and a phone no longer downloads markup for a layout it
+   will never show. */
 .pv-cat-slide {
   position: relative;
   scroll-snap-align: center;
   display: grid;
   place-items: center;
   isolation: isolate;
-  /* Wide and generous — the client asked for the image to expand on desktop,
-     and this is the band that does it. */
-  aspect-ratio: 16 / 7;
-  max-height: 32rem;
+  /* Base is the phone: close to square, the shape the cards already had, and
+     short enough that the row below it is still visible at 360 px. A slide that
+     fills the screen is a slide nobody knows to swipe. */
+  aspect-ratio: 4 / 3.4;
   overflow: hidden;
+}
+@media (min-width: 640px) {
+  .pv-cat-slide {
+    aspect-ratio: 16 / 9;
+  }
+}
+@media (min-width: 1024px) {
+  .pv-cat-slide {
+    /* Wide and generous — the client asked for the image to expand on desktop,
+       and this is the band that does it. */
+    aspect-ratio: 16 / 7;
+    max-height: 32rem;
+  }
 }
 
 /* Nearly sharp, and nearly full brightness.
@@ -1013,17 +1032,11 @@ nav[aria-label="Breadcrumb"] + .section-space {
    how the pictures looked. The name is large text and needed only 3:1 either
    way.
 
-   One declaration, used by both presentations, so the phone and the desktop
-   deck cannot drift into treating the same photograph differently. */
-.pv-cat-scrim {
-  background: radial-gradient(
-    ellipse 92% 62% at 50% 50%,
-    rgba(40, 0, 3, 0.6) 0%,
-    rgba(40, 0, 3, 0.56) 55%,
-    rgba(40, 0, 3, 0.16) 100%
-  );
-}
-
+   A pseudo-element on the slide rather than a span in the markup: it is
+   decoration with no meaning, so it has no business being a node a screen
+   reader has to skip. It was also declared twice — once here and once as a
+   class the phone cards used — and the two copies were kept in step by hand.
+   One deck means one declaration, which is one fewer thing to drift. */
 .pv-cat-slide::after {
   content: "";
   position: absolute;
@@ -1081,19 +1094,30 @@ nav[aria-label="Breadcrumb"] + .section-space {
 .pv-cat-body {
   display: grid;
   justify-items: center;
-  gap: 1.5rem;
-  padding: 2rem;
+  /* Tighter on a phone, where the tile is short and the gap is the first thing
+     that pushes the button off the picture. */
+  gap: 1rem;
+  padding: 1.25rem;
   text-align: center;
 }
+@media (min-width: 640px) {
+  .pv-cat-body {
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+}
 
+/* Uppercase, as the phone cards had it and as the client's reference shows.
+   The size is viewport-relative between two fixed ends, so one rule covers a
+   360 px tile and a 32rem band without a breakpoint in the middle. */
 .pv-cat-title {
   font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
-  font-size: clamp(2.2rem, 4.4vw, 3.6rem);
+  font-size: clamp(1.5rem, 5.2vw, 3.6rem);
   font-weight: 800;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.01em;
   color: #ffffff;
-  text-transform: capitalize;
+  text-transform: uppercase;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
 
@@ -1103,8 +1127,11 @@ nav[aria-label="Breadcrumb"] + .section-space {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3rem;
-  padding: 0.8rem 2.2rem;
+  /* 44 px even on the smallest tile (AGENTS.md section 2) — this is the target a
+     thumb reaches for, and it is sitting on a photograph with nothing else
+     nearby to catch a miss. */
+  min-height: 2.75rem;
+  padding: 0.7rem 1.8rem;
   border: 1px solid #ffffff;
   border-radius: 0;
   background: transparent;
@@ -1145,53 +1172,6 @@ nav[aria-label="Breadcrumb"] + .section-space {
   50%,
   100% {
     opacity: 0;
-  }
-}
-
-/* The mobile category card, framed like the deck above it.
-
-   Smaller type and a smaller button than `.pv-cat-title`/`.pv-cat-cta`, because
-   this is a card in a stack rather than a band the width of a screen — but the
-   same centring, the same wash and the same square button, so the shop does not
-   look like two different designs depending on what you opened it on. */
-.pv-cat-card-body {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 0.9rem;
-  padding: 1rem;
-}
-
-.pv-cat-card-title {
-  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
-  font-size: clamp(1.1rem, 5vw, 1.5rem);
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #ffffff;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
-}
-
-.pv-cat-card-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.55rem 1.35rem;
-  border: 1px solid #ffffff;
-  border-radius: 0;
-  color: #ffffff;
-  font-family: var(--pv-font-display), var(--pv-font-sans), sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  /* The button arrives; the name and the photograph are simply there. Animating
-     all three would be three things moving on every card in a scrolling list. */
-  .pv-cat-card-cta {
-    animation: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 }
 

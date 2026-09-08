@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getOrderById = vi.fn();
 const listProofsForOrder = vi.fn();
 const readSettings = vi.fn();
+const readSettlement = vi.fn();
 
 vi.mock("../src/services/orders", () => ({ getOrderById }));
 vi.mock("../src/services/payments", () => ({ listProofsForOrder }));
 vi.mock("../src/services/settings", () => ({ readSettings }));
+vi.mock("../src/services/counter-payments", () => ({ readSettlement }));
 
 const { buildOrderDocument } = await import("../src/services/order-documents");
 const { pdfText } = await import("./helpers/pdf-text");
@@ -27,6 +29,9 @@ const order = {
   reference: "PV-7Q4K2-M8XZP",
   status: "proof_submitted",
   fulfilment: "delivery",
+  paymentTiming: "online",
+  preferredPaymentMethod: "bank_transfer",
+  preferredPickupAt: null,
   customerId: "customer-1",
   contactName: "Ada Test",
   contactEmail: "ada@test.invalid",
@@ -66,6 +71,7 @@ beforeEach(() => {
   getOrderById.mockResolvedValue(order);
   listProofsForOrder.mockResolvedValue([]);
   readSettings.mockResolvedValue(settingsMap());
+  readSettlement.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -97,22 +103,38 @@ describe("the order invoice", () => {
     expect(text).toContain("14,000.00");
   });
 
-  it("carries no bank details", async () => {
+  it("carries no bank details, even when they are configured", async () => {
+    // Offered to the builder deliberately. `DOCUMENT_SETTINGS` does not ask for
+    // these keys, so this proves the document does not reach past what it
+    // requested rather than merely that the shop has not filled them in.
     readSettings.mockResolvedValue(
       settingsMap({
         "store.address": "12 Example Road",
         "store.contact_email": "shop@test.invalid",
+        "bank.account_name": "Pouch Villa Ventures",
+        "bank.account_number": "0123456789",
+        "bank.bank_name": "Zenith",
       }),
     );
 
     const document = await buildOrderDocument("order-1", "invoice");
     const text = pdfText(document!.bytes);
 
-    // §5, and the same reasoning that keeps them out of the proof-rejected
-    // email: the transfer details belong in the message the customer pays from,
-    // not in a PDF that forwards more easily than it does.
+    /*
+      §5, and the same reasoning that keeps them out of the proof-rejected
+      email: the transfer details belong in the message the customer pays from,
+      not in a PDF that forwards more easily than it does.
+
+      The assertion is on the details themselves, not on the word "bank". It
+      used to be the word, which was a cheap proxy that also forbade the invoice
+      from naming *how* the order is to be settled — and "Bank transfer" as a
+      payment method carries no account, no sort code and no holder. Nothing a
+      customer could pay into leaks from a channel name.
+    */
+    expect(text).not.toContain("0123456789");
+    expect(text).not.toContain("Pouch Villa Ventures");
+    expect(text).not.toContain("Zenith");
     expect(text).not.toMatch(/account/i);
-    expect(text).not.toMatch(/bank/i);
   });
 
   it("names the file after the order, never after an id", async () => {
@@ -197,5 +219,70 @@ describe("a missing order", () => {
   it("produces nothing rather than a blank invoice", async () => {
     getOrderById.mockResolvedValue(null);
     await expect(buildOrderDocument("nope", "invoice")).resolves.toBeNull();
+  });
+});
+
+/**
+ * The client asked the invoice to say how the order is paid for. Two documents,
+ * two different truths: the invoice states the arrangement because it is raised
+ * before any money moves, and the receipt states what actually arrived.
+ */
+describe("payment method on the documents", () => {
+  it("states the arrangement on the invoice", async () => {
+    const built = await buildOrderDocument("order-1", "invoice");
+    const text = await pdfText(built!.bytes);
+    expect(text).toContain("Payment method");
+    expect(text).toContain("Bank transfer");
+  });
+
+  it("says cash on collection where that is what was arranged", async () => {
+    getOrderById.mockResolvedValue({
+      ...order,
+      fulfilment: "pickup",
+      paymentTiming: "on_collection",
+      preferredPaymentMethod: "cash",
+    });
+
+    const text = await pdfText((await buildOrderDocument("order-1", "invoice"))!.bytes);
+    expect(text).toContain("Cash on collection");
+  });
+
+  it("names the POS without calling it a transfer", async () => {
+    getOrderById.mockResolvedValue({
+      ...order,
+      fulfilment: "pickup",
+      paymentTiming: "on_collection",
+      preferredPaymentMethod: "pos_card",
+    });
+
+    const text = await pdfText((await buildOrderDocument("order-1", "invoice"))!.bytes);
+    expect(text).toContain("Card (POS) on collection");
+    expect(text).not.toContain("Bank transfer");
+  });
+
+  it("records what the money actually arrived as on a settled receipt", async () => {
+    getOrderById.mockResolvedValue({ ...order, status: "payment_confirmed" });
+    readSettlement.mockResolvedValue({ method: "cash", timing: "on_collection", note: null });
+
+    const text = await pdfText((await buildOrderDocument("order-1", "receipt"))!.bytes);
+    expect(text).toContain("Paid with");
+    expect(text).toContain("Cash");
+  });
+
+  it("will not claim a method on a receipt for money that has not arrived", async () => {
+    // Cash was arranged, but nobody has walked in yet. The receipt may say what
+    // is expected; it may not say the shop was paid in cash.
+    getOrderById.mockResolvedValue({
+      ...order,
+      status: "awaiting_payment",
+      fulfilment: "pickup",
+      paymentTiming: "on_collection",
+      preferredPaymentMethod: "cash",
+    });
+    readSettlement.mockResolvedValue(null);
+
+    const text = await pdfText((await buildOrderDocument("order-1", "receipt"))!.bytes);
+    expect(text).toContain("Method expected");
+    expect(text).not.toContain("Paid with");
   });
 });

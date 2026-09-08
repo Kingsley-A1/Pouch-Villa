@@ -7,132 +7,41 @@ import { DeckControls } from "./deck-controls";
 const DECK_TRACK_ID = "pv-category-track";
 
 /**
- * The ways into the shop.
+ * The ways into the shop: one category at a time, on every screen.
  *
- * **Two presentations, not one responsive layout.** On a desktop the client
- * asked for a full-bleed deck that moves on its own — one category at a time,
- * its name over the middle of the photograph and a square button under it. On a
- * phone that would be a single enormous tile the visitor has to wait out, so
- * below `lg` this stays the stack of cards it already was.
+ * **One presentation, not two.** This used to be a deck on desktop and a stack
+ * of cards on a phone, on the reasoning that a slide somebody has to wait out is
+ * worse than a list they can scroll past. The client asked for the deck on the
+ * phone too, and they are right about their own shop — the categories are the
+ * front door, and two of them stacked pushed everything else below the fold.
  *
- * Both read the same rows, so the shop is never showing two different sets of
- * categories depending on what you opened it on. The desktop track is a Server
- * Component like the hero's, with one shared controls island for autoplay.
+ * Collapsing the two also removes a real cost that was invisible in a
+ * screenshot: both trees were in the HTML at once with CSS choosing between
+ * them, so every phone downloaded the markup for a layout it would never show.
  *
- * There is no product count on either. The client asked for it gone: on a
- * photograph the size of a screen, "5 items" is the smallest true thing that
- * could be said and it was competing with the name.
+ * The deck is the browser's own scroll-snap strip, so on a phone it is a swipe
+ * with no JavaScript involved. `DeckControls` adds autoplay, arrows and dots on
+ * top, and stops for good the moment somebody touches it — which is what makes
+ * this a deck the visitor drives rather than one that moves under them.
+ *
+ * There is no product count. The client asked for it gone: on a photograph the
+ * size of a screen, "5 items" is the smallest true thing that could be said and
+ * it was competing with the name.
  */
 export function CategoryMosaic({ categories }: { categories: CategoryCard[] }) {
   if (categories.length === 0) return null;
-
-  return (
-    <>
-      <div className="container-shell lg:hidden">
-        <MobileStack categories={categories} />
-      </div>
-      <div className="hidden lg:block">
-        <DesktopDeck categories={categories} />
-      </div>
-    </>
-  );
+  return <CategoryDeck categories={categories} />;
 }
 
 /**
- * Mobile: a stack of square cards, framed like the desktop deck.
- *
- * The client asked for the same treatment here — the name over the middle of
- * the picture rather than on a plate in the corner, the picture blurred behind
- * it, and a Shop now that arrives rather than simply being there.
- *
- * It stays a *stack* rather than becoming a deck, because a full-height slide a
- * visitor has to wait two seconds to get past is a worse phone experience than
- * scrolling, whatever it looks like in a screenshot.
- *
- * "Shop now" is an `aria-hidden` span, not a button. The whole card is already
- * the link, and a control nested inside a link is invalid HTML that browsers
- * resolve by following the link anyway — the same rule the product card's
- * "View" follows.
- */
-function MobileStack({ categories }: { categories: CategoryCard[] }) {
-  return (
-    <ul className="grid gap-2.5 sm:grid-cols-2">
-      {categories.map((category, index) => (
-        <li key={category.id}>
-          <Link
-            href={`/browse/${category.slug}`}
-            className={cn(
-              "group relative grid aspect-square place-items-center overflow-hidden",
-              // `isolate` is load-bearing, not tidiness. `.pv-cat-photo` paints
-              // at `z-index: -2`, and a negative-z child only stays above its
-              // parent's own background while that parent is a stacking
-              // context. Without it the photograph — and the lettered fallback,
-              // which carries the same class — painted *behind* this card's
-              // `bg-(--pv-surface)`, so every category on a phone was a plain
-              // red square. `.pv-cat-slide` has carried `isolation: isolate`
-              // from the start, which is why the desktop deck never showed it.
-              "isolate rounded-none bg-(--pv-surface) text-center",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-focus)",
-            )}
-          >
-            <Art
-              category={category}
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="pv-cat-photo"
-            />
-            {/* The same scrim the deck uses, so a bright photograph cannot take
-                the name below AA on either presentation. Strongest across the
-                middle where the words are, easing off at the edges — which is
-                what lets the picture itself stay bright. */}
-            <span aria-hidden="true" className="pv-cat-scrim absolute inset-0" />
-
-            <span className="pv-cat-card-body">
-              <span className="pv-cat-card-title">{category.name}</span>
-              <span
-                aria-hidden="true"
-                // Staggered per card so a column of them arrives in order
-                // rather than all at once. Capped, or the fifth card would sit
-                // blank for most of a second.
-                //
-                // `pv-loop` is what stops the halo under prefers-reduced-motion:
-                // the global rule collapses durations to 0.01ms, which on an
-                // infinite animation is a strobe rather than a stop.
-                className={cn(
-                  "pv-cat-card-cta pv-cta-halo pv-loop",
-                  CARD_DELAYS[Math.min(index, 3)],
-                )}
-              >
-                Shop now
-              </span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * Utility classes, never `style` attributes — a style attribute needs
- * `style-src-attr 'unsafe-inline'`, which §5 rules out and `verify-routes.mjs`
- * fails the build on.
- */
-const CARD_DELAYS = [
-  "[animation-delay:120ms]",
-  "[animation-delay:200ms]",
-  "[animation-delay:280ms]",
-  "[animation-delay:360ms]",
-] as const;
-
-/**
- * Desktop: one category at a time, full width.
+ * One category at a time, taller on a phone and wider on a desktop.
  *
  * The photograph is blurred and darkened a little. That is not decoration — the
  * name sits over the middle of an arbitrary image the CEO uploaded, and there is
  * no other way to keep white text above 4.5:1 on a picture nobody has measured.
  * The blur is slight enough that the product is still legible behind it.
  */
-function DesktopDeck({ categories }: { categories: CategoryCard[] }) {
+function CategoryDeck({ categories }: { categories: CategoryCard[] }) {
   return (
     <section className="relative" aria-roledescription="carousel" aria-label="Shop by category">
       <div id={DECK_TRACK_ID} className="pv-deck-track">
@@ -157,8 +66,14 @@ function DesktopDeck({ categories }: { categories: CategoryCard[] }) {
         ))}
       </div>
 
+      {/*
+        Four seconds, not two. Two was chosen when this only ran on a desktop,
+        where the whole band is taken in at a glance. On a phone the slide is
+        most of the screen and there is more to read, so the same cadence reads
+        as the page moving on before you are done with it.
+      */}
       {categories.length > 1 ? (
-        <DeckControls count={categories.length} trackId={DECK_TRACK_ID} intervalMs={2000} />
+        <DeckControls count={categories.length} trackId={DECK_TRACK_ID} intervalMs={4000} />
       ) : null}
     </section>
   );

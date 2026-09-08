@@ -81,3 +81,17 @@ export function isCounterMethod(method: PaymentMethod): boolean {
 export function needsTransferInstructions(method: PaymentMethod): boolean {
   return method === "bank_transfer";
 }
+
+/**
+ * How the money is arranged, as one phrase for a document.
+ *
+ * An invoice is a statement of what is owed, and "what is owed" is incomplete
+ * without how it is to be settled — a customer holding a printed invoice that
+ * says only an amount has to remember whether they agreed to transfer or to
+ * bring cash. Timing and method are two columns and one sentence here, because
+ * "Cash" alone on an invoice does not say when.
+ */
+export function describePaymentArrangement(method: PaymentMethod, timing: PaymentTiming): string {
+  const named = method === "pos_card" ? "Card (POS)" : describePaymentMethod(method);
+  return timing === "on_collection" ? `${named} on collection` : named;
+}
