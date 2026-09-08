@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Package, Warning } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, CheckCircle, Package, Warning } from "@phosphor-icons/react/dist/ssr";
 import { requireStaffPrincipal } from "@/server/session";
 import { permissionsForRole } from "@pv/backend/services/roles";
 import { countAllProducts } from "@pv/backend/services/catalogue";
@@ -13,6 +13,7 @@ import {
   readDashboardTotals,
   readLowStock,
 } from "@pv/backend/services/dashboard";
+import { readSetupChecklist } from "@pv/backend/services/setup-checklist";
 import { buildDashboardCards } from "./dashboard-view-model";
 
 export const dynamic = "force-dynamic";
@@ -50,22 +51,34 @@ export default async function DashboardPage() {
 
   const canSeeOrders = granted.has("order.view");
 
-  const [totals, queues, lowStock, products, categories, brands, activeStaff, customers] =
-    await Promise.all([
-      canSeeOrders ? readDashboardTotals() : null,
-      readAttentionQueues(),
-      granted.has("product.view") ? readLowStock() : null,
-      granted.has("product.view") ? countAllProducts() : null,
-      granted.has("category.manage") ? countCategories() : null,
-      granted.has("category.manage") ? countBrands() : null,
-      granted.has("staff.view") ? countStaff() : null,
-      granted.has("customer.view") ? countCustomers() : null,
-    ]);
+  const [
+    totals,
+    queues,
+    setupTasks,
+    lowStock,
+    products,
+    categories,
+    brands,
+    activeStaff,
+    customers,
+  ] = await Promise.all([
+    canSeeOrders ? readDashboardTotals() : null,
+    readAttentionQueues(),
+    readSetupChecklist(),
+    granted.has("product.view") ? readLowStock() : null,
+    granted.has("product.view") ? countAllProducts() : null,
+    granted.has("category.manage") ? countCategories() : null,
+    granted.has("category.manage") ? countBrands() : null,
+    granted.has("staff.view") ? countStaff() : null,
+    granted.has("customer.view") ? countCustomers() : null,
+  ]);
 
   const attention = queues
     .filter((entry) => granted.has(entry.permission))
     .map((entry) => entry.item)
     .filter((item) => item.count > 0);
+
+  const visibleSetup = setupTasks.filter((task) => granted.has(task.permission));
 
   const { sales, overview } = buildDashboardCards({
     totals,
@@ -81,6 +94,64 @@ export default async function DashboardPage() {
       <h1 className="text-2xl font-bold">
         Welcome, <span className="text-(--pv-red)">{principal.fullName.split(" ")[0]}</span>
       </h1>
+
+      {/*
+        Setup comes before everything, and only while it is unfinished.
+
+        The platform is handed over empty on purpose — §0 rule 2 forbids seeding
+        a plausible bank account — so the owner's first session is spent finding
+        out what is missing. Naming the gaps here, by consequence rather than by
+        setting key, is the difference between that discovery happening now and
+        it happening in front of a customer. Each row is filtered by the
+        permission that could close it: telling an Employee the bank details are
+        missing is only noise, because they cannot set them.
+      */}
+      {visibleSetup.length > 0 ? (
+        <section className="mt-6" aria-labelledby="setup">
+          <h2 id="setup" className={SECTION_HEADING}>
+            Before you open
+          </h2>
+          <ul className="mt-3 grid gap-2.5">
+            {visibleSetup.map((task) => (
+              <li key={task.key}>
+                <Link
+                  href={task.href}
+                  className={`flex min-h-14 items-start justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors ${
+                    task.blocking
+                      ? "border-(--pv-red) bg-[color-mix(in_srgb,var(--pv-red)_8%,var(--pv-surface))]"
+                      : "border-(--pv-line) bg-(--pv-surface) hover:border-(--pv-muted)"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-start gap-3">
+                    <CheckCircle
+                      size={20}
+                      className={`mt-0.5 flex-none ${
+                        task.blocking ? "text-(--pv-red)" : "text-(--pv-muted)"
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold">
+                        {task.label}
+                        {/* Stated in words as well as colour (WCAG 2.2 AA). */}
+                        {task.blocking ? (
+                          <span className="ml-2 align-middle text-xs font-bold text-(--pv-red) uppercase">
+                            Blocks sales
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-(--pv-muted)">
+                        {task.consequence}
+                      </span>
+                    </span>
+                  </span>
+                  <ArrowRight size={16} weight="bold" className="mt-1 flex-none" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* What is waiting on a person, first. */}
       {attention.length > 0 ? (
