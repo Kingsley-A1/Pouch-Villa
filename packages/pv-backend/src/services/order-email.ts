@@ -1,5 +1,12 @@
 import { formatKobo, kobo } from "../domain/money";
 import { describeStatus, type OrderStatus } from "../domain/order-status";
+import {
+  describePaymentMethod,
+  needsTransferInstructions,
+  type PaymentMethod,
+  type PaymentTiming,
+} from "../domain/payment-method";
+import { formatLagos } from "../domain/lagos-time";
 import { queryOne, query } from "../db/client";
 import type { EmailBlock } from "./email-template";
 import { readSettings, type SettingKey, type SettingValue } from "./settings";
@@ -28,6 +35,10 @@ type OrderEmailRow = {
   contact_email: string;
   status: OrderStatus;
   fulfilment: string;
+  contact_phone: string;
+  payment_timing: PaymentTiming;
+  preferred_payment_method: PaymentMethod;
+  preferred_pickup_at: Date | null;
   total_kobo: string;
   delivery_fee_kobo: string;
   subtotal_kobo: string;
@@ -42,7 +53,8 @@ type LineRow = {
 
 async function loadOrder(orderId: string) {
   const order = await queryOne<OrderEmailRow>(
-    `SELECT reference, contact_name, contact_email, status, fulfilment,
+    `SELECT reference, contact_name, contact_email, contact_phone, status, fulfilment,
+            payment_timing, preferred_payment_method, preferred_pickup_at,
             total_kobo::STRING AS total_kobo,
             delivery_fee_kobo::STRING AS delivery_fee_kobo,
             subtotal_kobo::STRING AS subtotal_kobo
@@ -106,14 +118,23 @@ export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
   if (loaded === null) return;
   const { order, lines } = loaded;
 
+  /*
+    Two different emails, because two different things happen next.
+
+    A customer paying at the counter is sent an account number and told to upload
+    a receipt — that was the confirmation email before this, and it is the same
+    lie the checkout screen was telling. What that person needs instead is what to
+    say when they walk in and what they are paying.
+  */
+  const payingAtCounter = order.payment_timing === "on_collection";
   const settings = await readSettings(BANK_KEYS);
   const accountName = present(settings, "bank.account_name");
   const accountNumber = present(settings, "bank.account_number");
   const bankName = present(settings, "bank.bank_name");
   const bankKnown = accountName !== null && accountNumber !== null && bankName !== null;
-  const transferBlocks: EmailBlock[] = bankKnown
+
+  const transferDetails: EmailBlock[] = bankKnown
     ? [
-        { type: "paragraph", text: "Pay by transfer using the details below." },
         {
           type: "details",
           rows: [
@@ -125,6 +146,33 @@ export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
         },
       ]
     : [{ type: "paragraph", text: "We will send you the transfer details shortly." }];
+
+  const paymentBlocks: EmailBlock[] = payingAtCounter
+    ? [
+        {
+          type: "paragraph",
+          text: `Your order is reserved. Pay when you collect it — quote ${order.reference} at the counter.`,
+        },
+        {
+          type: "details",
+          rows: [
+            { label: "Paying with", value: describePaymentMethod(order.preferred_payment_method) },
+            {
+              label: "Coming in",
+              value:
+                order.preferred_pickup_at === null
+                  ? "Any time we are open"
+                  : formatLagos(order.preferred_pickup_at),
+            },
+            { label: "Reference", value: order.reference },
+          ],
+        },
+        // Only where a transfer is what they chose. Somebody bringing cash has no
+        // use for an account number, and printing one invites a transfer the shop
+        // is not expecting against an order it has already set aside.
+        ...(needsTransferInstructions(order.preferred_payment_method) ? transferDetails : []),
+      ]
+    : [{ type: "paragraph", text: "Pay by transfer using the details below." }, ...transferDetails];
 
   const attachments = await invoiceAttachment(orderId);
 
@@ -143,11 +191,15 @@ export async function sendOrderPlacedEmail(orderId: string): Promise<void> {
         },
         orderItems(lines),
         { type: "total", label: "Total", value: formatKobo(kobo(Number(order.total_kobo))) },
-        ...transferBlocks,
-        {
-          type: "paragraph",
-          text: "Once you have paid, upload your transfer receipt so we can confirm it.",
-        },
+        ...paymentBlocks,
+        ...(payingAtCounter
+          ? []
+          : [
+              {
+                type: "paragraph" as const,
+                text: "Once you have paid, upload your transfer receipt so we can confirm it.",
+              },
+            ]),
         // Said only when it is true. `invoiceAttachment` degrades to nothing
         // rather than failing the send, and an email that points at an
         // attachment which is not there sends the reader looking for a file
@@ -313,6 +365,56 @@ export async function sendProofAwaitingReviewAlert(orderId: string): Promise<voi
           text: "Open Payments in the admin to view the receipt and confirm or reject it. The receipt itself is only viewable there.",
         },
       ],
+    },
+  });
+}
+
+/**
+ * Tells the shop that somebody is coming in to pay.
+ *
+ * This one is an appointment, not a notification. An order paid at the counter is
+ * a person who will walk through the door expecting their goods to be ready and
+ * the staff member to know the reference — so it carries what the counter needs
+ * to prepare: who, what channel, when, and how much to expect in the till.
+ *
+ * Sent only for a counter order. A transfer order already has its own alert when
+ * the receipt lands, and duplicating it would train staff to skim past both.
+ */
+export async function sendCounterOrderAlert(orderId: string): Promise<void> {
+  const loaded = await loadOrder(orderId);
+  if (loaded === null) return;
+  const { order } = loaded;
+  if (order.payment_timing !== "on_collection") return;
+
+  const when =
+    order.preferred_pickup_at === null
+      ? "Not given — any time you are open"
+      : formatLagos(order.preferred_pickup_at);
+
+  await sendOperationsEmail({
+    subject: `Collecting and paying in store — ${order.reference}`,
+    content: {
+      title: "Someone is coming in to pay",
+      preheader: `Order ${order.reference} will be paid for at the counter.`,
+      blocks: [
+        {
+          type: "details",
+          rows: [
+            { label: "Order reference", value: order.reference },
+            { label: "Customer", value: order.contact_name },
+            { label: "Phone", value: order.contact_phone },
+            { label: "Coming in", value: when },
+            { label: "Paying with", value: describePaymentMethod(order.preferred_payment_method) },
+            { label: "To collect", value: formatKobo(kobo(Number(order.total_kobo))) },
+          ],
+        },
+        {
+          type: "paragraph",
+          text: `Set the order aside. When they arrive, search ${order.reference} in the admin and record the payment against it — that is what puts the money on the order and moves it forward.`,
+        },
+      ],
+      footer:
+        "The amount above is what to expect. What they actually pay with is recorded when you take it.",
     },
   });
 }

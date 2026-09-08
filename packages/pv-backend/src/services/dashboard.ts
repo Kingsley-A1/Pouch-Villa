@@ -114,6 +114,7 @@ export async function readAttentionQueues(): Promise<
     reviews: string;
     enquiries: string;
     to_prepare: string;
+    coming_to_pay: string;
   }>(
     `SELECT
        (SELECT count(*) FROM payment_proof WHERE status = 'pending')::STRING AS proofs,
@@ -122,7 +123,11 @@ export async function readAttentionQueues(): Promise<
        (SELECT count(*) FROM contact_request
          WHERE status = 'new' AND deleted_at IS NULL)::STRING AS enquiries,
        (SELECT count(*) FROM customer_order
-         WHERE status = 'payment_confirmed' AND deleted_at IS NULL)::STRING AS to_prepare`,
+         WHERE status = 'payment_confirmed' AND deleted_at IS NULL)::STRING AS to_prepare,
+       (SELECT count(*) FROM customer_order
+         WHERE payment_timing = 'on_collection'
+           AND status IN ('awaiting_payment', 'proof_submitted')
+           AND deleted_at IS NULL)::STRING AS coming_to_pay`,
   );
   const row = rows[0];
 
@@ -135,6 +140,23 @@ export async function readAttentionQueues(): Promise<
         count: Number(row?.proofs ?? 0),
         href: "/admin/payments?status=pending",
         urgent: true,
+      },
+    },
+    {
+      /*
+        Not urgent, deliberately, even though it sits beside two things that are.
+        Nothing is late here — these are people who have said they are coming, and
+        painting them red every morning would teach staff that red means nothing.
+        What it earns is a place on the first screen, so the order is set aside
+        before somebody walks in for it.
+      */
+      permission: "payment.view",
+      item: {
+        key: "coming_to_pay",
+        label: "Coming in to pay",
+        count: Number(row?.coming_to_pay ?? 0),
+        href: "/admin/payments?status=pending",
+        urgent: false,
       },
     },
     {
