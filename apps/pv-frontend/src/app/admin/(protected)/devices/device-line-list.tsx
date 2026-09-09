@@ -26,7 +26,7 @@ import { saveDeviceLineAction, deleteDeviceLineAction } from "./actions";
  * did — its models flat, everywhere they are shown — so nobody has to sort the
  * whole catalogue before they can save a device.
  */
-function DeviceLineForm({
+export function DeviceLineForm({
   brands,
   editing,
   onDone,
@@ -66,8 +66,14 @@ function DeviceLineForm({
             ))}
           </Select>
         </Field>
-        <Field label="Class name" name="lineName" hint="iPhone, iPad, Galaxy Tab">
-          <TextInput id="lineName" name="name" required defaultValue={editing?.name} />
+        <Field label="Class name" name="lineName">
+          <TextInput
+            id="lineName"
+            name="name"
+            required
+            placeholder="iPhone, iPad, Galaxy Tab"
+            defaultValue={editing?.name}
+          />
         </Field>
         <Field label="Sort order" name="lineSortOrder">
           <TextInput
@@ -95,30 +101,17 @@ export function DeviceLineList({
   lines: AdminDeviceLine[];
   brands: AdminBrand[];
 }) {
-  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold">Device classes</h2>
-          <p className="mt-1 text-sm text-(--pv-muted)">
-            Optional. Group a brand&rsquo;s models — Apple into iPhone and iPad — so a long list
-            reads. A brand with no classes shows its models flat, exactly as it does now.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setEditingId(editingId === "new" ? null : "new")}
-          className="min-h-11 shrink-0 rounded-xl border border-(--pv-line) px-4 text-sm font-bold"
-        >
-          {editingId === "new" ? "Cancel" : "Add class"}
-        </button>
+      <div>
+        <h2 className="text-lg font-bold">Device classes</h2>
+        <p className="mt-1 text-sm text-(--pv-muted)">
+          Optional. Group a brand&rsquo;s models — Apple into iPhone and iPad — so a long list
+          reads. A brand with no classes shows its models flat, exactly as it does now.
+        </p>
       </div>
-
-      {editingId === "new" ? (
-        <DeviceLineForm brands={brands} onDone={() => setEditingId(null)} />
-      ) : null}
 
       {lines.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">

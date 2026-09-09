@@ -15,7 +15,7 @@ import { ConfirmButton } from "@/components/admin/confirm-button";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { saveDeviceAction, deleteDeviceAction } from "./actions";
 
-function DeviceForm({
+export function DeviceForm({
   brands,
   lines,
   editing,
@@ -61,23 +61,29 @@ function DeviceForm({
           </Select>
         </Field>
         <Field label="Model name" name="name">
-          <TextInput name="name" required defaultValue={editing?.name} />
+          <TextInput
+            name="name"
+            required
+            placeholder="iPhone 15 Pro"
+            defaultValue={editing?.name}
+          />
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {/*
-          Optional, and shown even when the brand has no classes — with a hint
-          that says where they come from, so the field explains itself rather
-          than looking broken.
+          Shown even when the brand has no classes, with a hint saying where they
+          come from — so the field explains itself rather than looking broken.
+
+          A `select` takes no placeholder, so this one guidance stays outside the
+          control. Where classes do exist the options say everything a hint would,
+          and "— None —" already says it is optional, so nothing is written.
         */}
         <Field
           label="Class"
           name="lineId"
-          hint={
-            brandLines.length > 0
-              ? "Optional — iPhone, iPad, Galaxy Tab"
-              : "This brand has no classes yet. Add one below."
-          }
+          {...(brandLines.length > 0
+            ? {}
+            : { hint: "This brand has no classes yet. Add one with the button above." })}
         >
           <Select name="lineId" defaultValue={editing?.lineId ?? ""}>
             <option value="">— None —</option>
@@ -88,12 +94,13 @@ function DeviceForm({
             ))}
           </Select>
         </Field>
-        <Field label="Released year" name="releasedYear" hint="Optional">
+        <Field label="Released year" name="releasedYear">
           <TextInput
             name="releasedYear"
             type="number"
             min={1990}
             max={2100}
+            placeholder="2024"
             defaultValue={editing?.releasedYear ?? ""}
           />
         </Field>
@@ -115,6 +122,12 @@ function DeviceForm({
   );
 }
 
+/**
+ * The models, and the inline editor for one of them.
+ *
+ * Adding is not here: both "add" buttons live in the toolbar at the top of the
+ * screen, because this list is long. See `DevicesWorkspace`.
+ */
 export function DeviceList({
   devices,
   brands,
@@ -124,24 +137,11 @@ export function DeviceList({
   brands: AdminBrand[];
   lines: AdminDeviceLine[];
 }) {
-  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Devices</h2>
-        <button
-          type="button"
-          onClick={() => setEditingId(editingId === "new" ? null : "new")}
-          className="min-h-11 rounded-xl border border-(--pv-line) px-4 text-sm font-bold"
-        >
-          {editingId === "new" ? "Cancel" : "Add device"}
-        </button>
-      </div>
-
-      {editingId === "new" ? (
-        <DeviceForm brands={brands} lines={lines} onDone={() => setEditingId(null)} />
-      ) : null}
+      <h2 className="text-lg font-bold">Devices</h2>
 
       {brands.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-(--pv-line) p-6 text-sm text-(--pv-muted)">
