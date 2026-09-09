@@ -86,8 +86,18 @@ export function Field({
 const fieldClass =
   "min-h-11 w-full rounded-xl border border-(--pv-line) bg-(--pv-surface) px-3.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--pv-red)";
 
+/*
+  `id` defaults to the field's name and can be overridden, which is why it sits
+  *before* the spread rather than after it.
+
+  After the spread it was not a default but a rule, and a screen with two forms
+  that share a field name — `/admin/devices` has a Brand select and a Sort order
+  box in both — could not give them distinct ids. That produced duplicate ids on
+  one page, and the attempt to dodge it by renaming the `<Field>` instead
+  detached three labels from their controls entirely.
+*/
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} id={props.name} className={cn(fieldClass, props.className)} />;
+  return <input id={props.name} {...props} className={cn(fieldClass, props.className)} />;
 }
 
 /**
@@ -112,13 +122,13 @@ export function PasswordInput({
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      {...props}
       id={props.name}
+      {...props}
       className={cn(fieldClass, "min-h-28 py-2.5 leading-6", props.className)}
     />
   );
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} id={props.name} className={cn(fieldClass, props.className)} />;
+  return <select id={props.name} {...props} className={cn(fieldClass, props.className)} />;
 }

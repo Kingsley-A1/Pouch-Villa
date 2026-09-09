@@ -46,9 +46,18 @@ function DeviceLineForm({
       className="grid gap-3 rounded-2xl border border-(--pv-line) bg-(--pv-surface) p-4"
     >
       {editing ? <input type="hidden" name="id" value={editing.id} /> : null}
+      {/*
+        `id` is set apart from `name` on all three, and that is load-bearing.
+
+        The device form on this same screen also has a Brand select and a Sort
+        order box, and both forms can be open at once — so sharing the
+        name-derived id would put duplicate ids on the page and let a label focus
+        the other form's control. The names stay as the server action reads them;
+        only the ids are prefixed.
+      */}
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Brand" name="lineBrandId">
-          <Select name="brandId" required defaultValue={editing?.brandId ?? ""}>
+          <Select id="lineBrandId" name="brandId" required defaultValue={editing?.brandId ?? ""}>
             <option value="">— Choose —</option>
             {brands.map((brand) => (
               <option key={brand.id} value={brand.id}>
@@ -58,10 +67,11 @@ function DeviceLineForm({
           </Select>
         </Field>
         <Field label="Class name" name="lineName" hint="iPhone, iPad, Galaxy Tab">
-          <TextInput name="name" required defaultValue={editing?.name} />
+          <TextInput id="lineName" name="name" required defaultValue={editing?.name} />
         </Field>
         <Field label="Sort order" name="lineSortOrder">
           <TextInput
+            id="lineSortOrder"
             name="sortOrder"
             type="number"
             min={0}
