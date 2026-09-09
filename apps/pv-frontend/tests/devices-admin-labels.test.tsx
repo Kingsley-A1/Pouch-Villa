@@ -1,7 +1,6 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DeviceList } from "@/app/admin/(protected)/devices/device-list";
-import { DeviceLineList } from "@/app/admin/(protected)/devices/device-line-list";
+import { DevicesWorkspace } from "@/app/admin/(protected)/devices/devices-workspace";
 
 vi.mock("@/app/admin/(protected)/devices/actions", () => ({
   saveDeviceAction: vi.fn(),
@@ -40,53 +39,59 @@ const lines = [
  * them back at the shared names would satisfy the first assertion and reintroduce
  * the collision the prefixes existed to avoid.
  */
-function renderBothFormsOpen() {
-  const view = render(
-    <>
-      <DeviceList devices={[]} brands={brands as never} lines={lines as never} />
-      <DeviceLineList lines={lines as never} brands={brands as never} />
-    </>,
-  );
-  for (const button of screen.getAllByRole("button", { name: /^Add (device|class)$/ })) {
-    fireEvent.click(button);
-  }
+/**
+ * Only one add-form opens at a time, so the two are rendered separately and
+ * their ids checked against each other — which is the collision that matters:
+ * the class form's inline editor can be open in the list below while the device
+ * form is open at the top.
+ */
+function renderWorkspace() {
+  return render(<DevicesWorkspace devices={[]} brands={brands as never} lines={lines as never} />);
+}
+
+function openAddForm(which: "device" | "class") {
+  const view = renderWorkspace();
+  fireEvent.click(screen.getByRole("button", { name: `Add ${which}` }));
   return view;
 }
 
 afterEach(cleanup);
 
 describe("the devices screen", () => {
-  it("points every label at a control that exists", () => {
-    const { container } = renderBothFormsOpen();
+  it.each(["device", "class"] as const)(
+    "points every label in the %s form at a control that exists",
+    (which) => {
+      const { container } = openAddForm(which);
 
-    const orphaned = [...container.querySelectorAll("label[for]")]
-      .filter(
-        (label) => container.querySelector(`#${CSS.escape(label.getAttribute("for")!)}`) === null,
-      )
-      .map((label) => `${label.textContent} -> ${label.getAttribute("for")}`);
+      const orphaned = [...container.querySelectorAll("label[for]")]
+        .filter(
+          (label) => container.querySelector(`#${CSS.escape(label.getAttribute("for")!)}`) === null,
+        )
+        .map((label) => `${label.textContent} -> ${label.getAttribute("for")}`);
 
-    expect(orphaned).toEqual([]);
-  });
+      expect(orphaned).toEqual([]);
+    },
+  );
 
   it("gives the two forms distinct ids, so a label cannot reach the wrong one", () => {
-    const { container } = renderBothFormsOpen();
+    // Every id either form can put on the page, gathered across both.
+    const ids: string[] = [];
+    for (const which of ["device", "class"] as const) {
+      const { container } = openAddForm(which);
+      ids.push(...[...container.querySelectorAll("[id]")].map((node) => node.id));
+      cleanup();
+    }
 
-    const ids = [...container.querySelectorAll("[id]")].map((node) => node.id);
     const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
-
     expect(duplicated).toEqual([]);
   });
 
   it("still submits the names the server action reads", () => {
-    renderBothFormsOpen();
+    openAddForm("class");
 
-    // The fix moves ids, never names. `saveDeviceLineAction` parses brandId,
+    // The fix moved ids, never names. `saveDeviceLineAction` parses brandId,
     // name and sortOrder off the FormData, so renaming a field to fix a label
     // would break the save instead.
-    const classForm = screen.getByRole("button", { name: "Add class" }).closest("div");
-    const form = within(classForm as HTMLElement).queryAllByRole("combobox");
-    expect(form.length).toBeGreaterThan(0);
-
     const names = [...document.querySelectorAll("form")]
       .flatMap((element) => [...element.querySelectorAll("input,select")])
       .map((node) => node.getAttribute("name"));
@@ -94,5 +99,47 @@ describe("the devices screen", () => {
     expect(names).toContain("brandId");
     expect(names).toContain("name");
     expect(names).toContain("sortOrder");
+  });
+
+  /**
+   * The reason this screen was reworked. Both ways of adding something have to
+   * be reachable without scrolling past a list that grows with the catalogue.
+   */
+  it("offers both add buttons before either list", () => {
+    const { container } = renderWorkspace();
+
+    const order = [...container.querySelectorAll("button,h2")].map(
+      (node) => node.textContent?.trim() ?? "",
+    );
+    const addDevice = order.indexOf("Add device");
+    const addClass = order.indexOf("Add class");
+    const firstHeading = order.indexOf("Devices");
+
+    expect(addDevice).toBeGreaterThanOrEqual(0);
+    expect(addClass).toBeGreaterThanOrEqual(0);
+    expect(Math.max(addDevice, addClass)).toBeLessThan(firstHeading);
+  });
+
+  it("opens the new-class form at the top rather than below the device list", () => {
+    const { container } = openAddForm("class");
+
+    const form = container.querySelector("form");
+    const devicesHeading = [...container.querySelectorAll("h2")].find(
+      (node) => node.textContent === "Devices",
+    );
+
+    expect(form).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING: the heading comes after the form.
+    expect(
+      form!.compareDocumentPosition(devicesHeading!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows one add-form at a time", () => {
+    renderWorkspace();
+    fireEvent.click(screen.getByRole("button", { name: "Add device" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add class" }));
+
+    expect(document.querySelectorAll("form")).toHaveLength(1);
   });
 });

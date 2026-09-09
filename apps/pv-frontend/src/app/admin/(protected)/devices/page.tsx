@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { requirePermission } from "@/server/session";
 import { listAllDeviceLines, listAllDevices } from "@pv/backend/services/devices";
 import { listAllBrands } from "@pv/backend/services/brands";
-import { DeviceList } from "./device-list";
-import { DeviceLineList } from "./device-line-list";
+import { DevicesWorkspace } from "./devices-workspace";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Devices" };
@@ -25,8 +24,7 @@ export default async function DevicesAdminPage() {
           &ldquo;show me what fits my device&rdquo; on the storefront.
         </p>
       </div>
-      <DeviceList devices={devices} brands={brands} lines={lines} />
-      <DeviceLineList lines={lines} brands={brands} />
+      <DevicesWorkspace devices={devices} brands={brands} lines={lines} />
     </div>
   );
 }
