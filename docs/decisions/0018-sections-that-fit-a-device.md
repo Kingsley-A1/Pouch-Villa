@@ -78,9 +78,22 @@ copies is two places for the storefront's artwork rules to drift.
 
 **Run `pnpm run db:migrate`.** Migration `0017_category_fits_devices.sql`.
 
-**The client adds the fifteen types themselves**, under Accessories, in
-Admin → Brands & Categories. They are already CRUD there. Seeding them would put
-a category list in source, which is the rule this ADR is built around.
+**The fifteen types are loaded by a one-off command**, not by the running app:
+
+```
+pnpm --filter @pv/backend seed-accessory-types
+```
+
+It is idempotent, attributes its writes to the CEO for the audit trail, and sets
+the parent section to the by-type kind if that has not been done — a section full
+of types that still asks shoppers which phone they own is the half-applied state
+worth ruling out. `--parent "Name"` targets a section called something else.
+
+This is a bootstrap command rather than a rule in the source, and the distinction
+is the one §4 actually cares about: nothing at runtime reads that list, and every
+type is editable, reorderable and removable in Admin → Brands & Categories the
+moment it exists. `seed-phone-brands.ts` already does exactly this for the makes,
+which are a business fact by the same definition.
 
 **A section with no types renders no Type control**, and a shop with no top-level
 category renders no Section control at all — the same rule the device class

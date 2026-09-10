@@ -187,11 +187,12 @@ Charging Stations · True Wireless Earbuds · Bluetooth Speakers · Smartwatches
 Fitness Trackers · Mobile Camera Lenses · Content Creation Gear · Wireless Mobile
 Microphones · Mobile Gaming Accessories · Bluetooth Smart Trackers
 
-**These are recorded here and not seeded into source.** A category list is
-named in [`AGENTS.md`](../AGENTS.md) §4 as a business fact, and this one is
-already proving the point — it will change as their stock does. They are added
-once in **Admin → Brands & Categories**, each with **Accessories** as its parent,
-and edited or removed there afterwards without a deployment.
+**Loaded by a one-off command, not read at runtime.** A category list is named
+in [`AGENTS.md`](../AGENTS.md) §4 as a business fact, and this one is already
+proving the point — it will change as their stock does. So
+`pnpm --filter @pv/backend seed-accessory-types` puts them in once, idempotently,
+and every one is edited, reordered or removed in **Admin → Brands & Categories**
+afterwards without a deployment. Nothing in the running app reads the list.
 
 How the two sections differ is a setting on the top-level category — _products
 here fit a specific device_ — rather than a rule reading the word "Accessories",
