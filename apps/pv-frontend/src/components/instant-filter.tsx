@@ -72,7 +72,12 @@ export function InstantFilter({
         <input
           id={inputId}
           type="search"
-          className="field w-full pl-10"
+          // `.field-icon`, not `pl-10`: `.field` sets its own padding as a
+          // shorthand and is declared after Tailwind's utilities in
+          // globals.css, so at equal specificity `pl-10` lost the cascade and
+          // the placeholder — and whatever was typed — ran in underneath the
+          // magnifying glass instead of starting to its right.
+          className="field field-icon w-full"
           placeholder={placeholder}
           value={query}
           autoComplete="off"

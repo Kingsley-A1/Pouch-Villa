@@ -105,4 +105,20 @@ describe("instant filter", () => {
       expect(items.every((item) => !item.hidden)).toBe(true);
     });
   });
+
+  /**
+   * `.field` sets its own padding as a shorthand and is declared after
+   * Tailwind's utilities in globals.css, so a `pl-10` utility here loses the
+   * cascade at equal specificity and the placeholder — and whatever is typed —
+   * runs in underneath the magnifying glass rather than starting to its right.
+   * `.field-icon` is the house fix for exactly that pairing (see the comment
+   * beside it in globals.css); this pins the input to it so the bug cannot come
+   * back by way of a `pl-*` utility that looks reasonable in isolation.
+   */
+  it("uses the cascade-safe icon padding, not a pl-* utility field loses to", () => {
+    setup();
+    const field = screen.getByLabelText("Find a make");
+    expect(field.className).toContain("field-icon");
+    expect(field.className).not.toMatch(/\bpl-\d/);
+  });
 });

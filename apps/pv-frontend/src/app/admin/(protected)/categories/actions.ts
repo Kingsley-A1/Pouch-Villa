@@ -40,7 +40,12 @@ export async function saveCategoryAction(
   } catch (error) {
     return toActionError(error, "The category could not be saved.");
   }
+  // Two pages read the category tree: this one manages sections and their
+  // "browsed by" setting, and /types manages what sits under a by-type
+  // section. Either can be the one a save comes from, so both are revalidated
+  // rather than only the path the form happened to submit from.
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/categories/types");
   return { error: null, message: "Category saved." };
 }
 
@@ -48,6 +53,7 @@ export async function setCategoryActiveAction(id: string, isActive: boolean) {
   const principal = await requirePermission("category.manage");
   await categories.setCategoryActive(id, isActive, { staffId: principal.staffId });
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/categories/types");
 }
 
 export async function deleteCategoryAction(id: string, reason: string): Promise<ActionState> {
@@ -58,6 +64,7 @@ export async function deleteCategoryAction(id: string, reason: string): Promise<
     return toActionError(error, "The category could not be removed.");
   }
   revalidatePath("/admin/categories");
+  revalidatePath("/admin/categories/types");
   return { error: null };
 }
 

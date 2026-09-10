@@ -14,6 +14,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { label: "Storefront", href: "/admin/storefront", permission: "product.manage" },
   { label: "Brands & Categories", href: "/admin/categories", permission: "category.manage" },
   { label: "Devices", href: "/admin/devices", permission: "category.manage" },
+  { label: "Types", href: "/admin/categories/types", permission: "category.manage" },
   { label: "Delivery Zones", href: "/admin/delivery", permission: "delivery.manage" },
   { label: "Orders", href: "/admin/orders", permission: "order.view" },
   { label: "Payments & Proofs", href: "/admin/payments", permission: "payment.view" },
