@@ -1,38 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { ImageSquare, Plus } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowRight } from "@phosphor-icons/react";
 import type { AdminCategory } from "@pv/backend/services/categories";
-import { ConfirmButton } from "@/components/admin/confirm-button";
 import { cn } from "@/lib/utils";
 import { CategoryForm } from "./category-form";
-import { setCategoryActiveAction, deleteCategoryAction } from "./actions";
+import { CategoryRowActions, HiddenPill } from "./category-row-actions";
 
-/** Which form is open: nothing, a new section, a new type under a section, or an edit. */
-type Editing =
-  | { kind: "none" }
-  | { kind: "section" }
-  | { kind: "type"; parentId: string }
-  | { kind: "edit"; id: string };
+/** Which form is open: nothing, a new section, or editing an existing one. */
+type Editing = { kind: "none" } | { kind: "section" } | { kind: "edit"; id: string };
 
 /**
- * The catalogue's shape, as the shop's own two tiers rather than a flat tree.
+ * The shop's sections, and how each one is browsed.
  *
- * It was one list with a single "Add category" button and a parent dropdown
- * inside the form, which made two things invisible. Nothing said how a section
- * is browsed — so Accessories could sit set to "by device" and go on asking
- * shoppers which phone they own, with no sign of it on this screen. And adding a
- * type meant knowing that a type *is* a category with a parent, which is our
- * word for it, not the client's.
- *
- * Each section now says how it is browsed and carries its own "Add type", so
- * both are answered by looking at the page.
+ * This used to also carry every by-type section's types, nested underneath it
+ * with their own "Add type" button — including under Pouches, which is browsed
+ * by device and has no use for a type at all. That put a control that does
+ * nothing useful on the section staff open most, and buried the rare job of
+ * shaping the shop under the frequent one of stocking it. Types now live at
+ * Admin → Categories → Types, reading and writing the same rows through the
+ * same actions; this screen only decides what a section *is*.
  */
 export function CategoryList({ categories }: { categories: AdminCategory[] }) {
   const [editing, setEditing] = useState<Editing>({ kind: "none" });
   const sections = categories.filter((category) => category.parentId === null);
-  const typesOf = (parentId: string) =>
-    categories.filter((category) => category.parentId === parentId);
+  const typeCount = (parentId: string) =>
+    categories.filter((category) => category.parentId === parentId).length;
 
   const close = () => setEditing({ kind: "none" });
 
@@ -102,7 +96,7 @@ export function CategoryList({ categories }: { categories: AdminCategory[] }) {
                         </span>
                       </p>
                     </div>
-                    <RowActions
+                    <CategoryRowActions
                       category={section}
                       onEdit={() => setEditing({ kind: "edit", id: section.id })}
                     />
@@ -113,131 +107,30 @@ export function CategoryList({ categories }: { categories: AdminCategory[] }) {
                       ? "Shoppers pick a make, then a model. Staff are asked for a brand and the devices a product fits."
                       : "Shoppers pick a type. Staff are asked for a type and nothing about devices."}
                   </p>
+
+                  {/*
+                    Only for a by-type section, and only a link — never the
+                    types themselves. A device-fitting section like Pouches has
+                    no type concept at all, so nothing about types appears on
+                    it here, not even an empty count.
+                  */}
+                  {!section.fitsDevices ? (
+                    <Link
+                      href="/admin/categories/types"
+                      className="mt-3 inline-flex min-h-11 items-center gap-1.5 border-t border-(--pv-line) pt-3 text-sm font-bold text-(--pv-red)"
+                    >
+                      {typeCount(section.id) === 0
+                        ? "No types yet — add one"
+                        : `${typeCount(section.id)} type${typeCount(section.id) === 1 ? "" : "s"}`}
+                      <ArrowRight aria-hidden="true" size={14} weight="bold" />
+                    </Link>
+                  ) : null}
                 </>
               )}
-
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-(--pv-line) pt-3">
-                <p className="text-sm font-semibold">
-                  {typesOf(section.id).length === 0
-                    ? "No types yet"
-                    : `${typesOf(section.id).length} type${typesOf(section.id).length === 1 ? "" : "s"}`}
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditing((current) =>
-                      current.kind === "type" && current.parentId === section.id
-                        ? { kind: "none" }
-                        : { kind: "type", parentId: section.id },
-                    )
-                  }
-                  // Named for the section it belongs to. Three "Add type"
-                  // buttons on one screen are indistinguishable to anyone not
-                  // seeing which card they sit in (WCAG 2.2 AA), and the visible
-                  // label stays inside the accessible one (2.5.3).
-                  aria-label={
-                    editing.kind === "type" && editing.parentId === section.id
-                      ? `Cancel adding a type to ${section.name}`
-                      : `Add type to ${section.name}`
-                  }
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-(--pv-line) px-4 text-sm font-bold hover:border-(--pv-red)"
-                >
-                  {editing.kind === "type" && editing.parentId === section.id ? (
-                    "Cancel"
-                  ) : (
-                    <>
-                      <Plus aria-hidden="true" size={15} weight="bold" />
-                      Add type
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/*
-                Opens under the section it belongs to, with the parent already
-                chosen. Adding a type used to mean knowing a type is a category
-                with a parent, which is our word for it rather than the client's.
-              */}
-              {editing.kind === "type" && editing.parentId === section.id ? (
-                <div className="mt-3">
-                  <CategoryForm parents={categories} fixedParentId={section.id} onDone={close} />
-                </div>
-              ) : null}
-
-              {typesOf(section.id).length > 0 ? (
-                <ul className="mt-3 ml-1 grid gap-2 border-l border-(--pv-line) pl-4">
-                  {typesOf(section.id).map((type) => (
-                    <li key={type.id}>
-                      {editing.kind === "edit" && editing.id === type.id ? (
-                        <CategoryForm parents={categories} editing={type} onDone={close} />
-                      ) : (
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-bold break-words">
-                              {type.name}
-                              {!type.isActive ? <HiddenPill /> : null}
-                            </p>
-                            <p className="flex items-center gap-1.5 text-xs text-(--pv-muted)">
-                              /{type.slug}
-                              {/*
-                                Said on the row, because a type with no
-                                photograph draws a lettered panel on the shop
-                                and there was no way to see which ones were
-                                still doing that short of visiting each.
-                              */}
-                              {type.image === null ? (
-                                <>
-                                  <span aria-hidden="true">·</span>
-                                  <ImageSquare aria-hidden="true" size={13} weight="bold" />
-                                  no picture yet
-                                </>
-                              ) : null}
-                            </p>
-                          </div>
-                          <RowActions
-                            category={type}
-                            onEdit={() => setEditing({ kind: "edit", id: type.id })}
-                          />
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </li>
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-function HiddenPill() {
-  return (
-    <span className="ml-2 rounded-full bg-(--pv-wash) px-2 py-0.5 text-xs font-semibold text-(--pv-muted)">
-      Hidden
-    </span>
-  );
-}
-
-function RowActions({ category, onEdit }: { category: AdminCategory; onEdit: () => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      <button type="button" onClick={onEdit} className="min-h-11 text-sm font-bold text-(--pv-red)">
-        Edit
-      </button>
-      <button
-        type="button"
-        onClick={() => setCategoryActiveAction(category.id, !category.isActive)}
-        className="min-h-11 text-sm font-semibold text-(--pv-ink)"
-      >
-        {category.isActive ? "Hide" : "Show"}
-      </button>
-      <ConfirmButton
-        label="Remove"
-        confirmLabel="Remove"
-        onConfirm={() => deleteCategoryAction(category.id, "Removed from admin").then(() => {})}
-      />
     </div>
   );
 }

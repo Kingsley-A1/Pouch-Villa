@@ -31,9 +31,7 @@ const category = (
 const categories = [
   category("pouches", "Pouches", null, { fitsDevices: true }),
   category("accessories", "Accessories", null, { fitsDevices: false }),
-  category("power-banks", "Power Banks", "accessories", {
-    image: { cardUrl: "/p.jpg", thumbUrl: "/p.jpg", heroUrl: "/p.jpg", width: 8, height: 8 },
-  }),
+  category("power-banks", "Power Banks", "accessories"),
   category("cables", "USB Cables", "accessories"),
 ];
 
@@ -55,9 +53,11 @@ function sectionCard(name: string): HTMLElement {
 afterEach(cleanup);
 
 /**
- * The screen where the shop's shape is set. Two things were invisible on it and
- * both cost the client real time: how a section is browsed, and how to add a
- * type without knowing that a type is a category with a parent.
+ * The screen where a section's shape is set — how it is browsed, whether it is
+ * shown at all. What it stocks (a section's types) moved to its own page: see
+ * `types-admin.test.tsx`. These pin that the move actually happened, not just
+ * that a new page exists — a stray "Add type" left behind here would be the
+ * same confusing screen the client reported, one control at a time.
  */
 describe("the categories screen", () => {
   it("says how each section is browsed, in words", () => {
@@ -72,7 +72,7 @@ describe("the categories screen", () => {
    * goes on asking shoppers which phone they own, with nothing on this screen
    * to say so.
    */
-  it("shows a by-device section as such even when it has types under it", () => {
+  it("shows a by-device section as such even when it has children", () => {
     const misfiled = [
       category("accessories", "Accessories", null, { fitsDevices: true }),
       category("cables", "USB Cables", "accessories"),
@@ -82,66 +82,47 @@ describe("the categories screen", () => {
     expect(within(sectionCard("Accessories")).getByText("Browsed by device")).toBeTruthy();
   });
 
-  it("gives every section its own add-type button", () => {
-    render(<CategoryList categories={categories as never} />);
-
-    for (const name of ["Pouches", "Accessories"]) {
-      expect(
-        within(sectionCard(name)).getByRole("button", { name: `Add type to ${name}` }),
-      ).toBeTruthy();
-    }
-  });
-
-  it("fixes the parent to the section the button belongs to", () => {
-    render(<CategoryList categories={categories as never} />);
-    fireEvent.click(
-      within(sectionCard("Accessories")).getByRole("button", { name: "Add type to Accessories" }),
-    );
-
-    // Carried as a value, not a dropdown that could contradict the button used.
-    const parent = document.querySelector('input[name="parentId"]') as HTMLInputElement;
-    expect(parent?.value).toBe("accessories");
-    expect(document.querySelector('select[name="parentId"]')).toBeNull();
-    // The form says which section it is adding to, so the fixed parent is not
-    // a silent decision. Matched on the paragraph rather than an exact string,
-    // because the section's name sits in its own element inside the sentence.
-    const note = [...document.querySelectorAll("p")].find((node) =>
-      node.textContent?.startsWith("Added under"),
-    );
-    expect(note?.textContent).toContain("Accessories");
-  });
-
-  it("nests a section's types under it, and counts them", () => {
-    render(<CategoryList categories={categories as never} />);
-
-    const accessories = sectionCard("Accessories");
-    expect(within(accessories).getByText("2 types")).toBeTruthy();
-    expect(within(accessories).getByText("Power Banks")).toBeTruthy();
-    expect(within(accessories).getByText("USB Cables")).toBeTruthy();
-    expect(within(sectionCard("Pouches")).getByText("No types yet")).toBeTruthy();
-  });
-
   /**
-   * A type with no photograph draws a lettered panel on the shop, and there was
-   * no way to see which were still doing that short of opening each one.
+   * The thing the client asked to see removed. Pouches is browsed by device
+   * and has no use for a type, so nothing about types — no button, no count,
+   * no link — belongs on its card at all.
    */
-  it("flags a type that has no picture, and stays quiet about one that has", () => {
+  it("shows nothing about types on a device-fitting section", () => {
     render(<CategoryList categories={categories as never} />);
 
-    const accessories = sectionCard("Accessories");
-    const cables = within(accessories).getByText("USB Cables").closest("div") as HTMLElement;
-    expect(cables.textContent).toContain("no picture yet");
-
-    const powerBanks = within(accessories).getByText("Power Banks").closest("div") as HTMLElement;
-    expect(powerBanks.textContent).not.toContain("no picture yet");
+    const pouches = sectionCard("Pouches");
+    expect(within(pouches).queryByText(/type/i)).toBeNull();
   });
 
-  it("opens one form at a time", () => {
+  it("links a by-type section to where its types are managed, with a running count", () => {
+    render(<CategoryList categories={categories as never} />);
+
+    const link = within(sectionCard("Accessories")).getByRole("link", { name: /2 types/i });
+    expect(link.getAttribute("href")).toBe("/admin/categories/types");
+  });
+
+  it("says so when a by-type section has none yet, and still links out", () => {
+    const empty = [category("accessories", "Accessories", null, { fitsDevices: false })];
+    render(<CategoryList categories={empty as never} />);
+
+    const link = within(sectionCard("Accessories")).getByRole("link", { name: /no types yet/i });
+    expect(link.getAttribute("href")).toBe("/admin/categories/types");
+  });
+
+  it("carries no way to add, edit or remove a type from this screen", () => {
+    render(<CategoryList categories={categories as never} />);
+
+    expect(screen.queryByRole("button", { name: /add type/i })).toBeNull();
+    // The types themselves — Power Banks, USB Cables — are not listed here at
+    // all; only the section that owns them and a link to where they live.
+    expect(screen.queryByText("Power Banks")).toBeNull();
+    expect(screen.queryByText("USB Cables")).toBeNull();
+  });
+
+  it("opens only one section form at a time", () => {
     render(<CategoryList categories={categories as never} />);
     fireEvent.click(screen.getByRole("button", { name: "Add section" }));
-    fireEvent.click(
-      within(sectionCard("Accessories")).getByRole("button", { name: "Add type to Accessories" }),
-    );
+    fireEvent.click(within(sectionCard("Accessories")).getByRole("button", { name: "Edit" }));
 
     expect(document.querySelectorAll("form")).toHaveLength(1);
   });

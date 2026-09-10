@@ -467,22 +467,22 @@ export function ProductForm({
           </Field>
 
           {/*
-          Shown only where the chosen section has types to offer. A section with
-          none is filed by section alone, which is what a shop starting out has
-          — the same rule the device class follows, so a tier nobody filled in
-          never becomes an empty box.
+          Only for a section browsed by type, and only where it has types to
+          offer. Device fit and a type are the two shapes this form asks for
+          and they do not mix on one product — Pouches manages models under
+          Admin → Devices, never types, so the field does not appear there even
+          if a stray child category exists from before this rule. A by-type
+          section with no types yet is filed by section alone, the same rule
+          the device class follows: a tier nobody has filled in never becomes
+          an empty box.
         */}
-          {typesForSection.length > 0 ? (
-            <Field
-              label="Type"
-              name="typeCategoryId"
-              {...(fitsDevices ? { hint: "Optional." } : {})}
-            >
+          {!fitsDevices && typesForSection.length > 0 ? (
+            <Field label="Type" name="typeCategoryId">
               <select
                 id="typeCategoryId"
                 name="categoryIds"
                 value={typeId}
-                required={!fitsDevices}
+                required
                 onChange={(event) => setTypeId(event.target.value)}
                 className="field min-h-11 w-full"
               >

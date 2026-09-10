@@ -108,6 +108,19 @@ describe("filing a product into a section", () => {
     expect(screen.queryByLabelText("Type")).toBeNull();
   });
 
+  /**
+   * Device fit and a type are the two shapes this form asks for, and they do
+   * not mix on one product. Pouches manages its models under Admin → Devices,
+   * never types, so the field must stay hidden there even if a category was
+   * left as a child of a device-fitting section before this rule existed.
+   */
+  it("never offers a type control on a device-fitting section, even one with children", () => {
+    const withStrayChild = [...categories, category("cases", "Cases", "pouches", true)];
+    renderForm(withStrayChild);
+    chooseSection("pouches");
+    expect(screen.queryByLabelText("Type")).toBeNull();
+  });
+
   it("clears the type when the section changes, so it cannot belong to the wrong one", () => {
     renderForm();
     chooseSection("accessories");

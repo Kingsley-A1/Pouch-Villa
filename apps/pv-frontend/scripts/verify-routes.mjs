@@ -100,6 +100,7 @@ const protectedAdminRoutes = [
   "/admin/products",
   "/admin/storefront",
   "/admin/categories",
+  "/admin/categories/types",
   "/admin/devices",
   "/admin/delivery",
   "/admin/orders",
