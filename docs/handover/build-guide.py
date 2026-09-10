@@ -249,10 +249,23 @@ story.append(table([
     ["Price", "In naira. Required to publish — a shop cannot sell something with no price."],
     ["Opening stock", "How many you have right now."],
     ["Description", "Shown on the product page and used by search."],
-    ["Brand", "The make. Choosing it narrows everything below."],
-    ["Device class", "Optional. Narrows the model list — iPhone, iPad."],
-    ["Categories", "Where it sits in the shop."],
-    ["Fits these devices", "Tick the models it fits. Leave blank if it fits anything."],
+    ["<b>Section</b>", "Pouches or Accessories. This decides what it asks you next."],
+], [34 * mm, W - 34 * mm]))
+story.append(Spacer(1, 8))
+story.append(Paragraph("Then it asks one of two things", S["h2"]))
+story.append(Paragraph(
+    "A pouch is defined by what it fits. An accessory is defined by what it is — "
+    "a power bank is a power bank whatever phone you own — so the form stops "
+    "asking about devices once you pick that section.", S["body"]))
+story.append(Spacer(1, 2))
+story.append(table([
+    ["If the section is…", "You are asked for"],
+    ["<b>Pouches</b>",
+     "<b>Brand</b> — the make. <b>Device class</b> — optional, narrows the model "
+     "list. <b>Fits these devices</b> — tick the models it fits."],
+    ["<b>Accessories</b>",
+     "<b>Type</b> — Power Banks, Screen Protectors, and so on. No make, no model "
+     "list, nothing about devices."],
 ], [34 * mm, W - 34 * mm]))
 story.append(Spacer(1, 8))
 story.append(Paragraph(
@@ -291,6 +304,17 @@ story.append(table([
      "Headings inside the model list — iPhone, iPad."],
 ], [30 * mm, 54 * mm, W - 84 * mm]))
 story.append(Spacer(1, 8))
+story.append(Paragraph("Which sections ask about devices", S["h2"]))
+story.append(Paragraph(
+    "Open a top-level category under <b>Brands &amp; Categories</b> and you will "
+    "see a tick box: <b>Products here fit a specific device</b>. Ticked, that "
+    "section is filed by make and model, and shoppers browse it by their phone. "
+    "Unticked, it is filed and browsed by type instead.", S["body"]))
+story.append(Paragraph(
+    "Pouches is ticked. Accessories is not. The types under Accessories are "
+    "ordinary categories with Accessories as their parent, so you add, rename, "
+    "reorder and remove them in the same place as everything else.", S["body"]))
+
 story.append(Paragraph("Device classes", S["h2"]))
 story.append(Paragraph(
     "Add these under <b>Admin &rarr; Devices &rarr; Device classes</b> when a "

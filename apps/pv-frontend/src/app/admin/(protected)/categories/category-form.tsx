@@ -18,10 +18,19 @@ import { CatalogueImageField } from "./catalogue-image-field";
 export function CategoryForm({
   parents,
   editing,
+  fixedParentId,
   onDone,
 }: {
   parents: AdminCategory[];
   editing?: AdminCategory;
+  /**
+   * Set when the form was opened by a section's own "Add type".
+   *
+   * The parent is then a fact about where the person pressed, not a question —
+   * so it is carried as a hidden value rather than a dropdown they could set to
+   * something that contradicts the button they used.
+   */
+  fixedParentId?: string;
   onDone?: () => void;
 }) {
   const [state, formAction] = useActionState(saveCategoryAction, INITIAL_ACTION_STATE);
@@ -32,8 +41,10 @@ export function CategoryForm({
     separately a device-fitting section, it is part of one — and offering the
     checkbox on a child would invite an answer the storefront then ignores.
   */
-  const [parentId, setParentId] = useState(editing?.parentId ?? "");
+  const [parentId, setParentId] = useState(fixedParentId ?? editing?.parentId ?? "");
   const isTopLevel = parentId === "";
+  const parentIsFixed = fixedParentId !== undefined;
+  const fixedParentName = parents.find((parent) => parent.id === fixedParentId)?.name ?? null;
 
   return (
     <form
@@ -49,22 +60,31 @@ export function CategoryForm({
           <TextInput name="name" required defaultValue={editing?.name} />
         </Field>
       </div>
-      <Field label="Parent category" name="parentId" hint="Leave unset for a top-level category">
-        <Select
-          name="parentId"
-          value={parentId}
-          onChange={(event) => setParentId(event.target.value)}
-        >
-          <option value="">— Top level —</option>
-          {parents
-            .filter((parent) => parent.id !== editing?.id)
-            .map((parent) => (
-              <option key={parent.id} value={parent.id}>
-                {parent.name}
-              </option>
-            ))}
-        </Select>
-      </Field>
+      {parentIsFixed ? (
+        <>
+          <input type="hidden" name="parentId" value={fixedParentId} />
+          <p className="help">
+            Added under <span className="font-semibold text-(--pv-ink)">{fixedParentName}</span>.
+          </p>
+        </>
+      ) : (
+        <Field label="Parent category" name="parentId" hint="Leave unset for a top-level category">
+          <Select
+            name="parentId"
+            value={parentId}
+            onChange={(event) => setParentId(event.target.value)}
+          >
+            <option value="">— Top level —</option>
+            {parents
+              .filter((parent) => parent.id !== editing?.id)
+              .map((parent) => (
+                <option key={parent.id} value={parent.id}>
+                  {parent.name}
+                </option>
+              ))}
+          </Select>
+        </Field>
+      )}
       <Field label="Description" name="description">
         <TextArea name="description" defaultValue={editing?.description ?? ""} />
       </Field>
@@ -101,7 +121,7 @@ export function CategoryForm({
             </span>
           </span>
         </label>
-      ) : (
+      ) : parentIsFixed ? null : (
         <p className="help">
           This sits under another category, so it follows whatever that section is set to.
         </p>
@@ -127,7 +147,7 @@ export function CategoryForm({
       <FormError message={state.error} />
       <FormSuccess message={state.message} />
       <SubmitButton pendingLabel="Saving…">
-        {editing ? "Save changes" : "Add category"}
+        {editing ? "Save changes" : parentIsFixed ? "Add type" : "Add section"}
       </SubmitButton>
     </form>
   );
