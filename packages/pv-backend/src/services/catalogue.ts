@@ -580,7 +580,17 @@ export type CategoryCard = {
   image: CatalogueImage | null;
 };
 
-export async function listCategoryCards(): Promise<CategoryCard[]> {
+/**
+ * Category tiles, optionally narrowed to one section's children.
+ *
+ * One query with a conditional filter rather than a second near-identical one:
+ * the tile's image fallback and product count are eight lines of SQL each, and
+ * two copies of that is two places for the storefront's own artwork rules to
+ * drift apart.
+ */
+export async function listCategoryCards(
+  options: { parentSlug?: string } = {},
+): Promise<CategoryCard[]> {
   const rows = await query<{
     id: string;
     slug: string;
@@ -621,7 +631,9 @@ export async function listCategoryCards(): Promise<CategoryCard[]> {
           LIMIT 1
        ) m ON true
       WHERE c.deleted_at IS NULL AND c.is_active
+        ${options.parentSlug === undefined ? "" : "AND parent.slug = $1"}
       ORDER BY c.sort_order, c.name`,
+    options.parentSlug === undefined ? [] : [options.parentSlug],
   );
 
   return rows.map((row) => ({
@@ -871,14 +883,41 @@ export async function listDevicesInCategoryForBrand(
 }
 
 /** One category by slug, for naming a page after the thing it is showing. */
-export async function getCategoryBySlug(
-  slug: string,
-): Promise<{ id: string; slug: string; name: string; description: string | null } | null> {
-  return queryOne(
-    `SELECT id, slug, name, description
+export async function getCategoryBySlug(slug: string): Promise<{
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  /**
+   * Whether this section's products are chosen by the device they fit.
+   *
+   * Read from the row itself rather than resolved up the tree: the browse page
+   * that asks is always looking at a top-level section, and a child page has its
+   * own route. `rootFitsDevices` in the category service is the resolver for
+   * anywhere that genuinely holds a child.
+   */
+  fitsDevices: boolean;
+} | null> {
+  const row = await queryOne<{
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    fits_devices: boolean;
+  }>(
+    `SELECT id, slug, name, description, fits_devices
        FROM category WHERE slug = $1 AND deleted_at IS NULL AND is_active`,
     [slug],
   );
+  return row === null
+    ? null
+    : {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        description: row.description,
+        fitsDevices: row.fits_devices,
+      };
 }
 
 /** One brand by slug, for the same reason. */

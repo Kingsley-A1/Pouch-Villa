@@ -139,6 +139,9 @@ async function main() {
           name: entry.category.name,
           description: entry.category.description,
           sortOrder: index,
+          // Seed categories are the device-fitting kind, which is what this
+          // fixture's sample products are.
+          fitsDevices: true,
         },
         actor,
       );
