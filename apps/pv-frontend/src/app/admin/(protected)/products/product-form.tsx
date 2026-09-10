@@ -71,7 +71,6 @@ export function ProductForm({
   const creating = editing === undefined;
   const collectsMedia = creating && pickedFiles !== undefined && onPickedFilesChange !== undefined;
 
-  const editingCategoryIds = new Set(editing?.categoryIds ?? []);
   const editingCollectionIds = new Set(memberOfCollectionIds ?? []);
   // Memoised because `hiddenTicks` depends on it: a fresh Set every render
   // would recompute that on every keystroke in the name field.
@@ -170,6 +169,48 @@ export function ProductForm({
     clear();
     setDismissedDraft(true);
   }
+
+  /*
+    The section this product belongs to, and the question that reshapes the form.
+
+    A pouch is defined by what it fits, so its section asks for a make, a class
+    and the models it goes on. An accessory is defined by what it *is* — a power
+    bank is a power bank whatever phone you own — so its section asks for a type
+    instead and never mentions a device.
+
+    Which is which is read from the category, never from its name: AGENTS.md
+    section 4 forbids a category list in source, and a rule keyed on
+    "Accessories" would break the day the client renames it.
+  */
+  const sections = useMemo(
+    () => categories.filter((category) => category.parentId === null),
+    [categories],
+  );
+
+  const [sectionId, setSectionId] = useState(() => {
+    const filed = new Set(editing?.categoryIds ?? []);
+    return categories.find((c) => c.parentId === null && filed.has(c.id))?.id ?? "";
+  });
+  const [typeId, setTypeId] = useState(() => {
+    const filed = new Set(editing?.categoryIds ?? []);
+    return categories.find((c) => c.parentId !== null && filed.has(c.id))?.id ?? "";
+  });
+
+  function chooseSection(next: string) {
+    setSectionId(next);
+    // A type belongs to one section, so it cannot survive a move to another.
+    setTypeId("");
+  }
+
+  const section = sections.find((candidate) => candidate.id === sectionId) ?? null;
+  // No section chosen yet keeps the device fields, which is the shape this form
+  // had before sections existed — the safe default for a half-filled form.
+  const fitsDevices = section === null ? true : section.fitsDevices;
+
+  const typesForSection = useMemo(
+    () => categories.filter((category) => category.parentId === sectionId),
+    [categories, sectionId],
+  );
 
   const brandName = brands.find((brand) => brand.id === values.brandId)?.name ?? null;
 
@@ -304,20 +345,29 @@ export function ProductForm({
           />
         </Field>
 
-        <Field label="Brand" name="brandId">
-          <Select
-            name="brandId"
-            value={values.brandId}
-            onChange={(event) => update("brandId", event.target.value)}
-          >
-            <option value="">— None —</option>
-            {brands.map((brand) => (
-              <option key={brand.id} value={brand.id}>
-                {brand.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        {/*
+          Make, class and device fit belong to a section whose products are
+          chosen by what they go on. An accessory section hides all three rather
+          than showing them greyed out: a power bank has no make in the sense
+          this field means, and three fields nobody can answer is how a form
+          teaches staff to guess.
+        */}
+        {fitsDevices ? (
+          <Field label="Brand" name="brandId">
+            <Select
+              name="brandId"
+              value={values.brandId}
+              onChange={(event) => update("brandId", event.target.value)}
+            >
+              <option value="">— None —</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
 
         {/*
           The make's device classes, appearing the moment a make that has any is
@@ -329,7 +379,24 @@ export function ProductForm({
           rule the storefront follows, so a tier nobody filled in never shows up
           as a thing to choose.
         */}
-        {classesForBrand.length > 0 ? (
+        {/*
+          Said, rather than left as an absence.
+
+          Hiding the make and the model list is right for an accessory, but on
+          edit it also means saving clears whatever was recorded — an unchecked
+          box and an unrendered select both post nothing. That is the correct
+          outcome for a product that has been moved into a section where device
+          fit has no meaning, and it must not be the kind of thing a person finds
+          out afterwards.
+        */}
+        {!fitsDevices ? (
+          <p className="help sm:col-span-2">
+            No make or device list: this section is browsed by type. Anything previously recorded
+            against a device is cleared when you save.
+          </p>
+        ) : null}
+
+        {fitsDevices && classesForBrand.length > 0 ? (
           <Field
             label="Device class"
             name="deviceClassFilter"
@@ -358,29 +425,78 @@ export function ProductForm({
         ) : null}
       </div>
 
-      <fieldset>
-        <legend className="text-sm font-bold text-(--pv-ink)">Categories</legend>
-        <div className="mt-2 grid gap-1.5">
-          {categories.map((category) => (
-            <label
-              key={category.id}
-              className="flex min-h-11 items-center gap-3 rounded-xl px-1 hover:bg-(--pv-wash)"
+      {/*
+        Where it goes, as two questions rather than a list of tickboxes.
+
+        The old control was every category at once, top level and children mixed,
+        and it left the filing of a product to whoever happened to be ticking. A
+        section and a type is the shop's own shape and it is what decides which
+        fields above are even asked for.
+
+        Both post `categoryIds`, so the product still lands in the same
+        many-to-many rows and nothing downstream changes.
+      */}
+      {/*
+        Nothing at all where the shop has no top-level category yet.
+
+        Not rendered, rather than hidden. A required select with one empty option
+        is a box that cannot be answered and blocks the form outright — a shop
+        setting itself up would be unable to add its first product — and one left
+        in the markup would post an empty string as a category id. The same rule
+        the device class and the collections follow: a tier nobody has filled in
+        never becomes a field.
+      */}
+      {sections.length > 0 ? (
+        <fieldset className="grid gap-3 sm:grid-cols-2">
+          <legend className="sr-only">Where it goes</legend>
+
+          <Field label="Section" name="categoryIds">
+            <Select
+              name="categoryIds"
+              required
+              value={sectionId}
+              onChange={(event) => chooseSection(event.target.value)}
             >
-              <input
-                type="checkbox"
+              <option value="">— Choose —</option>
+              {sections.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          {/*
+          Shown only where the chosen section has types to offer. A section with
+          none is filed by section alone, which is what a shop starting out has
+          — the same rule the device class follows, so a tier nobody filled in
+          never becomes an empty box.
+        */}
+          {typesForSection.length > 0 ? (
+            <Field
+              label="Type"
+              name="typeCategoryId"
+              {...(fitsDevices ? { hint: "Optional." } : {})}
+            >
+              <select
+                id="typeCategoryId"
                 name="categoryIds"
-                value={category.id}
-                defaultChecked={editingCategoryIds.has(category.id)}
-                className="h-5 w-5 accent-(--pv-red)"
-              />
-              <span className="text-sm">
-                {category.parentId ? "— " : ""}
-                {category.name}
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+                value={typeId}
+                required={!fitsDevices}
+                onChange={(event) => setTypeId(event.target.value)}
+                className="field min-h-11 w-full"
+              >
+                <option value="">— None —</option>
+                {typesForSection.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+        </fieldset>
+      ) : null}
 
       {/*
         Where it lands on the public site.
@@ -418,7 +534,7 @@ export function ProductForm({
         </fieldset>
       ) : null}
 
-      {devices.length > 0 ? (
+      {fitsDevices && devices.length > 0 ? (
         <fieldset>
           <legend className="text-sm font-bold text-(--pv-ink)">Fits these devices</legend>
           <p className="mt-1 text-xs text-(--pv-muted)">

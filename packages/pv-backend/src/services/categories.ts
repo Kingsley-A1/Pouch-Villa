@@ -13,6 +13,14 @@ export type AdminCategory = {
   description: string | null;
   sortOrder: number;
   isActive: boolean;
+  /**
+   * Whether products filed here are chosen by the device they fit.
+   *
+   * True for pouches and cases; false for accessories, which are chosen by what
+   * they are. Meaningful on a top-level category only — a child inherits its
+   * root's answer, and `rootFitsDevices` is what callers should read.
+   */
+  fitsDevices: boolean;
   /** The photograph the CEO set for this category, or a typed absence. */
   image: CatalogueImageRef | null;
 };
@@ -25,6 +33,7 @@ type CategoryRow = {
   description: string | null;
   sort_order: number;
   is_active: boolean;
+  fits_devices: boolean;
   image_hash: string | null;
   /** INT columns, so strings off the wire. */
   image_width: string | null;
@@ -40,6 +49,7 @@ function toAdminCategory(row: CategoryRow): AdminCategory {
     description: row.description,
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    fitsDevices: row.fits_devices,
     image: catalogueImageFrom(
       "category",
       row.id,
@@ -58,7 +68,7 @@ function toAdminCategory(row: CategoryRow): AdminCategory {
  * section 3), and this list is read on every admin page that offers a parent.
  */
 const CATEGORY_COLUMNS = `c.id, c.parent_id, c.name, c.slug, c.description, c.sort_order,
-       c.is_active, m.content_hash AS image_hash, m.width AS image_width,
+       c.is_active, c.fits_devices, m.content_hash AS image_hash, m.width AS image_width,
        m.height AS image_height`;
 
 const CATEGORY_FROM = `FROM category c LEFT JOIN catalogue_media m ON m.category_id = c.id`;
@@ -79,6 +89,12 @@ export type CategoryInput = {
   name: string;
   description: string | null;
   sortOrder: number;
+  /**
+   * Only read for a top-level category. A child's own value is written but never
+   * consulted — `rootFitsDevices` resolves from the root — so a mis-set child
+   * cannot make a section disagree with itself.
+   */
+  fitsDevices: boolean;
 };
 
 /**
@@ -97,10 +113,10 @@ export async function createCategory(input: CategoryInput, actor: { staffId: str
     const slug = await deriveCategorySlug(tx, input.name);
 
     const result = await tx.query(
-      `INSERT INTO category (parent_id, name, slug, description, sort_order)
-            VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO category (parent_id, name, slug, description, sort_order, fits_devices)
+            VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
-      [input.parentId, input.name, slug, input.description, input.sortOrder],
+      [input.parentId, input.name, slug, input.description, input.sortOrder, input.fitsDevices],
     );
     const id = (result.rows[0] as { id: string }).id;
     await recordAudit(tx, {
@@ -119,7 +135,7 @@ export async function createCategory(input: CategoryInput, actor: { staffId: str
 export async function updateCategory(id: string, input: CategoryInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
     const before = await tx.query(
-      "SELECT parent_id, name, slug, description, sort_order FROM category WHERE id = $1",
+      "SELECT parent_id, name, slug, description, sort_order, fits_devices FROM category WHERE id = $1",
       [id],
     );
     if (before.rows.length === 0) return false;
@@ -129,9 +145,9 @@ export async function updateCategory(id: string, input: CategoryInput, actor: { 
     await tx.query(
       `UPDATE category
           SET parent_id = $2, name = $3, description = $4, sort_order = $5,
-              updated_at = now()
+              fits_devices = $6, updated_at = now()
         WHERE id = $1`,
-      [id, input.parentId, input.name, input.description, input.sortOrder],
+      [id, input.parentId, input.name, input.description, input.sortOrder, input.fitsDevices],
     );
     await recordAudit(tx, {
       actorType: "staff",
@@ -204,4 +220,31 @@ export async function countCategories(): Promise<number> {
     "SELECT count(*)::STRING AS total FROM category WHERE deleted_at IS NULL",
   );
   return Number(row?.total ?? 0);
+}
+
+/**
+ * Whether a category's section is chosen by device fit, resolved from its root.
+ *
+ * A child inherits: "Screen Protectors" is not separately a device-fitting
+ * section, it is part of one. Written as a recursive walk up `parent_id` rather
+ * than a join, because the tree is two deep in practice and a CTE here would be
+ * a distributed query for two rows (AGENTS.md section 3).
+ *
+ * An unknown category answers `true` — the behaviour every category had before
+ * this column existed, so a bad id degrades to the old form rather than to a
+ * shape the admin has never seen.
+ */
+export async function rootFitsDevices(categoryId: string): Promise<boolean> {
+  const row = await queryOne<{ fits_devices: boolean }>(
+    `WITH RECURSIVE up AS (
+       SELECT id, parent_id, fits_devices FROM category WHERE id = $1 AND deleted_at IS NULL
+       UNION ALL
+       SELECT c.id, c.parent_id, c.fits_devices
+         FROM category c JOIN up ON up.parent_id = c.id
+        WHERE c.deleted_at IS NULL
+     )
+     SELECT fits_devices FROM up WHERE parent_id IS NULL LIMIT 1`,
+    [categoryId],
+  );
+  return row === null ? true : row.fits_devices;
 }

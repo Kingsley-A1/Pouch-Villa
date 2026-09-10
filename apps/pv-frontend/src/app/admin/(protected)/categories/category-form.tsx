@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import {
   Field,
@@ -26,6 +26,15 @@ export function CategoryForm({
 }) {
   const [state, formAction] = useActionState(saveCategoryAction, INITIAL_ACTION_STATE);
 
+  /*
+    Device fit belongs to a section, so the control only appears on a top-level
+    category. A child inherits its root's answer — "Screen Protectors" is not
+    separately a device-fitting section, it is part of one — and offering the
+    checkbox on a child would invite an answer the storefront then ignores.
+  */
+  const [parentId, setParentId] = useState(editing?.parentId ?? "");
+  const isTopLevel = parentId === "";
+
   return (
     <form
       action={async (formData) => {
@@ -41,7 +50,11 @@ export function CategoryForm({
         </Field>
       </div>
       <Field label="Parent category" name="parentId" hint="Leave unset for a top-level category">
-        <Select name="parentId" defaultValue={editing?.parentId ?? ""}>
+        <Select
+          name="parentId"
+          value={parentId}
+          onChange={(event) => setParentId(event.target.value)}
+        >
           <option value="">— Top level —</option>
           {parents
             .filter((parent) => parent.id !== editing?.id)
@@ -58,6 +71,41 @@ export function CategoryForm({
       <Field label="Sort order" name="sortOrder">
         <TextInput name="sortOrder" type="number" min={0} defaultValue={editing?.sortOrder ?? 0} />
       </Field>
+
+      {/*
+        The question that decides the whole shape of filing a product here.
+
+        Ticked, staff pick a make, a device class and the models it fits — a case
+        is defined by what it goes on. Unticked, they pick a type from this
+        section's own list instead, because a power bank is a power bank whatever
+        phone you own and asking which device it is for is the wrong question.
+
+        A hidden input carries the "no" answer, because an unticked checkbox
+        posts nothing at all and the action would otherwise read absence as
+        "unspecified" and fall back to the default of ticked.
+      */}
+      {isTopLevel ? (
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-(--pv-line) p-3">
+          <input
+            type="checkbox"
+            name="fitsDevices"
+            defaultChecked={editing?.fitsDevices ?? true}
+            className="mt-0.5 h-5 w-5 accent-(--pv-red)"
+          />
+          <span className="text-sm">
+            <span className="font-semibold">Products here fit a specific device</span>
+            <span className="help block">
+              Tick for pouches and cases: staff choose a make, a class and the models it fits, and
+              shoppers browse by their phone. Leave it unticked for accessories, which are filed and
+              browsed by type instead.
+            </span>
+          </span>
+        </label>
+      ) : (
+        <p className="help">
+          This sits under another category, so it follows whatever that section is set to.
+        </p>
+      )}
 
       {/*
         Only once the category exists. The photograph is stored against the

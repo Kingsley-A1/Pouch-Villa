@@ -172,6 +172,32 @@ exactly.
 
 ---
 
+## 8. Accessory types — received 2026-09-10
+
+The client asked for accessories to be filed and browsed by **type**, not by
+brand and device: a power bank is a power bank whatever phone you own, so the
+make, the device class and the "fits these devices" list are the wrong three
+questions to put in front of whoever is uploading one.
+
+They supplied the list of types:
+
+Screen Protectors · USB Cables (Type-C & Micro-USB) · iPhone Cables (Lightning) ·
+Power Banks · Phone Stands & Grips · Fast-Charging Wall Adapters · Wireless
+Charging Stations · True Wireless Earbuds · Bluetooth Speakers · Smartwatches &
+Fitness Trackers · Mobile Camera Lenses · Content Creation Gear · Wireless Mobile
+Microphones · Mobile Gaming Accessories · Bluetooth Smart Trackers
+
+**These are recorded here and not seeded into source.** A category list is
+named in [`AGENTS.md`](../AGENTS.md) §4 as a business fact, and this one is
+already proving the point — it will change as their stock does. They are added
+once in **Admin → Brands & Categories**, each with **Accessories** as its parent,
+and edited or removed there afterwards without a deployment.
+
+How the two sections differ is a setting on the top-level category — _products
+here fit a specific device_ — rather than a rule reading the word "Accessories",
+which would break the day they rename it. See
+[ADR 0018](decisions/0018-sections-that-fit-a-device.md).
+
 ## 8. Not yet supplied
 
 Blocking or near-blocking, in rough priority order:

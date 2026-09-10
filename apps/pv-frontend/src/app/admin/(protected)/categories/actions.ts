@@ -13,6 +13,12 @@ function parseCategoryInput(formData: FormData) {
     name: formData.get("name"),
     description: formData.get("description") || null,
     sortOrder: formData.get("sortOrder") || 0,
+    /*
+      An unticked checkbox posts nothing, so absence is the answer "no" rather
+      than "unspecified" — `z.coerce.boolean()` on undefined would fall back to
+      the default of true and silently re-tick it on every save.
+    */
+    fitsDevices: formData.get("fitsDevices") === "on",
   });
 }
 

@@ -83,6 +83,13 @@ export const categorySchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).nullable(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+  /**
+   * Whether products in this section are chosen by the device they fit.
+   *
+   * Defaults true — the behaviour every category had before the column existed —
+   * so a caller that predates it keeps creating device-fitting sections.
+   */
+  fitsDevices: z.coerce.boolean().default(true),
 });
 
 export const brandSchema = z.object({

@@ -123,6 +123,9 @@ async function main() {
         name: child.name,
         description: child.description,
         sortOrder: child.sortOrder,
+        // Carried over with the rest: this script moves categories, and the
+        // section a child now sits under decides device fit anyway.
+        fitsDevices: child.fitsDevices,
       },
       { staffId: staff.id },
     );
