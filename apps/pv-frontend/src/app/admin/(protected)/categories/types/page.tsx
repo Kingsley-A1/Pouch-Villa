@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { TypeList } from "./type-list";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Types" };
+export const metadata: Metadata = { title: "Accessories Types" };
 
 /**
  * Where a by-type section's types live — Power Banks, Screen Protectors, and
@@ -32,10 +32,13 @@ export default async function TypesAdminPage() {
   return (
     <div className="grid gap-6">
       <Breadcrumbs
-        trail={[{ label: "Brands & Categories", href: "/admin/categories" }, { label: "Types" }]}
+        trail={[
+          { label: "Brands & Categories", href: "/admin/categories" },
+          { label: "Accessories Types" },
+        ]}
       />
       <div>
-        <h1 className="text-2xl font-bold">Types</h1>
+        <h1 className="text-2xl font-bold">Accessories Types</h1>
         <p className="mt-1 max-w-2xl text-sm text-(--pv-muted)">
           The types offered under a section that is browsed by type — Power Banks and Screen
           Protectors under Accessories, for example. A section browsed by device, like Pouches, has

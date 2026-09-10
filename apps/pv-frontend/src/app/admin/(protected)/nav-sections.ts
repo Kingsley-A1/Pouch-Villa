@@ -14,7 +14,12 @@ export const NAV_SECTIONS: NavSection[] = [
   { label: "Storefront", href: "/admin/storefront", permission: "product.manage" },
   { label: "Brands & Categories", href: "/admin/categories", permission: "category.manage" },
   { label: "Devices", href: "/admin/devices", permission: "category.manage" },
-  { label: "Types", href: "/admin/categories/types", permission: "category.manage" },
+  // Named for what it holds today, at the client's own request — Accessories is
+  // the only section browsed by type so far. The page and the logic behind it
+  // stay generic (keyed on a section's "browsed by type" setting, never on its
+  // name), so a second such section only ever needs this label revisited, not
+  // any behaviour.
+  { label: "Accessories Types", href: "/admin/categories/types", permission: "category.manage" },
   { label: "Delivery Zones", href: "/admin/delivery", permission: "delivery.manage" },
   { label: "Orders", href: "/admin/orders", permission: "order.view" },
   { label: "Payments & Proofs", href: "/admin/payments", permission: "payment.view" },

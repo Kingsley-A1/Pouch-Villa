@@ -106,7 +106,14 @@ export function TypeList({ categories }: { categories: AdminCategory[] }) {
             {types.length > 0 ? (
               <ul className="mt-3 grid gap-2 border-t border-(--pv-line) pt-3">
                 {types.map((type) => (
-                  <li key={type.id}>
+                  // A hairline between each type, the same rhythm an order's
+                  // line items use: `pb-2` opens space above the rule, `gap-2`
+                  // on the list opens space below it, and `last:border-0`
+                  // keeps the final row from drawing one against nothing. With
+                  // several types stacking under Accessories, a name and its
+                  // Edit/Hide/Remove row could otherwise run together into the
+                  // next type's without a visible seam between them.
+                  <li key={type.id} className="border-b border-(--pv-line) pb-2 last:border-0">
                     {editing.kind === "edit" && editing.id === type.id ? (
                       <CategoryForm parents={categories} editing={type} onDone={close} />
                     ) : (

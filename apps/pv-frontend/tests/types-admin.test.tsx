@@ -109,6 +109,33 @@ describe("the types screen", () => {
     expect(powerBanks.textContent).not.toContain("no picture yet");
   });
 
+  /**
+   * The client's own screenshot: a section with several types stacked one
+   * after another, each carrying a name, a slug line and an Edit/Hide/Remove
+   * row that can wrap onto its own line at 360 px — with nothing to say where
+   * one type ends and the next begins. A hairline between rows is what a list
+   * this dense needs to stay readable, and it must be absent after the very
+   * last row rather than drawing a line against nothing.
+   */
+  it("draws a hairline between types, but not after the last one", () => {
+    const several = [
+      category("accessories", "Accessories", null, { fitsDevices: false }),
+      category("screen-protectors", "Screen Protectors", "accessories"),
+      category("usb-cables", "USB Cables", "accessories"),
+      category("power-banks", "Power Banks", "accessories"),
+    ];
+    render(<TypeList categories={several as never} />);
+
+    const rows = within(sectionCard("Accessories"))
+      .getAllByText(/Screen Protectors|USB Cables|Power Banks/)
+      .map((node) => node.closest("li"));
+
+    for (const row of rows.slice(0, -1)) {
+      expect(row?.className).toContain("border-b");
+    }
+    expect(rows.at(-1)?.className).toContain("last:border-0");
+  });
+
   it("opens one form at a time", () => {
     render(<TypeList categories={categories as never} />);
     const accessories = sectionCard("Accessories");
