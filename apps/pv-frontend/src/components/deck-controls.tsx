@@ -114,14 +114,17 @@ export function DeckControls({
 
     play();
 
+    // Scrolls the track itself, never `scrollIntoView` — that walks every
+    // scrollable ancestor, including the page. Once a visitor has scrolled
+    // past the deck, `block: "nearest"` decides the slide is off-screen and
+    // yanks the whole page back up to it on the next autoplay tick. Setting
+    // `scrollLeft` touches only the track.
     function show(next: number) {
       if (track === null) return;
       const slide = track.children[next] as HTMLElement | undefined;
-      slide?.scrollIntoView({
-        behavior: calm.matches ? "auto" : "smooth",
-        block: "nearest",
-        inline: "center",
-      });
+      if (!slide) return;
+      const target = slide.offsetLeft - (track.clientWidth - slide.clientWidth) / 2;
+      track.scrollTo({ left: target, behavior: calm.matches ? "auto" : "smooth" });
     }
 
     // Exposed so the buttons below can drive the same code path the timer does,
