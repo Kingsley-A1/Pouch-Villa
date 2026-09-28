@@ -3,9 +3,10 @@
  * format so no code or seeded database path has to change.
  *
  * Vercel's image optimizer is not available on this deployment (it answers
- * /_next/image with 402), so next.config.ts serves these files unoptimized and
- * straight from /public. That makes the source weight the delivered weight, and
- * these product shots were photographs saved as lossless PNG at 1-2 MB each.
+ * /_next/image with 402). Files that `next/image` renders are served as WebP
+ * renditions from scripts/build-static-images.mjs; anything else in /public is
+ * delivered at source weight, and these product shots were photographs saved as
+ * lossless PNG at 1-2 MB each.
  *
  * Run with: node scripts/optimize-images.mjs
  */
