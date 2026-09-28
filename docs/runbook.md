@@ -84,6 +84,27 @@ pictures rather than a 500 on every page — `isStorageConfigured()` returns fal
 and images are omitted. Check `R2_ENDPOINT`, `R2_PUBLIC_BUCKET_NAME` and
 `R2_PUBLIC_BASE_URL`.
 
+### Some product images are broken, others on the same page load
+
+Typically the thumbnails load but the product page's main photo does not, or a
+newer product shows nothing. That pattern is not R2: every rendition of one
+photo comes from the same bucket. It is the **image optimiser** (`/_next/image`)
+refusing to make _new_ transformations while still serving ones it already
+cached.
+
+1. Open the broken image in a new tab and read the status. `402` with
+   `OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED` means Vercel's image-optimisation
+   allowance for the billing period is used up. Confirm under the Vercel
+   project's **Usage → Image Optimization**.
+2. Open the raw R2 URL (the `url=` parameter of the same request, decoded). If
+   that loads, R2 is fine and the optimiser is the cause. If it 404s, the
+   rendition is missing: re-upload the photo with the admin's **Replace** control.
+
+Every photo counts up to three times toward the allowance, because the thumb,
+card and hero renditions are each a distinct source image. Raising the plan
+restores images immediately. Do **not** set `images.unoptimized`: AGENTS.md §2
+rules it out.
+
 ### Staff cannot upload a product image
 
 The browser uploads **directly to R2** with a pre-signed URL; the bytes never
