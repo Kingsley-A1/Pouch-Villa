@@ -16,28 +16,6 @@ for (const name of [".env", ".env.local"]) {
   if (existsSync(path)) process.loadEnvFile(path);
 }
 
-/**
- * Product media is served from the R2 public bucket's CDN origin. next/image
- * will only optimise a remote host it has been told about, and the host differs
- * per environment, so it is derived from the same variable that builds the URLs.
- *
- * Deliberately not `images.unoptimized`: the prototype set that globally to dodge
- * a hosting-plan limit, which forfeits resizing and modern formats on every image
- * in the app. AGENTS.md §2 rules it out.
- */
-type RemotePattern = { protocol: "http" | "https"; hostname: string };
-
-function mediaRemotePatterns(): RemotePattern[] {
-  const base = process.env.R2_PUBLIC_BASE_URL?.trim();
-  if (!base) return [];
-  try {
-    const { protocol, hostname } = new URL(base);
-    return [{ protocol: protocol.replace(":", "") as "http" | "https", hostname }];
-  } catch {
-    return [];
-  }
-}
-
 const nextConfig: NextConfig = {
   // pv-backend ships TypeScript source rather than a build artefact, so the app
   // compiles it as part of its own build.
@@ -48,8 +26,20 @@ const nextConfig: NextConfig = {
   // all — catalogue reads no longer import it (see storage/media-key.ts) — but
   // wherever it is imported, this keeps the build from bundling it.
   serverExternalPackages: ["sharp"],
+  /**
+   * Every image is resized by sharp before it is ever requested — uploads on
+   * their way into R2, bundled photographs by scripts/build-static-images.mjs —
+   * so the loader only picks the right pre-built file and the browser fetches it
+   * directly. Nothing goes through `/_next/image`, which on this deployment's
+   * Vercel plan answers 402 once the monthly transformation allowance is spent:
+   * the broken product-page images of September 2026.
+   *
+   * Deliberately not `unoptimized`, which AGENTS.md §2 rules out: that would
+   * send full-size originals with no `srcset`. See ADR 0019.
+   */
   images: {
-    remotePatterns: mediaRemotePatterns(),
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
   },
   experimental: {
     serverActions: {

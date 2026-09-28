@@ -945,6 +945,36 @@ nav[aria-label="Breadcrumb"] + .section-space {
   }
 }
 
+/* The image placeholder sweep (product-gallery.tsx, the product page skeleton).
+
+   A soft band of light crossing the wash colour, so an image that is still in
+   flight reads as "arriving" rather than as an empty box. The band is a
+   `color-mix()` of the surface token into transparency, so it follows the theme
+   with no second colour to maintain. It animates `background-position` on a
+   single element — no layout, no extra nodes. It loops, so every use carries
+   `pv-loop` and reduced motion leaves the plain wash. */
+@keyframes pv-shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+.pv-shimmer {
+  background-color: var(--pv-wash);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--pv-surface) 55%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: pv-shimmer 1.4s ease-in-out infinite;
+}
+
 /* The category showcase (components/category-mosaic.tsx).
 
    Shares `.pv-deck-track` with the hero, so both are the browser's own

@@ -84,6 +84,20 @@ pictures rather than a 500 on every page — `isStorageConfigured()` returns fal
 and images are omitted. Check `R2_ENDPOINT`, `R2_PUBLIC_BUCKET_NAME` and
 `R2_PUBLIC_BASE_URL`.
 
+### Some product images are broken, others on the same page load
+
+Images do **not** go through Vercel's `/_next/image` optimiser; see
+[ADR 0019](decisions/0019-images-bypass-the-vercel-optimiser.md). Each `<img>` points
+straight at a pre-built WebP rendition on R2. So a single broken image is a
+missing object, not a quota:
+
+1. Open the broken image in a new tab. A `404` from the R2 host means that
+   rendition was never written or was deleted. Re-upload the photo with the
+   admin's **Replace** control.
+2. If the URL contains `/_next/image` and returns `402`, someone has removed
+   `images.loaderFile` from `next.config.ts`. Restore it; do not buy a larger plan
+   and do not set `images.unoptimized`.
+
 ### Staff cannot upload a product image
 
 The browser uploads **directly to R2** with a pre-signed URL; the bytes never
