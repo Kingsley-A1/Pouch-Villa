@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ImageSquare, Plus } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import { CategoryForm } from "../category-form";
-import { CategoryRowActions, HiddenPill } from "../category-row-actions";
+import { descendantsOf } from "../category-tree";
+import { SubcategoryRows } from "../subcategory-rows";
 
 /** Which form is open: nothing, a new type under a section, or editing an existing one. */
 type Editing = { kind: "none" } | { kind: "add"; parentId: string } | { kind: "edit"; id: string };
@@ -103,52 +104,19 @@ export function TypeList({ categories }: { categories: AdminCategory[] }) {
               </div>
             ) : null}
 
+            {/*
+              Every depth, not only the direct types: a category filed under a
+              type is still something staff must be able to find, rename and
+              remove, and the type above it cannot be removed while it exists.
+            */}
             {types.length > 0 ? (
-              <ul className="mt-3 grid gap-2 border-t border-(--pv-line) pt-3">
-                {types.map((type) => (
-                  // A hairline between each type, the same rhythm an order's
-                  // line items use: `pb-2` opens space above the rule, `gap-2`
-                  // on the list opens space below it, and `last:border-0`
-                  // keeps the final row from drawing one against nothing. With
-                  // several types stacking under Accessories, a name and its
-                  // Edit/Hide/Remove row could otherwise run together into the
-                  // next type's without a visible seam between them.
-                  <li key={type.id} className="border-b border-(--pv-line) pb-2 last:border-0">
-                    {editing.kind === "edit" && editing.id === type.id ? (
-                      <CategoryForm parents={categories} editing={type} onDone={close} />
-                    ) : (
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold break-words">
-                            {type.name}
-                            {!type.isActive ? <HiddenPill /> : null}
-                          </p>
-                          <p className="flex items-center gap-1.5 text-xs text-(--pv-muted)">
-                            /{type.slug}
-                            {/*
-                              A type with no photograph draws a lettered panel
-                              on the shop, and there was no way to see which
-                              ones were still doing that short of opening
-                              each one.
-                            */}
-                            {type.image === null ? (
-                              <>
-                                <span aria-hidden="true">·</span>
-                                <ImageSquare aria-hidden="true" size={13} weight="bold" />
-                                no picture yet
-                              </>
-                            ) : null}
-                          </p>
-                        </div>
-                        <CategoryRowActions
-                          category={type}
-                          onEdit={() => setEditing({ kind: "edit", id: type.id })}
-                        />
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <SubcategoryRows
+                rows={descendantsOf(categories, section.id)}
+                categories={categories}
+                editingId={editing.kind === "edit" ? editing.id : null}
+                onEdit={(id) => setEditing({ kind: "edit", id })}
+                onDone={close}
+              />
             ) : null}
           </li>
         );

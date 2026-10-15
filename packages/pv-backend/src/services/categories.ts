@@ -132,6 +132,41 @@ export async function createCategory(input: CategoryInput, actor: { staffId: str
   });
 }
 
+/**
+ * Thrown when a save would file a category under itself or one of its own
+ * subcategories. That loop has no top level, so the category and everything
+ * below it would drop out of every admin list and every shop menu at once —
+ * still counted on the dashboard, reachable from nowhere.
+ */
+export class CategoryCycleError extends Error {
+  override name = "CategoryCycleError";
+  constructor() {
+    super("A category cannot sit under itself or one of its own subcategories.");
+  }
+}
+
+/** Whether `candidateParentId` is `id` itself or anywhere beneath it, walking up from the candidate. */
+async function isSelfOrDescendant(
+  tx: Queryable,
+  id: string,
+  candidateParentId: string,
+): Promise<boolean> {
+  const result = await tx.query(
+    // The depth cap is what stops the walk if a loop already exists in the
+    // data — it cannot end at a row with no parent when there is none.
+    `WITH RECURSIVE ancestry (id, parent_id, depth) AS (
+       SELECT id, parent_id, 0 FROM category WHERE id = $1
+       UNION ALL
+       SELECT c.id, c.parent_id, a.depth + 1
+         FROM category c JOIN ancestry a ON c.id = a.parent_id
+        WHERE a.depth < 64
+     )
+     SELECT 1 FROM ancestry WHERE id = $2 LIMIT 1`,
+    [candidateParentId, id],
+  );
+  return result.rows.length > 0;
+}
+
 export async function updateCategory(id: string, input: CategoryInput, actor: { staffId: string }) {
   return withTransaction(async (tx) => {
     const before = await tx.query(
@@ -139,6 +174,10 @@ export async function updateCategory(id: string, input: CategoryInput, actor: { 
       [id],
     );
     if (before.rows.length === 0) return false;
+
+    if (input.parentId !== null && (await isSelfOrDescendant(tx, id, input.parentId))) {
+      throw new CategoryCycleError();
+    }
 
     // The slug is not re-derived on rename: it is already in shop URLs that
     // customers have bookmarked and search engines have indexed.
