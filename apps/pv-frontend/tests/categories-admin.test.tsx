@@ -127,3 +127,83 @@ describe("the categories screen", () => {
     expect(document.querySelectorAll("form")).toHaveLength(1);
   });
 });
+
+/**
+ * The client's report: the dashboard counted 76 categories, this screen showed
+ * three sections, Accessories Types showed 26 — and the rest, filed under the
+ * device-browsed sections, could not be listed, edited or removed from
+ * anywhere. Nor could their sections, since a category with subcategories
+ * cannot be removed.
+ */
+describe("what is filed under a device-browsed section", () => {
+  const legacy = [
+    category("cases", "Phone Cases", null, { fitsDevices: true }),
+    category("iphone", "iPhone Cases", "cases"),
+    category("iphone-17", "iPhone 17 Cases", "iphone"),
+    category("samsung", "Samsung Cases", "cases"),
+    category("accessories", "Accessories", null, { fitsDevices: false }),
+    category("cables", "USB Cables", "accessories"),
+  ];
+
+  it("counts every one of them, at every depth", () => {
+    render(<CategoryList categories={legacy as never} />);
+    expect(within(sectionCard("Phone Cases")).getByText("3 subcategories")).toBeTruthy();
+  });
+
+  it("lists each, grandchildren included, with its own controls", () => {
+    render(<CategoryList categories={legacy as never} />);
+    const card = sectionCard("Phone Cases");
+
+    for (const name of ["iPhone Cases", "iPhone 17 Cases", "Samsung Cases"]) {
+      const row = within(card).getByText(name, { exact: false }).closest("li") as HTMLElement;
+      expect(within(row).getByRole("button", { name: "Edit" })).toBeTruthy();
+      expect(within(row).getByRole("button", { name: "Hide" })).toBeTruthy();
+      expect(within(row).getByRole("button", { name: /remove/i })).toBeTruthy();
+    }
+  });
+
+  it("keeps a branch together, each category followed by its own", () => {
+    render(<CategoryList categories={legacy as never} />);
+    const order = [...sectionCard("Phone Cases").querySelectorAll("[data-filter-label]")].map(
+      (row) => row.getAttribute("data-filter-label"),
+    );
+    expect(order).toEqual(["iPhone Cases", "iPhone 17 Cases", "Samsung Cases"]);
+  });
+
+  it("opens an edit form for one of them, in place", () => {
+    render(<CategoryList categories={legacy as never} />);
+    const row = within(sectionCard("Phone Cases"))
+      .getByText("Samsung Cases")
+      .closest("li") as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: "Edit" }));
+
+    const form = row.querySelector("form");
+    expect(form).not.toBeNull();
+    expect((form?.querySelector('input[name="id"]') as HTMLInputElement).value).toBe("samsung");
+  });
+
+  /**
+   * Moving a category under itself or under one of its own leaves the whole
+   * branch with no top level — gone from every list again. The server refuses
+   * it; the dropdown should not offer it.
+   */
+  it("never offers a category's own branch as its new parent", () => {
+    render(<CategoryList categories={legacy as never} />);
+    const row = within(sectionCard("Phone Cases"))
+      .getByText("iPhone Cases")
+      .closest("li") as HTMLElement;
+    fireEvent.click(within(row).getByRole("button", { name: "Edit" }));
+
+    const options = [
+      ...(document.querySelector('select[name="parentId"]') as HTMLSelectElement).options,
+    ].map((option) => option.value);
+    expect(options).not.toContain("iphone");
+    expect(options).not.toContain("iphone-17");
+    expect(options).toContain("samsung");
+  });
+
+  it("says nothing about subcategories on a device section that has none", () => {
+    render(<CategoryList categories={categories as never} />);
+    expect(within(sectionCard("Pouches")).queryByText(/subcategor/i)).toBeNull();
+  });
+});

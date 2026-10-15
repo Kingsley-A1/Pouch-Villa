@@ -14,6 +14,7 @@ import {
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { saveCategoryAction } from "./actions";
 import { CatalogueImageField } from "./catalogue-image-field";
+import { possibleParents } from "./category-tree";
 
 export function CategoryForm({
   parents,
@@ -75,13 +76,11 @@ export function CategoryForm({
             onChange={(event) => setParentId(event.target.value)}
           >
             <option value="">— Top level —</option>
-            {parents
-              .filter((parent) => parent.id !== editing?.id)
-              .map((parent) => (
-                <option key={parent.id} value={parent.id}>
-                  {parent.name}
-                </option>
-              ))}
+            {possibleParents(parents, editing?.id).map((parent) => (
+              <option key={parent.id} value={parent.id}>
+                {parent.name}
+              </option>
+            ))}
           </Select>
         </Field>
       )}

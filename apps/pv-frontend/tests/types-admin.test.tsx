@@ -136,6 +136,19 @@ describe("the types screen", () => {
     expect(rows.at(-1)?.className).toContain("last:border-0");
   });
 
+  it("lists what is filed under a type too, so the type can still be removed", () => {
+    const nested = [...categories, category("lightning", "Lightning Cables", "cables")];
+    render(<TypeList categories={nested as never} />);
+
+    const accessories = sectionCard("Accessories");
+    // Still counted as two types — Lightning Cables is part of USB Cables.
+    expect(within(accessories).getByText("2 types")).toBeTruthy();
+    const row = within(accessories)
+      .getByText("Lightning Cables", { exact: false })
+      .closest("li") as HTMLElement;
+    expect(within(row).getByRole("button", { name: "Edit" })).toBeTruthy();
+  });
+
   it("opens one form at a time", () => {
     render(<TypeList categories={categories as never} />);
     const accessories = sectionCard("Accessories");

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown } from "@phosphor-icons/react";
 import type { AdminCategory } from "@pv/backend/services/categories";
 import { cn } from "@/lib/utils";
 import { CategoryForm } from "./category-form";
 import { CategoryRowActions, HiddenPill } from "./category-row-actions";
+import { descendantsOf } from "./category-tree";
+import { SubcategoryRows } from "./subcategory-rows";
 
 /** Which form is open: nothing, a new section, or editing an existing one. */
 type Editing = { kind: "none" } | { kind: "section" } | { kind: "edit"; id: string };
@@ -21,6 +23,13 @@ type Editing = { kind: "none" } | { kind: "section" } | { kind: "edit"; id: stri
  * shaping the shop under the frequent one of stocking it. Types now live at
  * Admin → Categories → Types, reading and writing the same rows through the
  * same actions; this screen only decides what a section *is*.
+ *
+ * Except for what is already filed under a device-browsed section. Those rows
+ * are not types and have no other screen, and when this list showed sections
+ * alone they became unreachable: counted on the dashboard, listed nowhere, and
+ * — because a category with subcategories cannot be removed — holding their
+ * section in place too. They are listed here, every depth, with the same
+ * controls as anywhere else.
  */
 export function CategoryList({ categories }: { categories: AdminCategory[] }) {
   const [editing, setEditing] = useState<Editing>({ kind: "none" });
@@ -108,6 +117,16 @@ export function CategoryList({ categories }: { categories: AdminCategory[] }) {
                       : "Shoppers pick a type. Staff are asked for a type and nothing about devices."}
                   </p>
 
+                  {section.fitsDevices ? (
+                    <DeviceSectionChildren
+                      section={section}
+                      categories={categories}
+                      editingId={editing.kind === "edit" ? editing.id : null}
+                      onEdit={(id) => setEditing({ kind: "edit", id })}
+                      onDone={close}
+                    />
+                  ) : null}
+
                   {/*
                     Only for a by-type section, and only a link — never the
                     types themselves. A device-fitting section like Pouches has
@@ -132,5 +151,55 @@ export function CategoryList({ categories }: { categories: AdminCategory[] }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * What is filed under a device-browsed section, folded away by default.
+ *
+ * A section can carry dozens of these, and this screen is mostly opened to
+ * change a section, not to work through its contents — so the count is always
+ * visible and the rows are one tap away. A native `<details>`: keyboard and
+ * screen-reader support for free, and no JavaScript to open it.
+ */
+function DeviceSectionChildren({
+  section,
+  categories,
+  editingId,
+  onEdit,
+  onDone,
+}: {
+  section: AdminCategory;
+  categories: AdminCategory[];
+  editingId: string | null;
+  onEdit: (id: string) => void;
+  onDone: () => void;
+}) {
+  const rows = descendantsOf(categories, section.id);
+  if (rows.length === 0) return null;
+
+  return (
+    <details className="group mt-3 border-t border-(--pv-line) pt-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm font-bold text-(--pv-red)">
+        {rows.length} subcategor{rows.length === 1 ? "y" : "ies"}
+        <CaretDown
+          aria-hidden="true"
+          size={14}
+          weight="bold"
+          className="transition-transform group-open:rotate-180 motion-reduce:transition-none"
+        />
+      </summary>
+      <p className="help mt-1">
+        Products in this section are filed by device, so these are not offered on the product form.
+        Edit one to rename it or move it under another section; remove what is no longer needed.
+      </p>
+      <SubcategoryRows
+        rows={rows}
+        categories={categories}
+        editingId={editingId}
+        onEdit={onEdit}
+        onDone={onDone}
+      />
+    </details>
   );
 }
