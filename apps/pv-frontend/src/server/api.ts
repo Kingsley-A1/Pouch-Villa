@@ -92,6 +92,7 @@ const CODE_BY_ERROR_NAME: Readonly<Record<string, ApiErrorCode>> = {
   UnsupportedProofError: "validation_failed",
   ProofTooLargeError: "validation_failed",
   InvalidMoneyError: "validation_failed",
+  InvalidProductCursorError: "validation_failed",
   InvalidUploadSizeError: "validation_failed",
   InvalidProofUploadSizeError: "validation_failed",
 

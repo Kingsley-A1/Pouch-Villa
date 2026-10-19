@@ -4,6 +4,12 @@ import { useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DeviceMobile } from "@phosphor-icons/react";
 import type { DeviceLike } from "@pv/backend/domain/device-match";
+import {
+  categoriesFittingDevices,
+  optionsContain,
+  type CategoriesByDevice,
+  type FittingNode,
+} from "@pv/backend/domain/device-categories";
 
 export type FinderDevice = DeviceLike & {
   id: string;
@@ -12,7 +18,8 @@ export type FinderDevice = DeviceLike & {
 };
 
 /**
- * "Which device have you got?" — pick the brand, pick the model, get what fits.
+ * "Which device have you got?" — pick the brand, pick the model, say what you are
+ * after, get what fits.
  *
  * This replaces a typeahead. The typeahead worked, and it was still the wrong
  * shape: it looked exactly like the search box in the header, so it read as
@@ -32,6 +39,15 @@ export type FinderDevice = DeviceLike & {
  * and typing is the only way through, which is why the typeahead existed — but
  * grouped by brand the list is short, so the trade goes the other way.
  *
+ * The third select, "What are you looking for?", is the counter's next question —
+ * "a case? a screen guard?" — and it is scoped the way a counter assistant would
+ * scope it: only what the shop really has for that phone. Pick a model and it
+ * lists the categories holding something that fits that model; pick only a brand
+ * and it lists what fits any of that make's devices; pick neither and it lists
+ * everything that fits something. Accessories that fit no particular device (a
+ * power bank) are never offered here, which is the point — nobody asks what
+ * power banks fit an iPhone.
+ *
  * The whole thing is a real GET form pointed at the shop, so every result has a
  * URL a shopper can share, bookmark or reach with the back button — and it still
  * works with no JavaScript at all. That is why the model list holds every device
@@ -43,10 +59,17 @@ export function DeviceFinder({
   devices,
   activeSlug = "",
   categorySlug = "",
+  categories = [],
+  fitting = {},
 }: {
   devices: readonly FinderDevice[];
   activeSlug?: string;
+  /** The category the shop is already filtered by, if any. */
   categorySlug?: string;
+  /** The category tree, so the third select can name and order what it offers. */
+  categories?: readonly FittingNode[];
+  /** Per device, the categories that hold something fitting it. */
+  fitting?: CategoriesByDevice;
 }) {
   const router = useRouter();
   const fieldId = useId();
@@ -56,6 +79,7 @@ export function DeviceFinder({
   const [choice, setChoice] = useState(() => ({
     brand: active?.brandName ?? "",
     slug: active?.slug ?? "",
+    category: categorySlug,
   }));
   /**
    * Navigating between two devices re-renders this component rather than
@@ -64,10 +88,15 @@ export function DeviceFinder({
    * way to adjust state to a changed prop — is what keeps the selects agreeing
    * with the URL.
    */
-  const [renderedFor, setRenderedFor] = useState(activeSlug);
-  if (renderedFor !== activeSlug) {
-    setRenderedFor(activeSlug);
-    setChoice({ brand: active?.brandName ?? "", slug: active?.slug ?? "" });
+  const renderedKey = `${activeSlug}|${categorySlug}`;
+  const [renderedFor, setRenderedFor] = useState(renderedKey);
+  if (renderedFor !== renderedKey) {
+    setRenderedFor(renderedKey);
+    setChoice({
+      brand: active?.brandName ?? "",
+      slug: active?.slug ?? "",
+      category: categorySlug,
+    });
   }
 
   /**
@@ -109,14 +138,72 @@ export function DeviceFinder({
     return named.length === 0 ? [[null, models]] : [...groups];
   };
 
+  /**
+   * What the third select offers for a given brand and model.
+   *
+   * A model narrows it to that device; a brand alone to every device of that
+   * make; neither to everything that fits anything. Taking the scope as arguments
+   * rather than reading `choice` lets the change handlers ask what the *next*
+   * state would offer, to drop a category the new scope cannot supply.
+   */
+  const optionsFor = (brand: string, slug: string) => {
+    const scope =
+      slug !== ""
+        ? [slug]
+        : devices.filter((device) => brand === "" || device.brandName === brand).map((d) => d.slug);
+    return categoriesFittingDevices(categories, fitting, scope);
+  };
+
+  const categoryNames = new Map(
+    categories.flatMap((section) => [
+      [section.slug, section.name] as const,
+      ...section.children.map((child) => [child.slug, child.name] as const),
+    ]),
+  );
+
+  /**
+   * A category the new scope cannot supply would filter the shop to nothing, so it
+   * is dropped when the device or make changes.
+   *
+   * Only where the third select is actually in play, though: if nothing is filed
+   * against any device there is no select to have changed, and a category the
+   * finder was never given the means to judge belongs to somebody else. Both keep
+   * what the shopper arrived with.
+   */
+  const judgesCategories =
+    categoriesFittingDevices(
+      categories,
+      fitting,
+      devices.map((device) => device.slug),
+    ).length > 0;
+  const keepCategory = (brand: string, slug: string, category: string) =>
+    category === "" ||
+    !judgesCategories ||
+    !categoryNames.has(category) ||
+    optionsContain(optionsFor(brand, slug), category)
+      ? category
+      : "";
+
   if (devices.length === 0) return null;
+
+  const options = optionsFor(choice.brand, choice.slug);
+  /**
+   * A shopper can arrive already filtered to a category that fits no named
+   * device — a lanyard, say. It is shown as chosen rather than silently swapped
+   * for "everything", or pressing the button would drop the filter they came with.
+   */
+  const carriedName =
+    choice.category !== "" && !optionsContain(options, choice.category)
+      ? (categoryNames.get(choice.category) ?? null)
+      : null;
+  const activeCategoryName = categorySlug === "" ? null : (categoryNames.get(categorySlug) ?? null);
 
   const shownGroups =
     choice.brand === "" ? byBrand : byBrand.filter(([brandName]) => brandName === choice.brand);
 
-  const shopHref = (slug: string) => {
+  const shopHref = (slug: string, category: string) => {
     const query = new URLSearchParams();
-    if (categorySlug) query.set("category", categorySlug);
+    if (category) query.set("category", category);
     if (slug) query.set("device", slug);
     const suffix = query.toString();
     return suffix ? `/shop?${suffix}` : "/shop";
@@ -130,7 +217,7 @@ export function DeviceFinder({
       // what happens where there is not. Both land on the same URL.
       onSubmit={(event) => {
         event.preventDefault();
-        router.push(shopHref(choice.slug));
+        router.push(shopHref(choice.slug, choice.category));
       }}
       /*
         Square, and centred on whatever page it sits on.
@@ -152,9 +239,12 @@ export function DeviceFinder({
         Find what fits your device
       </p>
 
-      {/* The category a shopper was already browsing is carried through, so the
-          finder narrows what they were looking at rather than resetting it. */}
-      {categorySlug ? <input type="hidden" name="category" value={categorySlug} /> : null}
+      {/* Where there is nothing to choose between, the category a shopper was
+          already browsing is still carried through, so the finder narrows what
+          they were looking at rather than resetting it. */}
+      {options.length === 0 && carriedName === null && choice.category !== "" ? (
+        <input type="hidden" name="category" value={choice.category} />
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -170,7 +260,13 @@ export function DeviceFinder({
           <select
             id={`${fieldId}-brand`}
             value={choice.brand}
-            onChange={(event) => setChoice({ brand: event.target.value, slug: "" })}
+            onChange={(event) =>
+              setChoice((current) => ({
+                brand: event.target.value,
+                slug: "",
+                category: keepCategory(event.target.value, "", current.category),
+              }))
+            }
             className="field field-square min-h-11 w-full"
           >
             <option value="">All brands</option>
@@ -191,7 +287,13 @@ export function DeviceFinder({
             name="device"
             required
             value={choice.slug}
-            onChange={(event) => setChoice((current) => ({ ...current, slug: event.target.value }))}
+            onChange={(event) =>
+              setChoice((current) => ({
+                ...current,
+                slug: event.target.value,
+                category: keepCategory(current.brand, event.target.value, current.category),
+              }))
+            }
             className="field field-square min-h-11 w-full"
           >
             <option value="">Choose your model</option>
@@ -220,12 +322,48 @@ export function DeviceFinder({
         </div>
       </div>
 
+      {options.length > 0 || carriedName !== null ? (
+        <div>
+          <label htmlFor={`${fieldId}-category`} className="label">
+            What are you looking for?
+          </label>
+          <select
+            id={`${fieldId}-category`}
+            name="category"
+            value={choice.category}
+            onChange={(event) =>
+              setChoice((current) => ({ ...current, category: event.target.value }))
+            }
+            className="field field-square min-h-11 w-full"
+          >
+            <option value="">Everything that fits</option>
+            {options.map((option) =>
+              option.children.length === 0 ? (
+                <option key={option.slug} value={option.slug}>
+                  {option.name}
+                </option>
+              ) : (
+                <optgroup key={option.slug} label={option.name}>
+                  <option value={option.slug}>All {option.name}</option>
+                  {option.children.map((child) => (
+                    <option key={child.slug} value={child.slug}>
+                      {child.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ),
+            )}
+            {carriedName !== null ? <option value={choice.category}>{carriedName}</option> : null}
+          </select>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-center gap-4">
         <button type="submit" className="button-primary button-square">
           Show what fits
         </button>
         {active !== null ? (
-          <a href={shopHref("")} className="text-sm font-bold text-(--pv-red)">
+          <a href={shopHref("", categorySlug)} className="text-sm font-bold text-(--pv-red)">
             Show everything
           </a>
         ) : null}
@@ -233,7 +371,8 @@ export function DeviceFinder({
 
       {active !== null ? (
         <p className="help text-center" role="status">
-          Showing what fits your {active.brandName} {active.name}.
+          Showing what fits your {active.brandName} {active.name}
+          {activeCategoryName === null ? "" : ` — ${activeCategoryName}`}.
         </p>
       ) : null}
     </form>

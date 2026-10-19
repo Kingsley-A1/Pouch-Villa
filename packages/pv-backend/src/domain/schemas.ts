@@ -17,6 +17,32 @@ export const adminSearchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(20).default(12),
 });
 
+/**
+ * `GET /api/v1/products`. Every filter is optional and an empty value means "not
+ * filtered", so a form that submits a blank select behaves like one that omitted
+ * it.
+ *
+ * `limit` is capped at the service's own maximum rather than trusted: the service
+ * clamps too, but a request asking for 10 000 rows should be told no, not
+ * silently handed 100.
+ */
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((value) => (value === "" ? undefined : value));
+
+export const productListQuerySchema = z.object({
+  category: optionalText(120),
+  brand: optionalText(120),
+  device: optionalText(120),
+  q: optionalText(120),
+  cursor: optionalText(400),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 export const passwordSchema = z
   .string()
   .min(MINIMUM_PASSWORD_LENGTH, `At least ${MINIMUM_PASSWORD_LENGTH} characters`);

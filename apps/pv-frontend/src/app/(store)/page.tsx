@@ -3,7 +3,9 @@ import Image from "next/image";
 import {
   listPublishedProducts,
   listTopCategoryCards,
+  listCategoryTree,
   listDevices,
+  listFittingCategoriesByDevice,
 } from "@pv/backend/services/catalogue";
 import { listHomeSections } from "@pv/backend/services/home-sections";
 import { listHeroSlides } from "@pv/backend/services/hero-slides";
@@ -40,21 +42,30 @@ export const dynamic = "force-dynamic";
 const DEFAULT_HEADLINE = "Pouches and gadget accessories that fit your phone.";
 
 export default async function HomePage() {
-  const [{ products: latest }, categories, devices, sections, slides, settings] = await Promise.all(
-    [
-      listPublishedProducts({ limit: 8 }),
-      listTopCategoryCards(),
-      listDevices(),
-      listHomeSections(),
-      listHeroSlides(),
-      readSettings([
-        "store.address",
-        "store.opening_hours",
-        "store.hero_headline",
-        "store.hero_subtitle",
-      ]),
-    ],
-  );
+  const [
+    { products: latest },
+    categories,
+    devices,
+    categoryTree,
+    fitting,
+    sections,
+    slides,
+    settings,
+  ] = await Promise.all([
+    listPublishedProducts({ limit: 8 }),
+    listTopCategoryCards(),
+    listDevices(),
+    listCategoryTree(),
+    listFittingCategoriesByDevice(),
+    listHomeSections(),
+    listHeroSlides(),
+    readSettings([
+      "store.address",
+      "store.opening_hours",
+      "store.hero_headline",
+      "store.hero_subtitle",
+    ]),
+  ]);
 
   const address = pick(settings, "store.address");
   const hours = pick(settings, "store.opening_hours");
@@ -177,7 +188,7 @@ export default async function HomePage() {
             to disagree about it.
           */}
           <div className="container-shell">
-            <DeviceFinder devices={devices} />
+            <DeviceFinder devices={devices} categories={categoryTree} fitting={fitting} />
           </div>
         </section>
       ) : null}
