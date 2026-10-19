@@ -6,15 +6,29 @@ import { cn } from "@/lib/utils";
  * Two tiers, flattened into one scrollable row of links. Links rather than a
  * dropdown so each filter is a real URL — shareable, back-button friendly, and
  * indexable.
+ *
+ * The device a shopper named is carried into every link. Choosing a different
+ * category is a narrowing of what fits their phone, not a fresh start — dropping
+ * the device on a tap makes them name it again.
  */
 export function CategoryFilter({
   categories,
   activeSlug,
+  deviceSlug = "",
 }: {
   categories: CategoryNode[];
   activeSlug?: string;
+  deviceSlug?: string;
 }) {
   if (categories.length === 0) return null;
+
+  const hrefFor = (categorySlug: string) => {
+    const query = new URLSearchParams();
+    if (categorySlug) query.set("category", categorySlug);
+    if (deviceSlug) query.set("device", deviceSlug);
+    const suffix = query.toString();
+    return suffix ? `/shop?${suffix}` : "/shop";
+  };
 
   const entries = categories.flatMap((parent) => [parent, ...parent.children]);
 
@@ -37,16 +51,13 @@ export function CategoryFilter({
     <nav aria-label="Filter by category" className="bleed-gutter mt-6 mb-2 overflow-x-auto pb-3">
       <ul className="flex w-max gap-2">
         <li>
-          <FilterLink href="/shop" active={!activeSlug}>
+          <FilterLink href={hrefFor("")} active={!activeSlug}>
             All
           </FilterLink>
         </li>
         {entries.map((category) => (
           <li key={category.id}>
-            <FilterLink
-              href={`/shop?category=${category.slug}`}
-              active={activeSlug === category.slug}
-            >
+            <FilterLink href={hrefFor(category.slug)} active={activeSlug === category.slug}>
               {category.name}
             </FilterLink>
           </li>

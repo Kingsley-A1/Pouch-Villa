@@ -89,4 +89,31 @@ describe("category filter", () => {
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
   });
+
+  /**
+   * Choosing a category is narrowing what fits the phone a shopper named, not a
+   * fresh start. A pill that dropped the device made them pick it again.
+   */
+  it("carries the chosen device into every pill", () => {
+    render(<CategoryFilter categories={categories} activeSlug="pouches" deviceSlug="iphone-15" />);
+
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute(
+      "href",
+      "/shop?device=iphone-15",
+    );
+    expect(screen.getByRole("link", { name: "Protective" })).toHaveAttribute(
+      "href",
+      "/shop?category=protective&device=iphone-15",
+    );
+  });
+
+  it("links to the plain shop and category when no device was named", () => {
+    render(<CategoryFilter categories={categories} />);
+
+    expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("href", "/shop");
+    expect(screen.getByRole("link", { name: "Pouches" })).toHaveAttribute(
+      "href",
+      "/shop?category=pouches",
+    );
+  });
 });

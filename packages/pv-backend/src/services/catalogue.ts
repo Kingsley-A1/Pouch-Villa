@@ -1,6 +1,8 @@
 import { query, queryOne } from "../db/client";
 import { axesFromPairs, VARIANT_AXES_SELECT, type VariantAxisPairs } from "../db/variant-axes";
 import { kobo, type Kobo } from "../domain/money";
+import type { CategoriesByDevice } from "../domain/device-categories";
+import { decodeProductCursor, encodeProductCursor } from "../domain/product-cursor";
 import { isStorageConfigured } from "../storage/r2";
 import { urlsForHash } from "./media-urls";
 import {
@@ -101,6 +103,8 @@ type ProductRow = {
   image_width: string | null;
   image_height: string | null;
   image_hash: string | null;
+  /** The timestamp the list is ordered by, as text so no precision is lost to a JS Date. */
+  sort_at: string;
 };
 
 /**
@@ -157,12 +161,20 @@ function toProduct(row: ProductRow): Omit<CatalogueProduct, "images" | "variants
 }
 
 /**
+ * When a product joined the shop. `published_at` is null on a product that was
+ * published before that column was filled in, so those fall back to creation
+ * rather than sorting to an end of the list nobody scrolls to.
+ */
+const NEWEST_FIRST = "coalesce(p.published_at, p.created_at)";
+
+/**
  * Stock is summed from the ledger rather than read from a counter, so the number
  * is always derivable from history and never drifts.
  */
 const PRODUCT_SELECT = `
   SELECT p.id, p.slug, p.name, p.description, p.status,
          b.name AS brand_name, b.slug AS brand_slug,
+         ${NEWEST_FIRST}::STRING AS sort_at,
          (SELECT min(v.price_kobo)::STRING
             FROM product_variant v
            WHERE v.product_id = p.id AND v.deleted_at IS NULL AND v.is_active) AS from_kobo,
@@ -213,14 +225,29 @@ export type ProductListFilters = {
   search?: string;
   limit?: number;
   cursor?: string;
+  /**
+   * Also count every match. Off by default: the home page and the curated
+   * sections never show a total, and a count is a second query on the
+   * busiest page in the shop.
+   */
+  withTotal?: boolean;
 };
 
+export class InvalidProductCursorError extends Error {
+  constructor() {
+    super("That page of results is no longer valid. Reload the list and try again.");
+    this.name = "InvalidProductCursorError";
+  }
+}
+
 /**
- * Cursor pagination on `(published_at, id)`. Offset pagination shifts under a
- * concurrent insert and re-shows or skips a row; a cursor cannot.
+ * The WHERE clause shared by the list and its count, so the "of 137" a shopper is
+ * told can never disagree with the products they can page through.
+ *
+ * Only values go in `values`; nothing a caller supplies is ever interpolated into
+ * the SQL text (AGENTS.md §5).
  */
-export async function listPublishedProducts(filters: ProductListFilters = {}) {
-  const limit = Math.min(filters.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+function productFilter(filters: ProductListFilters, search: string) {
   const conditions = ["p.deleted_at IS NULL", "p.status = 'published'"];
   const values: unknown[] = [];
 
@@ -250,10 +277,8 @@ export async function listPublishedProducts(filters: ProductListFilters = {}) {
   /**
    * Full text first, trigram second. The `@@` arm answers "these words appear",
    * the `%` arm catches a misspelling the tokeniser would never match, and the
-   * ranking below orders by both together. Results are ordered by relevance, so
-   * cursor pagination does not apply to a search.
+   * ranking orders by both together.
    */
-  const search = filters.search?.trim();
   let term = "";
   if (search) {
     values.push(search);
@@ -263,29 +288,93 @@ export async function listPublishedProducts(filters: ProductListFilters = {}) {
         OR similarity(p.name, ${term}) >= ${FUZZY_THRESHOLD})`,
     );
   }
+  return { conditions, values, term };
+}
 
-  // A search is ordered by relevance, so an id cursor would be meaningless.
-  if (filters.cursor && !search) {
-    values.push(filters.cursor);
-    conditions.push(`p.id > $${values.length}`);
+/**
+ * One page of the published catalogue, and — on request — how many products match
+ * in all.
+ *
+ * Browse is newest first, paged by keyset on `(published_at, id)`: offset paging
+ * shifts under a concurrent publish and re-shows or skips a row; a keyset
+ * cannot. Search is ordered by relevance and pages by offset — see
+ * `domain/product-cursor`. A cursor from the other kind of list is refused rather
+ * than guessed at.
+ */
+export async function listPublishedProducts(filters: ProductListFilters = {}) {
+  const limit = Math.min(Math.max(filters.limit ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const search = filters.search?.trim() ?? "";
+  const { conditions, values, term } = productFilter(filters, search);
+  const where = conditions.join(" AND ");
+
+  const cursor = filters.cursor ? decodeProductCursor(filters.cursor) : null;
+  if (filters.cursor && (cursor === null || (cursor.kind === "search") !== Boolean(search))) {
+    throw new InvalidProductCursorError();
+  }
+
+  // The count must not see the cursor: it answers "how many in all", not "how
+  // many remain". It takes the parameters as they are before the page adds its own.
+  const countValues = [...values];
+  const pageConditions = [...conditions];
+  let offset = 0;
+
+  if (cursor?.kind === "browse") {
+    values.push(cursor.sortedAt, cursor.id);
+    const at = `$${values.length - 1}::TIMESTAMPTZ`;
+    pageConditions.push(
+      `(${NEWEST_FIRST} < ${at} OR (${NEWEST_FIRST} = ${at} AND p.id > $${values.length}::UUID))`,
+    );
+  } else if (cursor?.kind === "search") {
+    offset = cursor.offset;
   }
 
   const order = search
     ? `ORDER BY (ts_rank(p.search_vector, plainto_tsquery('english', ${term}))
                  + similarity(p.name, ${term})) DESC, p.id`
-    : "ORDER BY p.id";
+    : `ORDER BY ${NEWEST_FIRST} DESC, p.id`;
 
   values.push(limit + 1);
-  const rows = await query<ProductRow>(
-    `${PRODUCT_SELECT} WHERE ${conditions.join(" AND ")} ${order} LIMIT $${values.length}`,
-    values,
-  );
+  const limitParam = `$${values.length}`;
+  let offsetClause = "";
+  if (offset > 0) {
+    values.push(offset);
+    offsetClause = `OFFSET $${values.length}`;
+  }
 
-  const page = rows.slice(0, limit).map(toListItem);
+  const [rows, counted] = await Promise.all([
+    query<ProductRow>(
+      `${PRODUCT_SELECT} WHERE ${pageConditions.join(" AND ")} ${order}
+        LIMIT ${limitParam} ${offsetClause}`,
+      values,
+    ),
+    filters.withTotal
+      ? queryOne<{ total: string }>(
+          `SELECT count(*)::STRING AS total
+             FROM product p LEFT JOIN brand b ON b.id = p.brand_id
+            WHERE ${where}`,
+          countValues,
+        )
+      : Promise.resolve(null),
+  ]);
+
+  const pageRows = rows.slice(0, limit);
+  const last = pageRows[pageRows.length - 1];
+  const hasMore = rows.length > limit && last !== undefined;
+
+  let nextCursor: string | null = null;
+  if (hasMore) {
+    nextCursor = encodeProductCursor(
+      search
+        ? { kind: "search", offset: offset + limit }
+        : { kind: "browse", sortedAt: last.sort_at, id: last.id },
+    );
+  }
+
   return {
-    products: page,
-    // Relevance order is not a stable cursor key, so a search returns one page.
-    nextCursor: search || rows.length <= limit ? null : (page[page.length - 1]?.id ?? null),
+    products: pageRows.map(toListItem),
+    nextCursor,
+    /** Every match across all pages, or `null` where `withTotal` was not asked for. */
+    total: counted === null ? null : Number(counted?.total ?? 0),
   };
 }
 
@@ -928,6 +1017,43 @@ export async function getBrandBySlug(
     "SELECT id, slug, name FROM brand WHERE slug = $1 AND deleted_at IS NULL AND is_active",
     [slug],
   );
+}
+
+/**
+ * For every device, the categories that hold a published product fitting it.
+ *
+ * Feeds the "What are you looking for?" step of the device finder, which may only
+ * offer what the shop really stocks for the phone a shopper named. One query for
+ * the whole map rather than one per device: the finder filters it in the browser
+ * as the shopper changes their mind, so a request per tap would be a request a
+ * mobile connection can drop.
+ *
+ * Accessories that fit no particular device (a power bank) have no compatibility
+ * rows by design — ADR 0018 — so they are never in this map, which is exactly why
+ * a shopper who named an iPhone is not offered one.
+ *
+ * Bounded at devices × categories, which is a few thousand rows at the outside;
+ * the cap is a backstop, not a limit the shop is expected to meet.
+ */
+export async function listFittingCategoriesByDevice(): Promise<CategoriesByDevice> {
+  const rows = await query<{ device_slug: string; category_slug: string }>(
+    `SELECT DISTINCT d.slug AS device_slug, c.slug AS category_slug
+       FROM product_compatibility pcm
+       JOIN device d ON d.id = pcm.device_id
+       JOIN product p ON p.id = pcm.product_id
+        AND p.deleted_at IS NULL AND p.status = 'published'
+       JOIN product_category pc ON pc.product_id = p.id
+       JOIN category c ON c.id = pc.category_id AND c.deleted_at IS NULL AND c.is_active
+      LIMIT 20000`,
+  );
+
+  const byDevice: Record<string, string[]> = {};
+  for (const row of rows) {
+    const existing = byDevice[row.device_slug];
+    if (existing === undefined) byDevice[row.device_slug] = [row.category_slug];
+    else existing.push(row.category_slug);
+  }
+  return byDevice;
 }
 
 /**

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, DeviceMobile } from "@phosphor-icons/react/dist/ssr";
 import { listDevices, listPublishedProducts } from "@pv/backend/services/catalogue";
 import { findDeviceInPhrase } from "@pv/backend/domain/device-match";
-import { ProductGrid } from "@/components/product-grid";
+import { ProductFeed } from "@/components/product-feed";
 import { likeSummaryFor } from "@/server/product-likes";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { toSingle } from "@/lib/utils";
@@ -35,8 +35,10 @@ export default async function SearchPage({
    * as well, and when one is found the shopper is offered the filtered shop
    * alongside the ordinary results rather than being left with none.
    */
-  const [{ products }, devices] = await Promise.all([
-    term ? listPublishedProducts({ search: term }) : Promise.resolve({ products: [] }),
+  const [{ products, nextCursor, total }, devices] = await Promise.all([
+    term
+      ? listPublishedProducts({ search: term, withTotal: true })
+      : Promise.resolve({ products: [], nextCursor: null, total: 0 }),
     term ? listDevices() : Promise.resolve([]),
   ]);
   const device = term ? findDeviceInPhrase(term, devices) : null;
@@ -82,9 +84,15 @@ export default async function SearchPage({
 
           <div className="mt-8">
             {term ? (
-              <ProductGrid
-                products={products}
-                likes={likes}
+              <ProductFeed
+                key={term}
+                initial={{
+                  products,
+                  nextCursor,
+                  total: total ?? products.length,
+                  likes: Object.fromEntries(likes),
+                }}
+                filters={{ q: term }}
                 emptyMessage={
                   device === null
                     ? `Nothing matched “${term}”.`

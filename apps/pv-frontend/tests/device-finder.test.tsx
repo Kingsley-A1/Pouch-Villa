@@ -166,6 +166,166 @@ describe("device finder", () => {
     });
   });
 
+  /**
+   * "What are you looking for?" — only what the shop has for the phone named.
+   *
+   * A shopper who picks an iPhone and is offered power banks has been sent down
+   * a path that ends on an empty shelf. The offered list is therefore scoped to
+   * what is filed against the chosen device, its make, or — with neither chosen
+   * — anything that fits something.
+   */
+  describe("what are you looking for", () => {
+    const leaf = (slug: string, name: string) => ({ slug, name, children: [] });
+    const tree = [
+      {
+        slug: "cases",
+        name: "Cases",
+        children: [leaf("clear", "Clear"), leaf("rugged", "Rugged")],
+      },
+      leaf("guards", "Screen Guards"),
+      { slug: "power", name: "Power", children: [leaf("banks", "Power Banks")] },
+    ];
+    // Power Banks fit no device by design, so no device lists them.
+    const fitting = {
+      "iphone-13": ["cases", "clear", "guards"],
+      "iphone-13-pro": ["cases", "rugged"],
+      "galaxy-a54": ["guards"],
+    };
+    const finder = (extra: Partial<React.ComponentProps<typeof DeviceFinder>> = {}) =>
+      render(<DeviceFinder devices={devices} categories={tree} fitting={fitting} {...extra} />);
+
+    const offered = () =>
+      [...screen.getByLabelText("What are you looking for?").querySelectorAll("option")].map(
+        (option) => option.textContent,
+      );
+
+    it("is asked after the model, and says what it is asking", () => {
+      finder();
+      expect(screen.getByLabelText("What are you looking for?")).toBeVisible();
+    });
+
+    it("offers only the categories that fit the chosen model", () => {
+      finder();
+      choose("Brand", "Samsung");
+      choose("Model", "galaxy-a54");
+
+      expect(offered()).toEqual(["Everything that fits", "Screen Guards"]);
+    });
+
+    it("lists a section's types under it, and only the ones that fit", () => {
+      finder();
+      choose("Brand", "Apple");
+      choose("Model", "iphone-13");
+
+      expect(offered()).toEqual(["Everything that fits", "All Cases", "Clear", "Screen Guards"]);
+    });
+
+    it("offers what fits any of the make's devices when no model is chosen yet", () => {
+      finder();
+      choose("Brand", "Apple");
+
+      expect(offered()).toEqual([
+        "Everything that fits",
+        "All Cases",
+        "Clear",
+        "Rugged",
+        "Screen Guards",
+      ]);
+    });
+
+    it("never offers a category no device fits", () => {
+      finder();
+      expect(offered()).not.toContain("Power Banks");
+      expect(offered()).not.toContain("Power");
+    });
+
+    it("sends the shopper to the device and the thing they asked for", () => {
+      finder();
+      choose("Brand", "Apple");
+      choose("Model", "iphone-13");
+      choose("What are you looking for?", "clear");
+      find();
+
+      expect(push).toHaveBeenCalledWith("/shop?category=clear&device=iphone-13");
+    });
+
+    it("lets a shopper ask for everything that fits", () => {
+      finder();
+      choose("Model", "iphone-13");
+      find();
+
+      expect(push).toHaveBeenCalledWith("/shop?device=iphone-13");
+    });
+
+    it("drops a choice the new device cannot supply instead of filtering to nothing", () => {
+      finder();
+      choose("Model", "iphone-13");
+      choose("What are you looking for?", "clear");
+      choose("Brand", "Samsung");
+      choose("Model", "galaxy-a54");
+
+      expect(screen.getByLabelText("What are you looking for?")).toHaveValue("");
+      find();
+      expect(push).toHaveBeenCalledWith("/shop?device=galaxy-a54");
+    });
+
+    it("keeps a choice the new device can also supply", () => {
+      finder();
+      choose("Model", "iphone-13");
+      choose("What are you looking for?", "cases");
+      choose("Model", "iphone-13-pro");
+
+      expect(screen.getByLabelText("What are you looking for?")).toHaveValue("cases");
+    });
+
+    it("starts on the category the URL is already filtered by", () => {
+      finder({ activeSlug: "iphone-13", categorySlug: "clear" });
+      expect(screen.getByLabelText("What are you looking for?")).toHaveValue("clear");
+    });
+
+    it("shows a category carried in from a pill that fits no device, rather than dropping it", () => {
+      const lanyards = [...tree, leaf("lanyards", "Lanyards")];
+      render(
+        <DeviceFinder
+          devices={devices}
+          categories={lanyards}
+          fitting={fitting}
+          categorySlug="lanyards"
+        />,
+      );
+      expect(screen.getByLabelText("What are you looking for?")).toHaveValue("lanyards");
+
+      choose("Model", "iphone-13-pro");
+      choose("Brand", "Apple");
+      // The model change reset it: the lanyard fits no named device.
+      expect(screen.getByLabelText("What are you looking for?")).toHaveValue("");
+    });
+
+    it("says which category as well as which device is filtering", () => {
+      finder({ activeSlug: "iphone-13", categorySlug: "clear" });
+      expect(screen.getByText(/Showing what fits your Apple iPhone 13 — Clear/)).toBeVisible();
+    });
+
+    /** A shop that has filed nothing against any device must not show an empty step. */
+    it("renders no third select where nothing is filed against a device", () => {
+      render(<DeviceFinder devices={devices} categories={tree} fitting={{}} />);
+      expect(screen.queryByLabelText("What are you looking for?")).toBeNull();
+    });
+
+    it("has no automated accessibility violations", async () => {
+      render(
+        <main>
+          <h1>Shop</h1>
+          <DeviceFinder devices={devices} categories={tree} fitting={fitting} />
+        </main>,
+      );
+      const result = await axe.run(document.body, {
+        rules: { "color-contrast": { enabled: false } },
+      });
+      expect(result.violations).toEqual([]);
+    });
+  });
+
   it("has no automated accessibility violations", async () => {
     render(
       <main>
