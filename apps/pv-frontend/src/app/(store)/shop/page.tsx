@@ -11,6 +11,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CategoryFilter } from "@/components/category-filter";
 import { DeviceFinder } from "@/components/device-finder";
 import { toSingle } from "@/lib/utils";
+import { isIndexable } from "@/lib/seo";
 
 /**
  * Catalogue and settings come from the database, so this renders per request.
@@ -19,7 +20,26 @@ import { toSingle } from "@/lib/utils";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Shop" };
+/**
+ * A filtered shop is a view of this page, not a page of its own: it stays out of
+ * the index and points search engines at `/shop`, so they stop spending a server
+ * render on every filter combination (November 2026). Links are still followed,
+ * so the products it lists are found.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const filtered = ["category", "brand", "device"].some((key) => toSingle(params[key]));
+  return {
+    title: "Shop",
+    alternates: { canonical: "/shop" },
+    // Where the whole site is closed to indexing, the root layout already says so.
+    ...(filtered && isIndexable ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 export default async function ShopPage({
   searchParams,

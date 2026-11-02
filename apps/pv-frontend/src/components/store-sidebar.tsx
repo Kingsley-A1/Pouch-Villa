@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/intent-link";
 import { usePathname } from "next/navigation";
 import {
   CaretDown,
