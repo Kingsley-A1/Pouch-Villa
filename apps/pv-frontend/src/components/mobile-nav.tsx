@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/intent-link";
 import { usePathname } from "next/navigation";
 import { CaretRight, List, User, X } from "@phosphor-icons/react";
 import type { BrandLink } from "@pv/backend/services/catalogue";

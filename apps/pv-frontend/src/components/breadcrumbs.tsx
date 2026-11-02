@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/intent-link";
 import { CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 export type Crumb = { label: string; href?: string };

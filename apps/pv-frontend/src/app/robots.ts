@@ -7,7 +7,31 @@ export default function robots(): MetadataRoute.Robots {
   }
 
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/admin", "/api/"] }],
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        /*
+          Besides the admin and the API: the shop's filter combinations, search
+          results, and the pages that only mean something to one signed-in
+          shopper. Every storefront page renders on the server, so a crawler
+          walking every `?category=…&device=…` pair was a server render per URL —
+          thousands in a night (November 2026), all of them variants of one page.
+          The filters' clean, indexable homes are `/browse/…`, which stay open.
+        */
+        disallow: [
+          "/admin",
+          "/api/",
+          "/shop?",
+          "/search",
+          "/cart",
+          "/checkout",
+          "/account",
+          "/orders",
+          "/track",
+        ],
+      },
+    ],
     sitemap: absoluteUrl("/sitemap.xml"),
     host: absoluteUrl("/"),
   };
