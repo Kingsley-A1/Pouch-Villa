@@ -23,7 +23,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     getBrandBySlug(brandSlug),
   ]);
   if (category === null || brand === null) return { title: "Not found" };
-  return { title: `${brand.name} ${category.name}` };
+  return {
+    title: `${brand.name} ${category.name}`,
+    alternates: { canonical: `/browse/${category.slug}/${brand.slug}` },
+  };
 }
 
 /**

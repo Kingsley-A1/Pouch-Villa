@@ -3,7 +3,10 @@ import Image from "next/image";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { PolicyPage } from "@/components/policy-page";
 
-export const metadata: Metadata = { title: "Pouch Villa" };
+export const metadata: Metadata = {
+  title: "Pouch Villa",
+  alternates: { canonical: "/about" },
+};
 
 /**
  * Read from the settings store on every request, so the client can correct their

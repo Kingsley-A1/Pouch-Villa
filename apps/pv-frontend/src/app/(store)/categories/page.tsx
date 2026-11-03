@@ -10,7 +10,10 @@ import { CategoryCard } from "@/components/category-card";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Categories" };
+export const metadata: Metadata = {
+  title: "Categories",
+  alternates: { canonical: "/categories" },
+};
 
 /**
  * Every category as a card, in one grid rather than a heading per parent with
