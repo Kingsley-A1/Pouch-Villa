@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -25,6 +26,8 @@ import { likeSummaryFor } from "@/server/product-likes";
  * published in the admin must appear immediately.
  */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /**
  * The shop's own pitch, used until the CEO writes their own in Settings.

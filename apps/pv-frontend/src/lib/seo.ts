@@ -32,9 +32,12 @@ export function absoluteUrl(path: string) {
 export const staticRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/shop", changeFrequency: "daily", priority: 0.9 },
-  { path: "/collections", changeFrequency: "weekly", priority: 0.7 },
-  { path: "/help", changeFrequency: "monthly", priority: 0.5 },
-  { path: "/visit-us", changeFrequency: "monthly", priority: 0.5 },
+  // Only routes that exist: `/collections`, `/help` and `/visit-us` were listed
+  // here and answered 404 (November 2026).
+  { path: "/categories", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/about", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/contact", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/returns", changeFrequency: "yearly", priority: 0.3 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
 ] as const;

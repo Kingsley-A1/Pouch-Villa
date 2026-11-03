@@ -32,7 +32,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: title, template: "%s | Pouch Villa" },
   description,
-  alternates: { canonical: "/" },
+  /*
+    No canonical here, and no `openGraph.url`: a page that does not set its
+    own inherits these, and "/" told search engines and link previews that
+    every product and category was a copy of the home page. Each indexable
+    page names its own address instead (November 2026).
+  */
   robots: isIndexable
     ? { index: true, follow: true, googleBot: { index: true, follow: true } }
     : { index: false, follow: false },
@@ -43,7 +48,6 @@ export const metadata: Metadata = {
     siteName: "Pouch Villa",
     title,
     description,
-    url: "/",
     locale: "en_NG",
   },
   twitter: { card: "summary_large_image", title, description },
