@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { pick, readSettings } from "@pv/backend/services/settings";
 import { PolicyPage } from "@/components/policy-page";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  alternates: { canonical: "/privacy" },
+};
 
 /**
  * Read from the settings store on every request, so the client can correct their

@@ -28,6 +28,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (product === null) return { title: "Product not found" };
   return {
     title: product.name,
+    // Its own address, so a link shared with a `?ref=` or similar folds into one URL.
+    alternates: { canonical: `/products/${product.slug}` },
     // Search engines truncate around 160 characters, so the description is cut
     // on a word boundary rather than mid-word by the crawler.
     ...(product.description ? { description: truncateAtWord(product.description, 160) } : {}),

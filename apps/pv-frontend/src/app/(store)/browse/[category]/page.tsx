@@ -19,7 +19,8 @@ type Params = { params: Promise<{ category: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const category = await getCategoryBySlug((await params).category);
-  return { title: category === null ? "Not found" : category.name };
+  if (category === null) return { title: "Not found" };
+  return { title: category.name, alternates: { canonical: `/browse/${category.slug}` } };
 }
 
 /**
