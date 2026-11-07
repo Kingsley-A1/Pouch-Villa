@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/intent-link";
 import { MagnifyingGlass, ShoppingBag, User } from "@phosphor-icons/react/dist/ssr";
 import { greetingName, initials } from "@pv/backend/domain/person-name";
 import { BrandMark } from "@/components/brand-mark";
